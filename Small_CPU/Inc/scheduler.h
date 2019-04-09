@@ -60,7 +60,6 @@ typedef struct
 	_Bool demo_mode;
 	uint8_t dataSendToSlaveIsValid;
 	uint8_t dataSendToSlavePending;
-	uint8_t dataSendToSlaveStopEval;
 	uint32_t sync_error_count;
 	uint32_t check_sync_not_running;
 	uint8_t ButtonResponsiveness[4];
@@ -70,7 +69,7 @@ typedef struct
 	uint8_t accidentFlag;
 	uint32_t accidentRemainingSeconds;
 	uint8_t sensorError[MAX_SENSORS];
-	uint8_t I2C_SystemStatus;
+	HAL_StatusTypeDef I2C_SystemStatus;
 } SGlobal;
 
 typedef struct
