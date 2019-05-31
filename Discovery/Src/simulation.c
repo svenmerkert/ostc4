@@ -37,6 +37,7 @@
 #include "decom.h"
 #include "calc_crush.h"
 #include "data_exchange.h"
+#include "data_exchange_main.h"
 #include "timer.h"
 #include "check_warning.h"
 #include "vpm.h"
@@ -51,7 +52,7 @@ static const float sim_descent_rate_meter_per_min = 20;
 
 
 //Private functions
-static float sim_get_ambiant_pressure(SDiveState * pDiveState);
+static float sim_get_ambient_pressure(SDiveState * pDiveState);
 static void sim_reduce_deco_time_one_second(SDiveState* pDiveState);
 static void simulation_set_aim_depth(int depth_meter);
 
@@ -157,12 +158,7 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     pDiveState->lifeData.sensorVoltage_mV[2] = stateRealGetPointer()->lifeData.sensorVoltage_mV[2];
 
     pDiveState->lifeData.dive_time_seconds += 1;
-    pDiveState->lifeData.pressure_ambient_bar = sim_get_ambiant_pressure(pDiveState);
-
-    if(!is_ambient_pressure_close_to_surface(&pDiveState->lifeData) && !(stateSimGetPointer()->lifeData.counterSecondsShallowDepth) )
-    {
-        pDiveState->lifeData.dive_time_seconds_without_surface_time += 1;
-    }
+    pDiveState->lifeData.pressure_ambient_bar = sim_get_ambient_pressure(pDiveState);
 
     if(is_ambient_pressure_close_to_surface(&pDiveState->lifeData)) // new hw 170214
     {
@@ -185,6 +181,11 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
         pDiveState->lifeData.counterSecondsShallowDepth = 0;
     }
 
+    if(!is_ambient_pressure_close_to_surface(&pDiveState->lifeData) && !(stateSimGetPointer()->lifeData.counterSecondsShallowDepth) )
+    {
+    	pDiveState->lifeData.dive_time_seconds_without_surface_time += 1;
+    }
+
     pDiveState->lifeData.depth_meter = (pDiveState->lifeData.pressure_ambient_bar - pDiveState->lifeData.pressure_surface_bar) * 10.0f;
     if(pDiveState->lifeData.max_depth_meter < pDiveState->lifeData.depth_meter)
             pDiveState->lifeData.max_depth_meter = pDiveState->lifeData.depth_meter;
@@ -201,38 +202,10 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
             pDiveState->lifeData.dive_time_seconds = 0;
             pDiveState->lifeData.max_depth_meter = 0;
             pDiveState->lifeData.boolResetAverageDepth = 1;
-            pDiveState->lifeData.boolResetStopwatch = 1;
         }
     }
 
-    /* average depth
-     */
-    float *AvgDepthValue = &pDiveState->lifeData.average_depth_meter;
-    float	DepthNow = pDiveState->lifeData.depth_meter;
-    uint32_t *AvgDepthCount = &pDiveState->lifeData.internal.average_depth_meter_Count;
-    uint32_t *AvgDepthTimer = &pDiveState->lifeData.internal.average_depth_last_update_dive_time_seconds_without_surface_time;
-    uint32_t AvgSecondsSinceLast;
-    uint32_t DiveTime = pDiveState->lifeData.dive_time_seconds_without_surface_time;
-
-    if(pDiveState->lifeData.boolResetAverageDepth)
-    {
-        *AvgDepthValue = DepthNow;
-        *AvgDepthCount = 1;
-        *AvgDepthTimer = DiveTime;
-        pDiveState->lifeData.boolResetAverageDepth = 0;
-    }
-    else if (DiveTime > *AvgDepthTimer)
-    {
-        AvgSecondsSinceLast = DiveTime - *AvgDepthTimer;
-        for(int i=0;i<AvgSecondsSinceLast;i++)
-        {
-            *AvgDepthValue = (*AvgDepthValue * *AvgDepthCount + DepthNow) / (*AvgDepthCount + 1);
-            *AvgDepthCount += 1;
-        }
-        *AvgDepthTimer = DiveTime;
-    }
-    if(*AvgDepthCount == 0)
-        *AvgDepthValue = 0;
+    setAvgDepth(pDiveState);
 
     /* Exposure Tissues
      */
@@ -303,14 +276,14 @@ static void simulation_set_aim_depth(int depth_meter)
 
 /**
   ******************************************************************************
-  * @brief  simulates ambiant pressure depending on aim depth
+  * @brief  simulates ambient pressure depending on aim depth
   ******************************************************************************
   * @note if aim_depth != actual depth, the depth change within one second
   *       (depending on descent or ascent) rate is calculated
   * @param  SDiveState* pDiveState:
-  * @return float : new ambiant pressure
+  * @return float : new ambient pressure
   */
-static float sim_get_ambiant_pressure(SDiveState * pDiveState)
+static float sim_get_ambient_pressure(SDiveState * pDiveState)
 {
     //Calc next depth
     uint8_t actual_deco_stop = decom_get_actual_deco_stop(pDiveState);
@@ -351,7 +324,7 @@ static float sim_get_ambiant_pressure(SDiveState * pDiveState)
   * @param  SDiveState* pDiveState:
   * @return void
   */
-void sim_reduce_deco_time_one_second(SDiveState* pDiveState)
+static void sim_reduce_deco_time_one_second(SDiveState* pDiveState)
 {
     SDecoinfo* pDecoinfo;
     if(pDiveState->diveSettings.deco_type.ub.standard == GF_MODE)
