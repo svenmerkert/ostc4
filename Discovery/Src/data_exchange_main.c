@@ -860,7 +860,6 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 			//Init dive Mode
 			decoLock = DECO_CALC_init_as_is_start_of_dive;
 			pStateReal->lifeData.boolResetAverageDepth = 1;
-			pStateReal->lifeData.boolResetStopwatch = 1;
 		}
 
 		pStateReal->lifeData.cns = dataIn.data[dataIn.boolToxicData].cns;
@@ -890,14 +889,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		pStateReal->mode = dataIn.mode;
 		pStateReal->chargeStatus = dataIn.chargeStatus;
 	
-		if(is_ambient_pressure_close_to_surface(&pStateReal->lifeData))
-		{
-			pStateReal->lifeData.depth_meter = 0;
-		}
-		else
-		{
-			pStateReal->lifeData.depth_meter = meter;
-		}
+		pStateReal->lifeData.depth_meter = meter;
 
 		pStateReal->lifeData.temperature_celsius = getTemperature(&dataIn);
 		pStateReal->lifeData.ascent_rate_meter_per_min = dataIn.data[dataIn.boolPressureData].ascent_rate_meter_per_min;
@@ -999,48 +991,40 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		// reset max_depth_meter, average_depth_meter and internal values
 			pStateReal->lifeData.max_depth_meter = 0;
 			pStateReal->lifeData.boolResetAverageDepth = 1;
-			pStateReal->lifeData.boolResetStopwatch = 1;
 		}
 	}
 
-	/* average depth 
-	 */
+	setAvgDepth(pStateReal);
+}
+
+void setAvgDepth(SDiveState *pStateReal) {
+
 	float *AvgDepthValue = &pStateReal->lifeData.average_depth_meter;
 	float	DepthNow = pStateReal->lifeData.depth_meter; 
-	uint32_t *AvgDepthCount = &pStateReal->lifeData.internal.average_depth_meter_Count;
-	uint32_t *AvgDepthTimer = &pStateReal->lifeData.internal.average_depth_last_update_dive_time_seconds_without_surface_time;
+	static uint32_t AvgDepthCount = 0;
+	static uint32_t AvgDepthTimer = 0;
 	uint32_t AvgSecondsSinceLast;
 	uint32_t DiveTime = pStateReal->lifeData.dive_time_seconds_without_surface_time;
-	
+
 	if(pStateReal->lifeData.boolResetAverageDepth)
 	{
 		*AvgDepthValue = DepthNow;
-		*AvgDepthCount = 1;
-		*AvgDepthTimer = DiveTime;
+		AvgDepthCount = 0;
+		AvgDepthTimer = DiveTime;
 		pStateReal->lifeData.boolResetAverageDepth = 0;
 	}
-	else if (DiveTime > *AvgDepthTimer)
+	else if (DiveTime > AvgDepthTimer)
 	{
-		AvgSecondsSinceLast = DiveTime - *AvgDepthTimer;
+		AvgSecondsSinceLast = DiveTime - AvgDepthTimer;
 		for(int i=0;i<AvgSecondsSinceLast;i++)
 		{
-			*AvgDepthValue = (*AvgDepthValue * *AvgDepthCount + DepthNow) / (*AvgDepthCount + 1);
-			*AvgDepthCount += 1;
+			*AvgDepthValue = (*AvgDepthValue * AvgDepthCount + DepthNow) / (AvgDepthCount + 1);
+			AvgDepthCount += 1;
 		}
-		*AvgDepthTimer = DiveTime;
+		AvgDepthTimer = DiveTime;
 	}
-	if(*AvgDepthCount == 0)
-		*AvgDepthValue = 0;
-
-
-	/* stop watch
-	 */
-	if(pStateReal->lifeData.boolResetStopwatch)
-	{
-		pStateReal->lifeData.internal.stopwatch_start_at_this_dive_time_seconds = pStateReal->lifeData.dive_time_seconds;
-		pStateReal->lifeData.boolResetStopwatch = 0;
-	}
-	pStateReal->lifeData.stopwatch_seconds = pStateReal->lifeData.dive_time_seconds - pStateReal->lifeData.internal.stopwatch_start_at_this_dive_time_seconds;
+	if(AvgDepthCount == 0)
+		*AvgDepthValue = DepthNow;
 }
 
 

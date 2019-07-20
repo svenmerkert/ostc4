@@ -85,7 +85,6 @@ void copyPICdata(void);
 static void schedule_update_timer_helper(int8_t thisSeconds);
 uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow);
 
-_Bool scheduleCheck_pressure_reached_dive_mode_level(void);
 void scheduleSetDate(SDeviceLine *line);
 
 /* Exported functions --------------------------------------------------------*/
@@ -618,10 +617,7 @@ void scheduleDiveMode(void)
 			{
 				MX_I2C1_TestAndClear();
 				MX_I2C1_Init();
-				if(!is_init_pressure_done())
-				{
-					init_pressure();
-				}
+				init_pressure();
 			}
 		}
 		if(ticksdiff >= 1000)
@@ -771,7 +767,7 @@ void scheduleSurfaceMode(void)
 				copyPressureData();
 				Scheduler.counterPressure100msec++;
 				
-				if(scheduleCheck_pressure_reached_dive_mode_level())
+				if (!is_ambient_pressure_close_to_surface(&global.lifeData))
 					global.mode = MODE_DIVE;
 		}
 		
@@ -847,14 +843,23 @@ void scheduleSurfaceMode(void)
 			copyBatteryData();
 			copyDeviceData();
 
-			// new hw 170523
+/* check if I2C is not up an running and try to reactivate if necessary. Also do initialization if problem occured during startup */
 			if(global.I2C_SystemStatus != HAL_OK)
 			{
 				MX_I2C1_TestAndClear();
 				MX_I2C1_Init();
-				if(!is_init_pressure_done())
+				if(global.I2C_SystemStatus == HAL_OK)
 				{
 					init_pressure();
+					if(is_init_pressure_done())		/* Init surface data with initial measurement */
+					{
+						init_surface_ring();
+					}
+
+					if(!battery_gas_gauge_CheckConfigOK())
+					{
+						 init_battery_gas_gauge();
+					}
 				}
 			}
 		}
@@ -998,6 +1003,17 @@ void scheduleSleepMode(void)
 		MX_I2C1_Init();
 		pressure_sensor_get_pressure_raw();
 
+/* check if I2C is not up an running and try to reactivate if necessary. Also do initialization if problem occured during startup */
+		if(global.I2C_SystemStatus != HAL_OK)
+		{
+			MX_I2C1_TestAndClear();
+			MX_I2C1_Init();
+			if(global.I2C_SystemStatus == HAL_OK)
+			{
+				init_pressure();
+			}
+		}
+
 		if(secondsCount >= 30)
 		{
 			pressure_sensor_get_temperature_raw();
@@ -1029,7 +1045,7 @@ void scheduleSleepMode(void)
 			}
 		}
 
-		if(scheduleCheck_pressure_reached_dive_mode_level())
+		if (!is_ambient_pressure_close_to_surface(&global.lifeData))
 			global.mode = MODE_BOOT;
 
 		scheduleUpdateLifeData(2000);
@@ -1045,27 +1061,6 @@ void scheduleSleepMode(void)
 
 
 /* Private functions ---------------------------------------------------------*/
-
-
-/**
-  ******************************************************************************
-	* @brief   scheduleCheck_pressure_reached_dive_mode_level
-  * @author  heinrichs weikamp gmbh
-  * @version V0.0.1 from inline code
-  * @date    09-Sept-2015
-  ******************************************************************************
-  */
-_Bool scheduleCheck_pressure_reached_dive_mode_level(void)
-{
-		if(get_pressure_mbar() > 1160)
-			return 1;
-		else
-		if((global.mode == MODE_SURFACE) && (get_pressure_mbar() > (get_surface_mbar() + 100)) && (get_surface_mbar() > 880))
-			return 1;
-		else
-			return 0;
-}
-		
 
 /**
   ******************************************************************************
@@ -1582,9 +1577,15 @@ uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow)
 }
 
 /* same as in data_central.c */
-_Bool is_ambient_pressure_close_to_surface(SLifeData *lifeDataCall)
+_Bool is_ambient_pressure_close_to_surface(SLifeData *lifeData)
 {
-	if(lifeDataCall->pressure_ambient_bar < (lifeDataCall->pressure_surface_bar + 0.1f)) // hw 161121 now 1 mter, before 0.04f
+	if(lifeData->pressure_ambient_bar == INVALID_PREASURE_VALUE)	/* as long as no valid data is available expect we are close to surface */
+	{
+		return true;
+	}
+	if (lifeData->pressure_ambient_bar > 1.16)
+		return false;
+	else if(lifeData->pressure_ambient_bar < (lifeData->pressure_surface_bar + 0.1f)) // hw 161121 now 1 mter, before 0.04f
 		return true;
 	else
 		return false;

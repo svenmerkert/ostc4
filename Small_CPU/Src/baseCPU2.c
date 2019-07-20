@@ -162,7 +162,7 @@ uint8_t hasExternalClock(void) {
 // See CPU2-RTE.ld
 const SFirmwareData cpu2_FirmwareData __attribute__(( section(".firmware_data") ))= {
 		.versionFirst = 1,
-		.versionSecond = 8,
+		.versionSecond = 9,
 		.versionThird = 0,
 		.versionBeta = 0,
 
@@ -170,8 +170,8 @@ const SFirmwareData cpu2_FirmwareData __attribute__(( section(".firmware_data") 
 		.signature = "mh",
 
 		.release_year = 19,
-		.release_month = 5,
-		.release_day = 6,
+		.release_month = 7,
+		.release_day = 1,
 		.release_sub = 0,
 
 		/* max 48 with trailing 0 */
@@ -302,19 +302,25 @@ int main(void) {
 
 /*	printf("CPU2-RTE running...\n"); */
 
+	HAL_Delay(100);
+
 	MX_I2C1_Init();
-	if (global.I2C_SystemStatus != HAL_OK) {
+	if (global.I2C_SystemStatus != HAL_OK)
+	{
 		if (MX_I2C1_TestAndClear() == GPIO_PIN_RESET) {
 			MX_I2C1_TestAndClear(); // do it a second time
 		}
 		MX_I2C1_Init();
 	}
 
+
+
 	//dangerous:	TM_OTP_Write(0,0, 0x01);
 #ifdef REGULAR_RUN
 	global.sensorError[SENSOR_PRESSURE_ID] = init_pressure();
 	global.I2C_SystemStatus = global.sensorError[SENSOR_PRESSURE_ID];
-	if (global.I2C_SystemStatus != HAL_OK) {
+	if (global.I2C_SystemStatus != HAL_OK)
+	{
 		if (MX_I2C1_TestAndClear() == GPIO_PIN_RESET) {
 			MX_I2C1_TestAndClear(); // do it a second time
 		}
@@ -325,7 +331,11 @@ int main(void) {
 
 	global.dataSendToMaster.sensorErrors =
 			global.sensorError[SENSOR_PRESSURE_ID];
-	init_surface_ring();
+
+	if(is_init_pressure_done())
+	{
+		init_surface_ring();
+	}
 	init_battery_gas_gauge();
 	HAL_Delay(10);
 	battery_gas_gauge_get_data();

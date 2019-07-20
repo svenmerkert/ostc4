@@ -206,7 +206,6 @@
 #include "display.h"
 #include "gfx_engine.h"
 #include "show_logbook.h"
-//#include "test_vpm.h"
 #include "text_multilanguage.h"
 #include "tHome.h"
 #include "tInfo.h"
@@ -215,7 +214,6 @@
 #include "tMenuEdit.h"
 #include "tMenuEditGasOC.h"
 #include "tStructure.h"
-//#include "gfx_specialeffects.h"
 #include "externLogbookFlash.h"
 #include "tComm.h"
 #include "tCCR.h"
@@ -252,34 +250,26 @@ static void TIM_DEMO_init(void);
 //#define	QUICK_SLEEP
 
 /* Private define ------------------------------------------------------------*/
-//#define BUFFER_SIZE         ((uint32_t)0x00177000)
-//#define WRITE_READ_ADDR     ((uint32_t)0x0000)
 #define REFRESH_COUNT       ((uint32_t)0x0569)   /**< for SDRAM refresh counter (90Mhz SD clock) */
 #define INVALID_BUTTON ((uint8_t) 0xFF)
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
-RTC_HandleTypeDef		RtcHandle; /* used to change time and date, no RTC is running on this MCU */
+static RTC_HandleTypeDef		RtcHandle; /* used to change time and date, no RTC is running on this MCU */
 TIM_HandleTypeDef   TimHandle; /* used in stm32f4xx_it.c too */
-TIM_HandleTypeDef   TimBacklightHandle; /* used in stm32f4xx_it.c too */
+static TIM_HandleTypeDef   TimBacklightHandle;
 #ifdef DEMOMODE
 TIM_HandleTypeDef   TimDemoHandle; /* used in stm32f4xx_it.c too */
 #endif
 
-uint8_t LastButtonPressed;
-uint32_t LastButtonPressedTick;
-uint32_t BaseTick100ms;			/* Tick at last 100ms cycle */
-
-/*
-uint32_t time_before;
-uint32_t time_between;
-uint32_t time_after;
-*/
+static uint8_t LastButtonPressed;
+static uint32_t LastButtonPressedTick;
+static uint32_t BaseTick100ms;			/* Tick at last 100ms cycle */
 
 /* SDRAM handler declaration */
-SDRAM_HandleTypeDef hsdram;
-FMC_SDRAM_TimingTypeDef SDRAM_Timing;
-FMC_SDRAM_CommandTypeDef command;
+static SDRAM_HandleTypeDef hsdram;
+static FMC_SDRAM_TimingTypeDef SDRAM_Timing;
+static FMC_SDRAM_CommandTypeDef command;
 
 /* This was used for Dual Boot */
 //FLASH_OBProgramInitTypeDef    OBInit;
@@ -287,16 +277,12 @@ FMC_SDRAM_CommandTypeDef command;
 
 /* Private variables with external access ------------------------------------*/
 
-uint32_t globalStateID = 0;
-uint8_t globalModeID = SURFMODE;
-uint32_t time_without_button_pressed_deciseconds = 0; /**< langbeschreibung (eigenes Feld) warum diese variable verwendet wird um den sleepmode zu aktivieren */
+static uint32_t globalStateID = 0;
+static uint32_t time_without_button_pressed_deciseconds = 0; /**< langbeschreibung (eigenes Feld) warum diese variable verwendet wird um den sleepmode zu aktivieren */
 uint8_t bootToBootloader = 0;	///< set  in tComm.c to install firmware updates, calls resetToFirmwareUpdate()
-//uint8_t dataEx_VPM_call = 0;
-uint8_t returnFromCommCleanUpRequest = 0; ///< use this to exit bluetooth mode and call tComm_exit()
+static uint8_t returnFromCommCleanUpRequest = 0; ///< use this to exit bluetooth mode and call tComm_exit()
 uint32_t base_tempLightLevel = 0;
-uint8_t	updateButtonsToDefault = 0;
-uint8_t	wasFirmwareUpdateCheckBattery = 0;
-
+static uint8_t	wasFirmwareUpdateCheckBattery = 0;
 static uint8_t DoDisplayRefresh = 0;	/* trigger to refresh display data */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -366,7 +352,6 @@ int main(void)
 #endif
 
     detectionState_t shakestate;
-
     set_globalState( StBoot0 );
     LastButtonPressed = 0;
 
@@ -393,22 +378,10 @@ int main(void)
     }
     //settingsGetPointer()->bluetoothActive = 0; 	/* MX_Bluetooth_PowerOff();  unnecessary as part of MX_GPIO_Init() */
     //settingsGetPointer()->compassBearing = 0;
-    set_new_settings_missing_in_ext_flash(); // inlcudes update of firmware version  161121
+    set_new_settings_missing_in_ext_flash(); // includes update of firmware version  161121
 
     GFX_init( &pLayerInvisible );
     TIM_BACKLIGHT_init();
-
-    /*
-        GFX_helper_font_memory_list(&FontT24);
-        GFX_helper_font_memory_list(&FontT42);
-        GFX_helper_font_memory_list(&FontT48);
-        GFX_helper_font_memory_list(&FontT54);
-        GFX_helper_font_memory_list(&FontT84);
-        GFX_helper_font_memory_list(&FontT105);
-        GFX_helper_font_memory_list(&FontT144);
-    */
-
-
 
     // new 170508: bluetooth on at start
     settingsGetPointer()->bluetoothActive = 1;
@@ -454,7 +427,6 @@ int main(void)
     display_power_on__2_of_2__post_RGB();
     GFX_use_colorscheme( settingsGetPointer()->tX_colorscheme );
 
-// -----------------------------
     tHome_init();
     tI_init();
     tM_init();
@@ -500,10 +472,6 @@ int main(void)
     {
         if( bootToBootloader )
             resetToFirmwareUpdate();
-
-        // this will allways reset after RTE reset -> no good!
-//		if(DataEX_was_power_on()) // new to allow for update after RTE update
-//			resetToFirmwareUpdate();
 
         tCCR_control();
         if( tComm_control() )// will stop while loop if tComm Mode started until exit from UART
@@ -953,7 +921,7 @@ static void TriggerButtonAction()
 }
 
 
-void EvaluateButton()
+static void EvaluateButton()
 {
 	uint8_t action = 0;
 	SStateList status;
@@ -1033,7 +1001,7 @@ void EvaluateButton()
 	}
 }
 
-void gotoSleep(void)
+static void gotoSleep(void)
 {
     /* not at the moment of testing */
 //	ext_flash_erase_firmware_if_not_empty();
@@ -1043,21 +1011,6 @@ void gotoSleep(void)
 
 
 // -----------------------------
-
-uint8_t get_globalMode(void)
-{
-    return globalModeID;
-}
-
-
-void set_globalMode(uint8_t newMode)
-{
-    if((newMode != DIVEMODE) && (newMode != SURFMODE))
-        return;
-
-    globalModeID = newMode;
-}
-
 
 uint32_t get_globalState(void)
 {
@@ -1675,7 +1628,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 #endif
 
 
-void deco_loop(void)
+static void deco_loop(void)
 {
     typedef enum
     {
@@ -1756,7 +1709,7 @@ void deco_loop(void)
     counter++;
 }
 
-void resetToFirmwareUpdate(void)
+static void resetToFirmwareUpdate(void)
 {
     __HAL_RCC_CLEAR_RESET_FLAGS();
     HAL_NVIC_SystemReset();

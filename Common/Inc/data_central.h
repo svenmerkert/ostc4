@@ -152,13 +152,6 @@ typedef struct
 }		SDeviceState;
 */
 
-typedef struct
-{
-	uint32_t average_depth_meter_Count;
-	uint32_t average_depth_last_update_dive_time_seconds_without_surface_time;
-	int32_t stopwatch_start_at_this_dive_time_seconds;
-} 	SHelper;
-
 /* struct SLifeData
  * contains data all actual data (pressure, stuturation, etc. as received from second ship
  * and has actualGas to be send to Small CPU (second chip)
@@ -213,7 +206,6 @@ typedef struct
 	float			apnea_total_max_depth_meter;
 	float			apnea_last_max_depth_meter;
 	int32_t 	apnea_last_dive_time_seconds;
-	int32_t		stopwatch_seconds;
 	uint16_t	bottle_bar[2 * NUM_GASES +1];
 	uint16_t	bottle_bar_age_MilliSeconds[2 * NUM_GASES + 1];
 	uint16_t	apnea_total_counter;
@@ -221,7 +213,6 @@ typedef struct
 	/* control of DataEX_copy_to_LifeData()
 	 */
 	uint8_t boolResetAverageDepth;
-	uint8_t boolResetStopwatch;
 	uint8_t bool_temp1;
 	uint8_t bool_temp2;
 
@@ -230,10 +221,6 @@ typedef struct
 	 float ppO2Sensor_bar[3];
 	 float sensorVoltage_mV[3];
 	 float HUD_battery_voltage_V;
-
-	/* used by DataEX_copy_to_LifeData()
-	 */
-	SHelper internal;
 } 	SLifeData;
 
 
