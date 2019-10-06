@@ -57,6 +57,8 @@ uint8_t deviceDataFlashValid = 0;
 uint8_t deviceDataSubSeconds = 0;
 
 /* Private variables ---------------------------------------------------------*/
+static uint16_t ManualExitDiveCounter = 0;   /* The computer will exit dive mode in shallow area immediately. Increase depth to restart dive while counter is active */
+
 /* can be lost while in sleep */
 uint8_t clearDecoNow = 0;
 uint8_t setButtonsNow = 0;
@@ -262,6 +264,11 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 		}
 	}		
 
+	if(global.dataSendToSlave.setEndDive)
+	{
+		ManualExitDiveCounter = 30 * 60; /* This will cause the computer to leave dive mode if in shallow area and increase the depth to enter dive mode for the next 30 minutes */
+	}
+
 	if((global.mode == MODE_SURFACE) && (global.dataSendToSlave.mode == MODE_SHUTDOWN))
 	{
 		global.mode = MODE_SHUTDOWN;
@@ -461,6 +468,14 @@ void scheduleDiveMode(void)
 	scheduleSetDate(&global.deviceData.diveCycles);
 	global.lifeData.counterSecondsShallowDepth = 0;
 
+	/* Get the last stable value in case of an unstable surface history condition */
+	if(!is_surface_pressure_stable())
+	{
+		set_last_surface_pressure_stable();
+	}
+	global.lifeData.pressure_surface_bar = get_surface_mbar() / 1000.0f;
+	ManualExitDiveCounter = 0;	/* reset early exit request */
+
 	Scheduler.tickstart = HAL_GetTick();
 	while(global.mode == MODE_DIVE)
 	{
@@ -556,11 +571,12 @@ void scheduleDiveMode(void)
 						global.demo_mode = 0;
 					}
 				}
-				
+
 				if(is_ambient_pressure_close_to_surface(&global.lifeData))
 				{
 					global.lifeData.counterSecondsShallowDepth++;
-					if((global.lifeData.counterSecondsShallowDepth >= global.settings.timeoutDiveReachedZeroDepth) || ((global.lifeData.dive_time_seconds < 60) && (global.demo_mode == 0)) || (global.dataSendToSlave.setEndDive))
+					if((global.lifeData.counterSecondsShallowDepth >= global.settings.timeoutDiveReachedZeroDepth) || ((global.lifeData.dive_time_seconds < 60) && (global.demo_mode == 0))
+							|| (ManualExitDiveCounter))
 					{
 						global.seconds_since_last_dive = 1; // start counter
 						schedule_update_timer_helper(0); // zum starten :-)
@@ -600,7 +616,7 @@ void scheduleDiveMode(void)
 					{
 						global.lifeData.dive_time_seconds = 0; // this apnea dive ends here
 					}
-					if((global.lifeData.counterSecondsShallowDepth >= global.settings.timeoutDiveReachedZeroDepth) || (global.dataSendToSlave.setEndDive))
+					if((global.lifeData.counterSecondsShallowDepth >= global.settings.timeoutDiveReachedZeroDepth) || (ManualExitDiveCounter))
 					{
 						global.dataSendToMaster.mode = MODE_ENDDIVE;
 						global.deviceDataSendToMaster.mode = MODE_ENDDIVE;
@@ -812,6 +828,11 @@ void scheduleSurfaceMode(void)
 				global.accidentRemainingSeconds = 0;
 				vpm_init(&global.vpm, global.conservatism, global.repetitive_dive, global.seconds_since_last_dive);
 				clearDecoNow = 0;
+			}
+
+			if(ManualExitDiveCounter)
+			{
+				ManualExitDiveCounter--;
 			}
 
 			if(global.seconds_since_last_dive)
@@ -1381,6 +1402,7 @@ void copyPressureData(void)
 	global.dataSendToMaster.data[boolPressureData].ascent_rate_meter_per_min = global.lifeData.ascent_rate_meter_per_min;
 	global.dataSendToMaster.data[boolPressureData].pressure_uTick = HAL_GetTick();
 	global.dataSendToMaster.boolPressureData = boolPressureData;
+	global.dataSendToMaster.data[boolPressureData].SPARE1 = is_surface_pressure_stable();
 }
 
 
@@ -1587,16 +1609,25 @@ uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow)
 /* same as in data_central.c */
 _Bool is_ambient_pressure_close_to_surface(SLifeData *lifeData)
 {
-	if(lifeData->pressure_ambient_bar == INVALID_PREASURE_VALUE)	/* as long as no valid data is available expect we are close to surface */
+	_Bool retval = true;
+
+	if(lifeData->pressure_ambient_bar != INVALID_PREASURE_VALUE)	/* as long as no valid data is available expect we are close to surface */
 	{
-		return true;
+		/* this will e.g. apply in case of a significant pressure change during last 30 minutes => use increased offset for surface detection */
+		if (lifeData->pressure_ambient_bar > START_DIVE_IMMEDIATLY_BAR)
+		{
+			retval = false;
+		}
+		else if(is_surface_pressure_stable())		/* this is the expected start condition */
+		{
+			if((lifeData->pressure_ambient_bar >= (lifeData->pressure_surface_bar + 0.1f))
+					&& (ManualExitDiveCounter == 0))		/* only if diver did not request to exit dive mode */
+			{
+				retval = false;
+			}
+		}
 	}
-	if (lifeData->pressure_ambient_bar > START_DIVE_IMMEDIATLY_BAR)
-		return false;
-	else if(lifeData->pressure_ambient_bar < (lifeData->pressure_surface_bar + 0.1f)) // hw 161121 now 1 mter, before 0.04f
-		return true;
-	else
-		return false;
+	return retval;
 }
 
 
