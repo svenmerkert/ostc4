@@ -565,6 +565,8 @@ int main(void)
 /// to be called
 ///
 //  ===============================================================================
+
+//#define NO_TIMEOUT
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 #ifdef DEMOMODE
