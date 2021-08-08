@@ -632,6 +632,13 @@ static uint8_t text_IT_SetFactoryDefaults[] = "Impostazioni pulsante";
 static uint8_t text_ES_SetFactoryDefaults[] = "Restablecer ajustes de fábrica";
 
 // Menu SYS2 sub
+static uint8_t text_EN_ResetBluetooth[] = "Reset bluetooth interface";
+static uint8_t text_DE_ResetBluetooth[] = "Bluetooth interface zurüchsetzen";
+static uint8_t text_FR_ResetBluetooth[] = "";
+static uint8_t text_IT_ResetBluetooth[] = "";
+static uint8_t text_ES_ResetBluetooth[] = "";
+
+// Menu SYS2 sub
 static uint8_t text_EN_SetSampleIndex[] = "Analyse log memory";
 static uint8_t text_DE_SetSampleIndex[] = "Prüfe Logbuchspeicher";
 static uint8_t text_FR_SetSampleIndex[] = "Maintain log memory";
@@ -1928,6 +1935,7 @@ const tText text_array2[] =
     {(uint8_t)TXT2BYTE_Maintenance,		{text_EN_Maintenance, text_DE_Maintenance, text_FR_Maintenance, text_IT_Maintenance, text_ES_Maintenance}},
     {(uint8_t)TXT2BYTE_SetBatteryCharge,{text_EN_SetBatteryCharge, text_DE_SetBatteryCharge, text_FR_SetBatteryCharge, text_IT_SetBatteryCharge, text_ES_SetBatteryCharge}},
     {(uint8_t)TXT2BYTE_SetFactoryDefaults,{text_EN_SetFactoryDefaults, text_DE_SetFactoryDefaults, text_FR_SetFactoryDefaults, text_IT_SetFactoryDefaults, text_ES_SetFactoryDefaults}},
+    {(uint8_t)TXT2BYTE_ResetBluetooth, {text_EN_ResetBluetooth, text_DE_ResetBluetooth, text_FR_ResetBluetooth, text_IT_ResetBluetooth, text_ES_ResetBluetooth}},
 	{(uint8_t)TXT2BYTE_SetSampleIndex,  {text_EN_SetSampleIndex, text_DE_SetSampleIndex, text_FR_SetSampleIndex, text_IT_SetSampleIndex, text_ES_SetSampleIndex}},
 
     {(uint8_t)TXT2BYTE_Reboot,			{text_EN_Reboot, text_DE_Reboot, text_FR_Reboot, text_IT_Reboot, text_ES_Reboot}},
