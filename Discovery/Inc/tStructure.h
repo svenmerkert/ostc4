@@ -310,8 +310,7 @@
 #define StMSYS5_RebootMainCPU	_MB(2,8,5,9,0)
 #define StMSYS5_ScreenTest		_MB(2,8,5,10,0)
 #define StMSYS5_SetFactoryBC	_MB(2,8,5,11,0)
-#define StMSYS5_ResetBluetooth	_MB(2,8,5,12,0)
-#define StMSYS5_SetSampleIndx   _MB(2,8,5,13,0)
+#define StMSYS5_SetSampleIndx   _MB(2,8,5,12,0)
 
  /* PAGE 9 */
 

@@ -35,7 +35,6 @@
 #include "gfx_fonts.h"
 #include "logbook_miniLive.h"
 #include "math.h"
-#include "tComm.h"
 #include "tHome.h"
 #include "simulation.h"
 #include "timer.h"
@@ -744,11 +743,8 @@ void t7_refresh_surface(void)
     }
     else
 */
-    if(DataEX_was_power_on()) {
+    if(DataEX_was_power_on())
         GFX_write_string_color(&FontT42,&t7surfaceR,"cold start",4,CLUT_WarningRed);
-	// Reset the bluetooth interface after a cold start
-	tComm_Set_Bluetooth_Name(1);
-    }
 
     /* time and date */
     translateDate(stateUsed->lifeData.dateBinaryFormat, &Sdate);
@@ -1614,8 +1610,7 @@ uint8_t t7_customview_disabled(uint8_t view)
 uint8_t t7_change_customview(uint8_t action)
 {
     uint8_t *pViews;
-    uint8_t *pStartView,*pLastView;
-    uint8_t *pCurView = NULL;
+    uint8_t *pStartView,*pCurView, *pLastView;
     _Bool cv_disabled = 0;
 
     if(stateUsed->mode == MODE_DIVE)

@@ -34,7 +34,6 @@
 #include "gfx_fonts.h"
 #include "ostc.h"
 #include "settings.h" // for getLicence()
-#include "tComm.h"
 #include "tHome.h"  // for enum CUSTOMVIEWS and init_t7_compass()
 #include "tMenu.h"
 #include "tMenuEdit.h"
@@ -87,7 +86,6 @@ uint8_t OnAction_RebootMainCPU		(uint32_t editId, uint8_t blockNumber, uint8_t d
 uint8_t OnAction_Nothing			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_LogbookOffset(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_SetFactoryDefaults(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-uint8_t OnAction_ResetBluetooth(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_SetBatteryCharge(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 #ifdef ENABLE_ANALYSE_SAMPLES
 uint8_t OnAction_RecoverSampleIdx(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -1075,16 +1073,11 @@ void openEdit_ResetConfirmation(uint32_t editIdOfCaller)
         text[2] = 0;
         write_field_button(StMSYS5_SetFactoryBC,			30, 800, ME_Y_LINE2,  &FontT48, text);
 
-        text[0] = TXT_2BYTE;
-        text[1] = TXT2BYTE_ResetBluetooth;
-        text[2] = 0;
-        write_field_button(StMSYS5_ResetBluetooth,			30, 800, ME_Y_LINE3,  &FontT48, text);
-
 #ifdef ENABLE_ANALYSE_SAMPLES
         text[0] = TXT_2BYTE;
         text[1] = TXT2BYTE_SetSampleIndex;
         text[2] = 0;
-        write_field_button(StMSYS5_SetSampleIndx,			30, 800, ME_Y_LINE4,  &FontT48, text);
+        write_field_button(StMSYS5_SetSampleIndx,			30, 800, ME_Y_LINE3,  &FontT48, text);
 #endif
 
 
@@ -1102,7 +1095,6 @@ void openEdit_ResetConfirmation(uint32_t editIdOfCaller)
 
             setEvent(StMSYS5_Exit, (uint32_t)OnAction_Exit);
             setEvent(StMSYS5_SetFactoryBC, (uint32_t)OnAction_SetFactoryDefaults);
-            setEvent(StMSYS5_ResetBluetooth, (uint32_t)OnAction_ResetBluetooth);
 #ifdef ENABLE_ANALYSE_SAMPLES
             setEvent(StMSYS5_SetSampleIndx, (uint32_t)OnAction_RecoverSampleIdx);
 #endif
@@ -1112,7 +1104,6 @@ void openEdit_ResetConfirmation(uint32_t editIdOfCaller)
         {
             setEvent(StMSYS5_Exit, (uint32_t)OnAction_Exit);
             setEvent(StMSYS5_SetFactoryBC, (uint32_t)OnAction_SetFactoryDefaults);
-            setEvent(StMSYS5_ResetBluetooth, (uint32_t)OnAction_ResetBluetooth);
 #ifdef ENABLE_ANALYSE_SAMPLES
             setEvent(StMSYS5_SetSampleIndx, (uint32_t)OnAction_RecoverSampleIdx);
 #endif
@@ -1230,13 +1221,6 @@ uint8_t OnAction_RebootMainCPU		(uint32_t editId, uint8_t blockNumber, uint8_t d
 uint8_t OnAction_SetFactoryDefaults(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
     settingsWriteFactoryDefaults(settingsGetPointer()->ButtonResponsiveness[3], settingsGetPointer()->buttonBalance);
-    return EXIT_TO_MENU;
-}
-
-uint8_t OnAction_ResetBluetooth(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
-{
-    tComm_Set_Bluetooth_Name(1);
-
     return EXIT_TO_MENU;
 }
 
