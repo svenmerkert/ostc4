@@ -73,7 +73,7 @@
 #define MAX_COMPASS_COMP 		(2u)
 #define MAX_VIEWPORT_MODE 		(0x7F)
 
-#define MAX_SCRUBBER_TIME 		(500u)
+#define MAX_SCRUBBER_TIME 		(999u)
 #define MIN_PPO2_SP_CBAR		(40u)
 
 #define PSCR_MAX_O2_DROP		(15u)
