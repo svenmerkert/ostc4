@@ -128,7 +128,7 @@ uint8_t actualLeftMaxDepth(const SDiveState * pDiveState)
 /* Private functions ---------------------------------------------------------*/
 static int8_t check_fallback(SDiveState * pDiveState)
 {
-	if(fallback && ((pDiveState->mode != MODE_DIVE) || (pDiveState->diveSettings.diveMode != DIVEMODE_CCR)))
+	if(fallback && ((pDiveState->mode != MODE_DIVE) || (!isLoopMode(pDiveState->diveSettings.diveMode))))
 		fallback = 0;
 	
 	pDiveState->warnings.fallback = fallback;
@@ -181,7 +181,7 @@ static int8_t check_O2_sensors(SDiveState * pDiveState)
 	pDiveState->warnings.sensorOutOfBounds[1] = 0;
 	pDiveState->warnings.sensorOutOfBounds[2] = 0;
 
-	if((pDiveState->diveSettings.diveMode == DIVEMODE_CCR) && (pDiveState->diveSettings.CCR_Mode == CCRMODE_Sensors))
+	if(isLoopMode(pDiveState->diveSettings.diveMode) && (pDiveState->diveSettings.CCR_Mode == CCRMODE_Sensors))
 
 		if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
 		{
@@ -218,7 +218,7 @@ static int8_t check_BetterGas(SDiveState * pDiveState)
 	betterGasIdLocal = pLifeData->actualGas.GasIdInSettings;
 	bestGasDepth = 255;
 
-	if(pDiveSettings->diveMode == DIVEMODE_CCR)
+	if(isLoopMode(pDiveSettings->diveMode))
 		gasIdOffset = NUM_OFFSET_DILUENT;
 	else
 		gasIdOffset = 0;
@@ -285,33 +285,31 @@ static int8_t check_BetterSetpoint(SDiveState * pDiveState)
 {
 	pDiveState->warnings.betterSetpoint = 0;
 	betterSetpointId = 0;
-
-	if((stateUsed->mode != MODE_DIVE) || (pDiveState->diveSettings.diveMode != DIVEMODE_CCR) || (pDiveState->diveSettings.CCR_Mode != CCRMODE_FixedSetpoint))
-	{
-		return 0;
-	}
-	
 	uint8_t bestSetpointDepth = 0; // travel the deeper, the better
 	uint8_t betterSetpointIdLocal = 0; // nothing better
 
-	if(!actualLeftMaxDepth(pDiveState)) /* travel gases */
+
+	if((stateUsed->mode == MODE_DIVE) && (pDiveState->diveSettings.diveMode == DIVEMODE_CCR))
 	{
-		for(int i=1; i<=NUM_GASES; i++)
+		if(!actualLeftMaxDepth(pDiveState)) /* travel gases */
 		{
-			if(	 (pDiveState->diveSettings.setpoint[i].note.ub.active)
-				&& (pDiveState->diveSettings.setpoint[i].depth_meter)
-				&& (pDiveState->diveSettings.setpoint[i].depth_meter <= ( pDiveState->lifeData.depth_meter + 0.01f ))
-				&& (pDiveState->diveSettings.setpoint[i].depth_meter >= bestSetpointDepth)
-			)
-				{
-					betterSetpointIdLocal = i;
-					bestSetpointDepth = pDiveState->diveSettings.setpoint[i].depth_meter;
-				}
-		}
-		if((betterSetpointIdLocal) && (pDiveState->diveSettings.setpoint[betterSetpointIdLocal].setpoint_cbar  != pDiveState->lifeData.actualGas.setPoint_cbar))
-		{
-			betterSetpointId = betterSetpointIdLocal;
-			pDiveState->warnings.betterSetpoint = 1;
+			for(int i=1; i<=NUM_GASES; i++)
+			{
+				if(	 (pDiveState->diveSettings.setpoint[i].note.ub.active)
+					&& (pDiveState->diveSettings.setpoint[i].depth_meter)
+					&& (pDiveState->diveSettings.setpoint[i].depth_meter <= ( pDiveState->lifeData.depth_meter + 0.01f ))
+					&& (pDiveState->diveSettings.setpoint[i].depth_meter >= bestSetpointDepth)
+				)
+					{
+						betterSetpointIdLocal = i;
+						bestSetpointDepth = pDiveState->diveSettings.setpoint[i].depth_meter;
+					}
+			}
+			if((betterSetpointIdLocal) && (pDiveState->diveSettings.setpoint[betterSetpointIdLocal].setpoint_cbar  != pDiveState->lifeData.actualGas.setPoint_cbar))
+			{
+				betterSetpointId = betterSetpointIdLocal;
+				pDiveState->warnings.betterSetpoint = 1;
+			}
 		}
 	}
 	return pDiveState->warnings.betterSetpoint;

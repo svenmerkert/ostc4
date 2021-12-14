@@ -507,6 +507,7 @@ int main(void)
         {
 	        DoDisplayRefresh = 0;
 
+	        updateSetpointStateUsed();
             if(stateUsed == stateSimGetPointer())
             {
                 simulation_UpdateLifeData(1);
@@ -588,8 +589,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     case BaseHome:
     case BaseMenu:
     case BaseInfo:
-        updateSetpointStateUsed();
-
         DateEx_copy_to_dataOut();
         DataEX_copy_to_LifeData(&modeChange);
 //foto session :-)  stateRealGetPointerWrite()->lifeData.battery_charge = 99;
@@ -769,17 +768,20 @@ static void TriggerButtonAction()
 					}
 				} else if ((status.page == PageDive) && (status.line != 0))
 				{
-					if (pSettings->extraDisplay == EXTRADISPLAY_BIGFONT)
+					if(get_globalState() == StDMENU)
 					{
-						pSettings->design = 3;
-						if(pSettings->MotionDetection == MOTION_DETECT_SECTOR)
+						if (pSettings->extraDisplay == EXTRADISPLAY_BIGFONT)
 						{
-							DefineSectorCount(CUSTOMER_DEFINED_VIEWS);
-							MapCVToSector();
+							pSettings->design = 3;
+							if(pSettings->MotionDetection == MOTION_DETECT_SECTOR)
+							{
+								DefineSectorCount(CUSTOMER_DEFINED_VIEWS);
+								MapCVToSector();
+							}
 						}
+						else if (pSettings->extraDisplay	== EXTRADISPLAY_DECOGAME)
+							pSettings->design = 4;
 					}
-					else if (pSettings->extraDisplay	== EXTRADISPLAY_DECOGAME)
-						pSettings->design = 4;
 					set_globalState(StD);
 				}
 				else
@@ -1733,7 +1735,7 @@ static void TimeoutControl(void)
 					}
 				}
 				// stuff before and new @161121 CCR-sensor limit 10 minutes
-				if((settingsGetPointer()->dive_mode == DIVEMODE_CCR) && (settingsGetPointer()->CCR_Mode == CCRMODE_Sensors))
+				if(isLoopMode(settingsGetPointer()->dive_mode) && (settingsGetPointer()->CCR_Mode == CCRMODE_Sensors))
 				{
 					timeout_limit_Surface_in_seconds = settingsGetPointer()->timeoutSurfacemodeWithSensors;
 				}

@@ -50,7 +50,8 @@ typedef struct
 	uint8_t setPoint_cbar;
 	uint8_t change_during_ascent_depth_meter_otherwise_zero;
 	uint8_t GasIdInSettings;
-	uint8_t temp1_for16bitalign;
+	uint8_t AppliedDiveMode;
+	float pscr_factor;
 } 	SGas;
 
 typedef struct
@@ -74,6 +75,13 @@ typedef struct
 		uint8_t status;
 		uint8_t data[12];
 } 	SDataWireless;
+
+
+typedef struct
+{
+		uint16_t CO2_ppm;
+		uint16_t signalStrength;
+} 	SCO2Sensor;
 
 /* Main structs -------------------------------------------------------------*/
 
@@ -187,6 +195,8 @@ typedef struct
 	uint16_t ambient_light_level;
 	SDataWireless wireless_data[4];
 	uint8_t buttonPICdata[4];
+	SCO2Sensor CO2_data;
+
 
 	/* by create DiveSettings() and by setActualGas()
 	 * is send to Small CPU2 for nitrogen calculation
@@ -221,6 +231,9 @@ typedef struct
 	 float ppO2Sensor_bar[3];
 	 float sensorVoltage_mV[3];
 	 float HUD_battery_voltage_V;
+
+/* for PSCR Mode */
+	 float ppo2Simulated_bar;
 } 	SLifeData;
 
 
@@ -323,6 +336,9 @@ typedef struct
 	 */
 	float internal__pressure_first_stop_ambient_bar_as_upper_limit_for_gf_low_otherwise_zero;
 	uint16_t compassHeading;
+
+	uint8_t pscr_o2_drop;
+	uint8_t pscr_lung_ratio;
  }  SDiveSettings;
 
 enum CHARGE_STATUS{
@@ -453,5 +469,7 @@ uint32_t	CRC_CalcBlockCRC(uint32_t *buffer, uint32_t words);
 uint32_t	CRC_CalcBlockCRC_moreThan768000(uint32_t *buffer1, uint32_t *buffer2, uint32_t words);
 
 _Bool is_ambient_pressure_close_to_surface(SLifeData *lifeData);
+
+uint8_t isLoopMode(uint8_t Mode);
 
 #endif // DATA_CENTRAL_H

@@ -92,7 +92,7 @@ void openEdit_GasCC(uint8_t line)
     {
 		if(line == 6)
 		{
-			if((settingsGetPointer()->dive_mode == DIVEMODE_CCR) || (stateUsed->diveSettings.ccrOption == 1))
+			if(isLoopMode(settingsGetPointer()->dive_mode) || (stateUsed->diveSettings.ccrOption == 1))
 			{
 				selectPage(StMOG);
 			}
@@ -122,7 +122,7 @@ void openEdit_GasOC(uint8_t line)
     {
 		if(line == 6)
 		{
-			if((settingsGetPointer()->dive_mode == DIVEMODE_CCR) || (stateUsed->diveSettings.ccrOption == 1))
+			if(isLoopMode(settingsGetPointer()->dive_mode) || (stateUsed->diveSettings.ccrOption == 1))
 			{
 				selectPage(StMCG);
 			}
@@ -367,7 +367,7 @@ uint8_t OnAction_DM_Mix(uint32_t editId, uint8_t blockNumber, uint8_t digitNumbe
 
 void tMEGas_check_switch_to_bailout(void)
 {
-    if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+    if(isLoopMode(stateUsed->diveSettings.diveMode))
     {
     	stateUsedWrite->diveSettings.diveMode = DIVEMODE_OC;
         block_diluent_page();

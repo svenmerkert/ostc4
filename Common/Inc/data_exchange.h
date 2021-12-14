@@ -31,6 +31,10 @@
 #include "settings.h"
 #include "stm32f4xx_hal.h"
 
+/* Command definitions for contral of external interface */
+#define EXT_INTERFACE_33V_ON	(0x8000u)	/* Bit set to enable 3.3V power interface */
+#define EXT_INTERFACE_CO2_CALIB (0x0001u)	/* Request calibration of CO2Sensor */
+
 enum MODE
 {
 	MODE_SURFACE	= 0,
@@ -80,9 +84,11 @@ uint8_t compass:8;
 #define CRBUTTON 			(0x01)
 #define CRDATE 				(0x02)
 #define CRTIME 				(0x04)
-#define CRCLEARDECO		(0x08)
-#define CRCOMPASS 		(0x10)
-#define CRDEVICEDATA 	(0x20)
+#define CRCLEARDECO			(0x08)
+#define CRCOMPASS 			(0x10)
+#define CRDEVICEDATA 		(0x20)
+#define CRBATTERY			(0x40)
+#define CRACCIDENT			(0x80)
 
 typedef union{
 confirmbit8_t ub;
@@ -148,7 +154,10 @@ typedef struct
 		uint16_t ambient_light_level;
 		uint16_t SPARE_ALIGN32;
 		float	extADC_voltage[3];
-		uint8_t SPARE_OldWireless[50]; /* 64 - 12 for extADC */
+		uint16_t CO2_ppm;
+		uint16_t CO2_signalStrength;
+		uint16_t externalInterface_CmdAnswer;
+		uint8_t SPARE_OldWireless[44]; /* 64 - 12 for extADC - 6 for CO2 */
 		// PIC data
 		uint8_t button_setting[4]; /* see dependency to SLiveData->buttonPICdata */
 		uint8_t SPARE1;
@@ -166,8 +175,7 @@ typedef struct
 		int8_t offsetPressureSensor_mbar;
 		int8_t offsetTemperatureSensor_centiDegree;
 
-		uint8_t SPARE1;
-		uint8_t SPARE2;
+		uint16_t externalInterface_Cmd;
 
 		float UNUSED1[16-1];//VPM_adjusted_critical_radius_he[16];
 		float UNUSED2[16];//VPM_adjusted_critical_radius_n2[16];

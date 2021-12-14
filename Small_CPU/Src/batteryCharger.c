@@ -37,29 +37,12 @@ CHG F4 7 O Open-drain output � active when BAT is enabled. Float if not used.
 /* Use This compile switch to select the new charger status control implementation */
 #define ENABLE_CHARGER_STATUS_V2
 
-#define CHARGE_IN_PIN							GPIO_PIN_2
-#define CHARGE_IN_GPIO_PORT				GPIOC
-#define CHARGE_IN_GPIO_ENABLE()		__GPIOC_CLK_ENABLE()
-
-#define CHARGE_OUT_PIN						GPIO_PIN_1
-#define CHARGE_OUT_GPIO_PORT			GPIOC
-#define CHARGE_OUT_GPIO_ENABLE()	__GPIOC_CLK_ENABLE()
-
-#define CHARGER_DEBOUNCE_SECONDS	(5u)		/* 5 seconds used to avoid problems with charger interrupts / disconnections */
+#define CHARGER_DEBOUNCE_SECONDS	(6u)		/* 6 seconds used to avoid problems with charger interrupts / disconnections */
 
 uint8_t battery_i_charge_status = 0;
 uint16_t battery_charger_counter = 0;
 
 #ifdef ENABLE_CHARGER_STATUS_V2
-typedef enum
-{
-	Charger_NotConnected = 0,		/* This is identified reading CHARGE_IN_PIN == HIGH */
-	Charger_WarmUp,					/* Charging started but counter did not yet reach a certain limit (used to debounce connect / disconnect events to avoid multiple increases of statistic charging cycle counter) */
-	Charger_Active,					/* Charging identified by  CHARGE_IN_PIN == LOW for a certain time */
-	Charger_Finished,
-	Charger_LostConnection			/* Intermediate state to debounce disconnecting events (including charging error state like over temperature) */
-} chargerState_t;
-
 static chargerState_t batteryChargerState = Charger_NotConnected;
 #endif
 
@@ -71,6 +54,21 @@ static chargerState_t batteryChargerState = Charger_NotConnected;
 uint8_t get_charge_status(void)
 {
 	return battery_i_charge_status;
+}
+
+void set_charge_state(uint8_t newState)
+{
+#ifdef ENABLE_CHARGER_STATUS_V2
+	if(newState < Charger_END)
+	{
+		batteryChargerState = newState;
+	}
+#endif
+}
+
+uint8_t get_charge_state(void)
+{
+	return batteryChargerState;
 }
 
 void init_battery_charger_status(void)
@@ -143,6 +141,7 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 {
 #ifdef ENABLE_CHARGER_STATUS_V2
 	static uint8_t notifyChargeComplete = 0;
+	static float chargeValueAtStart = 0;
 #endif 
 
 	#ifdef OSTC_ON_DISCOVERY_HARDWARE
@@ -150,115 +149,144 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 	#endif
 	
 #ifdef ENABLE_CHARGER_STATUS_V2
-	/* on disconnection or while disconnected */
-	if(HAL_GPIO_ReadPin(CHARGE_IN_GPIO_PORT,CHARGE_IN_PIN))
+
+	if(batteryChargerState == Charger_ColdStart)	/* wait for the first valid voltage meassurement */
 	{
-		switch(batteryChargerState)
+		if(global.lifeData.battery_voltage != BATTERY_DEFAULT_VOLTAGE)
 		{
-			case Charger_Active:				global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
-												global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
-												batteryChargerState = Charger_LostConnection;
-												battery_charger_counter = CHARGER_DEBOUNCE_SECONDS;
-
-												if(get_voltage() >= 4.1f)			/* the charger stops charging when charge current is 1/10. */
-												{									/*  Basically it is OK to rate a charging as complete if a defined voltage is reached */
-													batteryChargerState = Charger_Finished;
-													global.dataSendToMaster.chargeStatus = CHARGER_complete;
-													global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
-													battery_charger_counter = 15;
-													notifyChargeComplete = 1;
-												}
-										break;
-			case Charger_WarmUp:
-			case Charger_Finished:
-			case Charger_LostConnection:		if(battery_charger_counter >= cycleTimeBase)
-												{
-													battery_charger_counter -= cycleTimeBase;
-													global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
-													global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
-													batteryChargerState = Charger_LostConnection;
-												}
-												else
-												{
-													battery_charger_counter = 0;
-													battery_i_charge_status = 0;
-													global.dataSendToMaster.chargeStatus = CHARGER_off;
-													global.deviceDataSendToMaster.chargeStatus = CHARGER_off;
-
-													if(notifyChargeComplete)
-													{
-														battery_gas_gauge_set_charge_full();
-														scheduleUpdateDeviceDataChargerFull();
-														notifyChargeComplete = 0;
-													}
-													batteryChargerState = Charger_NotConnected;
-												}
-										break;
-			default: break;
+			if(global.lifeData.battery_voltage > BATTERY_ENDOF_CHARGE_VOLTAGE) 						/* Voltage close to full state => maybe new battery inserted 	*/
+			{
+				battery_gas_gauge_set_charge_full();
+			}
+			else										/* unknown state => reset to 0% */
+			{
+				battery_gas_gauge_set(0);
+			}
+			batteryChargerState = Charger_NotConnected;
 		}
 	}
 	else
-	{
-		/* connected */
-		/* wait for disconnection to write and reset */
-		switch(batteryChargerState)
+	{	/* on disconnection or while disconnected */
+		if(HAL_GPIO_ReadPin(CHARGE_IN_GPIO_PORT,CHARGE_IN_PIN))
 		{
-				case Charger_NotConnected:		battery_i_charge_status = 1;
-												battery_charger_counter = 0;
-												batteryChargerState = Charger_WarmUp;
-										break;
-				case Charger_LostConnection:		batteryChargerState = Charger_Active;
-										break;
-				case Charger_WarmUp:			battery_charger_counter += cycleTimeBase;
-												if(battery_charger_counter >= CHARGER_DEBOUNCE_SECONDS )
-												{
-													battery_i_charge_status = 2;
-													scheduleUpdateDeviceDataChargerCharging();
-													batteryChargerState = Charger_Active;
-												}
-						/* no break */
-				case Charger_Finished:
-				case Charger_Active:			global.dataSendToMaster.chargeStatus = CHARGER_running;
-												global.deviceDataSendToMaster.chargeStatus = CHARGER_running;
-
-												/* drive the output pin high to determine the state of the charger */
-												GPIO_InitTypeDef   GPIO_InitStructure;
-												GPIO_InitStructure.Pin = CHARGE_OUT_PIN;
-												GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
-												GPIO_InitStructure.Pull = GPIO_NOPULL;
-												GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
-												HAL_GPIO_Init(CHARGE_OUT_GPIO_PORT, &GPIO_InitStructure);
-												HAL_GPIO_WritePin(CHARGE_OUT_GPIO_PORT, CHARGE_OUT_PIN,GPIO_PIN_SET);
-												HAL_Delay(1);
-
-												if(HAL_GPIO_ReadPin(CHARGE_IN_GPIO_PORT,CHARGE_IN_PIN))		/* high => charger stopped charging */
-												{
-													batteryChargerState = Charger_Finished;
-													global.dataSendToMaster.chargeStatus = CHARGER_complete;
-													global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
-													battery_charger_counter = 30;
-													notifyChargeComplete = 1;
-												}
-												else
-												{
-													if(batteryChargerState == Charger_Finished)				/* voltage dropped below the hysteresis again => charging restarted */
+			switch(batteryChargerState)
+			{
+				case Charger_Active:				global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
+													global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
+													batteryChargerState = Charger_LostConnection;
+													battery_charger_counter = CHARGER_DEBOUNCE_SECONDS;
+											break;
+				case Charger_LostConnection:		if(get_voltage() >= BATTERY_ENDOF_CHARGE_VOLTAGE)	 	/* the charger stops charging when charge current is 1/10 	*/
+																											/* Basically it is OK to rate a charging as complete if a defined voltage is reached */
 													{
-														batteryChargerState = Charger_Active;
-														notifyChargeComplete = 0;
+														batteryChargerState = Charger_Finished;
+														global.dataSendToMaster.chargeStatus = CHARGER_complete;
+														global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
+														notifyChargeComplete = 1;
 													}
-												}
+				/* no break */
+				case Charger_WarmUp:
+				case Charger_Finished:				if(battery_charger_counter >= cycleTimeBase)
+													{
+														battery_charger_counter -= cycleTimeBase;
+														global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
+														global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
+														batteryChargerState = Charger_LostConnection;
+													}
+													else
+													{
+														battery_charger_counter = 0;
+														battery_i_charge_status = 0;
+														global.dataSendToMaster.chargeStatus = CHARGER_off;
+														global.deviceDataSendToMaster.chargeStatus = CHARGER_off;
 
-												/* restore high impedance to be able to detect disconnection */
-												GPIO_InitStructure.Pin = CHARGE_OUT_PIN;
-												GPIO_InitStructure.Mode = GPIO_MODE_ANALOG;
-												GPIO_InitStructure.Pull = GPIO_NOPULL;
-												GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
-												HAL_GPIO_Init(CHARGE_OUT_GPIO_PORT, &GPIO_InitStructure);
-												HAL_Delay(1);
-										break;
+														if(notifyChargeComplete)
+														{
+															battery_gas_gauge_set_charge_full();
+															scheduleUpdateDeviceDataChargerFull();
+															notifyChargeComplete = 0;
+															if(cycleTimeBase > 2)
+															{
+																HAL_Delay(50);		/* I2C operations are pending in the background. Wait to avoid data loose in caused to potential change to sleep state */
+															}
+														}
+														else
+														{
+															if(chargeValueAtStart < 1.0) /* charging started with unknown value => reset charge state reported by charger */
+															{
+																battery_gas_gauge_set(0);
+															}
+														}
+														batteryChargerState = Charger_NotConnected;
+													}
+											break;
+				default: break;
+			}
+		}
+		else
+		{
+			/* connected */
+			/* wait for disconnection to write and reset */
+			switch(batteryChargerState)
+			{
+					case Charger_NotConnected:		battery_i_charge_status = 1;
+													battery_charger_counter = 0;
+													batteryChargerState = Charger_WarmUp;
+													chargeValueAtStart = global.lifeData.battery_charge;
+											break;
+					case Charger_LostConnection:		batteryChargerState = Charger_Active;
+											break;
+					case Charger_WarmUp:			battery_charger_counter += cycleTimeBase;
+													if(battery_charger_counter >= CHARGER_DEBOUNCE_SECONDS )
+													{
+														battery_i_charge_status = 2;
+														scheduleUpdateDeviceDataChargerCharging();
+														batteryChargerState = Charger_Active;
+													}
+							/* no break */
+					case Charger_Finished:
+					case Charger_Active:			global.dataSendToMaster.chargeStatus = CHARGER_running;
+													global.deviceDataSendToMaster.chargeStatus = CHARGER_running;
 
-				default:						/* wait for disconnection */
-					break;
+													/* drive the output pin high to determine the state of the charger */
+													GPIO_InitTypeDef   GPIO_InitStructure;
+													GPIO_InitStructure.Pin = CHARGE_OUT_PIN;
+													GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
+													GPIO_InitStructure.Pull = GPIO_NOPULL;
+													GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
+													HAL_GPIO_Init(CHARGE_OUT_GPIO_PORT, &GPIO_InitStructure);
+													HAL_GPIO_WritePin(CHARGE_OUT_GPIO_PORT, CHARGE_OUT_PIN,GPIO_PIN_SET);
+													HAL_Delay(1);
+
+													if(HAL_GPIO_ReadPin(CHARGE_IN_GPIO_PORT,CHARGE_IN_PIN))		/* high => charger stopped charging */
+													{
+														batteryChargerState = Charger_Finished;
+														global.dataSendToMaster.chargeStatus = CHARGER_complete;
+														global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
+														battery_charger_counter = 30;
+														notifyChargeComplete = 1;
+													}
+													else
+													{
+														if(batteryChargerState == Charger_Finished)				/* voltage dropped below the hysteresis again => charging restarted */
+														{
+															batteryChargerState = Charger_Active;
+															notifyChargeComplete = 0;
+														}
+													}
+
+													/* restore high impedance to be able to detect disconnection */
+													GPIO_InitStructure.Pin = CHARGE_OUT_PIN;
+													GPIO_InitStructure.Mode = GPIO_MODE_ANALOG;
+													GPIO_InitStructure.Pull = GPIO_NOPULL;
+													GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
+													HAL_GPIO_Init(CHARGE_OUT_GPIO_PORT, &GPIO_InitStructure);
+													HAL_Delay(1);
+											break;
+
+					default:						/* wait for disconnection */
+						break;
+			}
 		}
 	}
 #else

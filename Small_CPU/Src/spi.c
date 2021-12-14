@@ -350,7 +350,6 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
 
 		/* stop data exchange? */
 		if (global.mode == MODE_SHUTDOWN) {
-			global.mode = MODE_SLEEP;
 			global.dataSendToSlavePending = 0;
 			global.dataSendToSlaveIsValid = 1;
 			global.dataSendToSlaveIsNotValidCount = 0;

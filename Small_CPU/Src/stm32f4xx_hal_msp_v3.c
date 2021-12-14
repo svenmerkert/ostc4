@@ -229,14 +229,18 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 {
 
   GPIO_InitTypeDef GPIO_InitStruct;
-  if(huart->Instance==USART2)
+  if(huart->Instance==USART1)
   {
-    __USART2_CLK_ENABLE();
-    GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
+	  __GPIOA_CLK_ENABLE();
+    __USART1_CLK_ENABLE();
+    GPIO_InitStruct.Pin = GPIO_PIN_9;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FAST; //GPIO_SPEED_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_10;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
   }
 }
@@ -244,10 +248,11 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 
 void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
 {
-  if(huart->Instance==USART2)
+  if(huart->Instance==USART1)
   {
-    __USART2_CLK_DISABLE();
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_2|GPIO_PIN_3);
+      HAL_NVIC_DisableIRQ(USART1_IRQn);
+    __USART1_CLK_DISABLE();
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9|GPIO_PIN_10);
   }
 }
 

@@ -195,10 +195,13 @@
 #define StMXTRA_CompassHeading	_MB(2,4,2,1,0)
 
  /* SURFACE MODE */
- #define StMXTRA_ScrubTimer_Max_Minutes	_MB(2,4,1,1,0)
- #define StMXTRA_ScrubTimer_Reset		_MB(2,4,2,1,0)
- #define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,1,0)
-
+#define StMXTRA_ScrubTimer_Max_Minutes	_MB(2,4,1,1,0)
+#define StMXTRA_ScrubTimer_Reset		_MB(2,4,2,1,0)
+#define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,1,0)
+#define StMXTRA_PSCR_O2_Drop			_MB(2,4,4,1,0)
+#define StMXTRA_PSCR_LUNG_RATIO			_MB(2,4,5,1,0)
+#define StMXTRA_CO2_Sensor				_MB(2,4,6,1,0)
+#define StMXTRA_CO2_Sensor_Calib		_MB(2,4,6,2,0)
 
 /* PAGE 5 */
 #define StMDECO		_MB(2,5,0,0,0)
@@ -216,12 +219,13 @@
 /* PAGE 5 EDIT FIELD CONTENT */
 #define StMDECO1_OC						_MB(2,5,1,1,0)
 #define StMDECO1_CC						_MB(2,5,1,2,0)
-#define StMDECO1_Apnea				_MB(2,5,1,3,0)
-#define StMDECO1_Gauge				_MB(2,5,1,4,0)
+#define StMDECO1_Apnea					_MB(2,5,1,3,0)
+#define StMDECO1_Gauge					_MB(2,5,1,4,0)
+#define StMDECO1_PSCR					_MB(2,5,1,5,0)
 
 #define StMDECO2_CCRmode			_MB(2,5,2,1,0)
 #define StMDECO3_PPO2Max			_MB(2,5,3,1,0)
-#define StMDECO4_SafetyStop		_MB(2,5,4,1,0)
+#define StMDECO4_SafetyStop			_MB(2,5,4,1,0)
 #define StMDECO5_FUTURE				_MB(2,5,5,1,0)
 #define StMDECO6_SALINITY			_MB(2,5,6,1,0)
 
@@ -310,7 +314,8 @@
 #define StMSYS5_RebootMainCPU	_MB(2,8,5,9,0)
 #define StMSYS5_ScreenTest		_MB(2,8,5,10,0)
 #define StMSYS5_SetFactoryBC	_MB(2,8,5,11,0)
-#define StMSYS5_SetSampleIndx   _MB(2,8,5,12,0)
+#define StMSYS5_ResetBluetooth	_MB(2,8,5,12,0)
+#define StMSYS5_SetSampleIndx   _MB(2,8,5,13,0)
 
  /* PAGE 9 */
 

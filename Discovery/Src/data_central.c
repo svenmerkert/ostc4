@@ -71,6 +71,7 @@
 #include "ostc.h" // for button adjust on hw testboard 1
 #include "tCCR.h"
 #include "crcmodel.h"
+#include "configuration.h"
 
 static SDiveState stateReal = { 0 };
 SDiveState stateSim = { 0 };
@@ -316,6 +317,7 @@ _Bool vpm_crush(SDiveState* pDiveState)
 
 void createDiveSettings(void)
 {
+	int i;
 	SSettings* pSettings = settingsGetPointer();
 
 	setActualGasFirst(&stateReal.lifeData);
@@ -325,7 +327,13 @@ void createDiveSettings(void)
 
 	stateReal.diveSettings.diveMode = pSettings->dive_mode;
 	stateReal.diveSettings.CCR_Mode = pSettings->CCR_Mode;
-	if(stateReal.diveSettings.diveMode == DIVEMODE_CCR)
+	if((stateReal.diveSettings.diveMode == DIVEMODE_PSCR) && (stateReal.diveSettings.CCR_Mode == CCRMODE_FixedSetpoint))
+	{
+		/* TODO: update selection of sensor used on/off (currently sensor/fixpoint). As PSCR has no fixed setpoint change to simulated ppo2 if sensors are not active */
+		stateReal.diveSettings.CCR_Mode = CCRMODE_Simulation;
+	}
+
+	if(isLoopMode(stateReal.diveSettings.diveMode))
 		stateReal.diveSettings.ccrOption = 1;
 	else
 		stateReal.diveSettings.ccrOption = 0;
@@ -341,13 +349,24 @@ void createDiveSettings(void)
 	stateReal.diveSettings.ppo2sensors_deactivated = pSettings->ppo2sensors_deactivated;
 	stateReal.diveSettings.future_TTS_minutes = pSettings->future_TTS;
 	
+	stateReal.diveSettings.pscr_lung_ratio = pSettings->pscr_lung_ratio;
+	stateReal.diveSettings.pscr_o2_drop = pSettings->pscr_o2_drop;
+
+	if(stateReal.diveSettings.diveMode == DIVEMODE_PSCR)
+	{
+		for(i=0; i<5; i++)
+		{
+			stateReal.diveSettings.decogaslist[i].pscr_factor = 1.0 / stateReal.diveSettings.pscr_lung_ratio * stateReal.diveSettings.pscr_o2_drop;
+		}
+	}
+
 	decom_CreateGasChangeList(&stateReal.diveSettings, &stateReal.lifeData); // decogaslist
 	stateReal.diveSettings.internal__pressure_first_stop_ambient_bar_as_upper_limit_for_gf_low_otherwise_zero = 0;
 
 	/* for safety */
 	stateReal.diveSettings.input_second_to_last_stop_depth_bar = stateReal.diveSettings.last_stop_depth_bar + stateReal.diveSettings.input_next_stop_increment_depth_bar;
 	/* and the proper calc */
-	for(int i = 1; i <10; i++)
+	for(i = 1; i <10; i++)
 	{
 		if(stateReal.diveSettings.input_next_stop_increment_depth_bar * i > stateReal.diveSettings.last_stop_depth_bar)
 		{
@@ -389,9 +408,11 @@ void copyVpmRepetetiveDataToSim(void)
 }
 
 
+
+
 void updateSetpointStateUsed(void)
 {
-	if(stateUsed->diveSettings.diveMode != DIVEMODE_CCR)
+	if(!isLoopMode(stateReal.diveSettings.diveMode))
 	{
 		stateUsedWrite->lifeData.actualGas.setPoint_cbar = 0;
 		stateUsedWrite->lifeData.ppO2 = decom_calc_ppO2(stateUsed->lifeData.pressure_ambient_bar, &stateUsed->lifeData.actualGas);
@@ -402,7 +423,17 @@ void updateSetpointStateUsed(void)
 		{
 			stateUsedWrite->lifeData.actualGas.setPoint_cbar = get_ppO2SensorWeightedResult_cbar();
 		}
-
+#ifdef ENABLE_PSCR_MODE
+		if(stateUsed->diveSettings.diveMode == DIVEMODE_PSCR)	/* calculate a ppO2 value based on assumptions ( transfered approach from hwos code) */
+		{
+			stateUsedWrite->lifeData.ppo2Simulated_bar = decom_calc_SimppO2_O2based(stateUsed->lifeData.pressure_ambient_bar, stateReal.diveSettings.gas[stateUsed->lifeData.actualGas.GasIdInSettings].oxygen_percentage, stateUsed->lifeData.actualGas.pscr_factor);
+			if(stateUsed->diveSettings.CCR_Mode == CCRMODE_Simulation)
+			{
+				stateUsedWrite->lifeData.actualGas.setPoint_cbar = stateUsedWrite->lifeData.ppo2Simulated_bar * 100;
+			}
+		}
+#endif
+	/* limit calculated value to the physically possible if needed */
 		if((stateUsed->lifeData.pressure_ambient_bar * 100) < stateUsed->lifeData.actualGas.setPoint_cbar)
 			stateUsedWrite->lifeData.ppO2 = stateUsed->lifeData.pressure_ambient_bar;
 		else
@@ -417,7 +448,7 @@ void setActualGasFirst(SLifeData *lifeData)
 	uint8_t gasId = 0;
 	uint8_t setpoint_cbar = 0;
 
-	if(pSettings->dive_mode == DIVEMODE_CCR)
+	if(isLoopMode(pSettings->dive_mode))
 	{
 		setpoint_cbar = pSettings->setpoint[1].setpoint_cbar;
 		start = NUM_OFFSET_DILUENT+1;
@@ -449,6 +480,7 @@ void setActualGasAir(SLifeData *lifeData)
 	lifeData->actualGas.helium_percentage =0;
 	lifeData->actualGas.setPoint_cbar = 0;
 	lifeData->actualGas.change_during_ascent_depth_meter_otherwise_zero = 0;
+	lifeData->actualGas.AppliedDiveMode = stateUsed->diveSettings.diveMode;
 }
 
 
@@ -466,8 +498,9 @@ void setActualGas(SLifeData *lifeData, uint8_t gasId, uint8_t setpoint_cbar)
 	lifeData->actualGas.helium_percentage = pSettings->gas[gasId].helium_percentage;
 	lifeData->actualGas.setPoint_cbar = setpoint_cbar;
 	lifeData->actualGas.change_during_ascent_depth_meter_otherwise_zero = 0;
-	
-	if((pSettings->dive_mode == DIVEMODE_CCR) && (gasId > NUM_OFFSET_DILUENT))
+	lifeData->actualGas.AppliedDiveMode = pSettings->dive_mode;
+	lifeData->actualGas.pscr_factor = 1.0 / pSettings->pscr_lung_ratio * pSettings->pscr_o2_drop;
+	if(isLoopMode(pSettings->dive_mode) && (gasId > NUM_OFFSET_DILUENT))
 		lifeData->lastDiluent_GasIdInSettings = gasId;
 }
 
@@ -525,7 +558,7 @@ void setActualGas_ExtraGas(SLifeData *lifeData, uint8_t oxygen, uint8_t helium, 
   lifeData->actualGas.helium_percentage = helium;
   lifeData->actualGas.setPoint_cbar = setpoint_cbar;
   lifeData->actualGas.change_during_ascent_depth_meter_otherwise_zero = 0;
-
+  lifeData->actualGas.AppliedDiveMode = stateUsed->diveSettings.diveMode;
 }
 
 void setButtonResponsiveness(uint8_t *ButtonSensitivyList)
@@ -814,3 +847,12 @@ float compass_getCompensated()
 	return compass_compensated;
 }
 
+uint8_t isLoopMode(uint8_t Mode)
+{
+	uint8_t retVal = 0;
+	if((Mode == DIVEMODE_CCR) || (Mode == DIVEMODE_PSCR))
+	{
+		retVal = 1;
+	}
+	return retVal;
+}

@@ -35,6 +35,7 @@
 #include "gfx_fonts.h"
 #include "logbook_miniLive.h"
 #include "math.h"
+#include "tComm.h"
 #include "tHome.h"
 #include "simulation.h"
 #include "timer.h"
@@ -743,8 +744,11 @@ void t7_refresh_surface(void)
     }
     else
 */
-    if(DataEX_was_power_on())
+    if(DataEX_was_power_on()) {
         GFX_write_string_color(&FontT42,&t7surfaceR,"cold start",4,CLUT_WarningRed);
+	// Reset the bluetooth interface after a cold start
+	tComm_Set_Bluetooth_Name(1);
+    }
 
     /* time and date */
     translateDate(stateUsed->lifeData.dateBinaryFormat, &Sdate);
@@ -1015,7 +1019,7 @@ void t7_refresh_surface(void)
     else
     {
     	textIdx = 0;
-        if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+        if(isLoopMode(stateUsed->diveSettings.diveMode))
             gasOffset = NUM_OFFSET_DILUENT;
         else
             gasOffset = 0;
@@ -1089,6 +1093,9 @@ void t7_refresh_surface(void)
 	switch (stateUsed->diveSettings.diveMode) {
 	case DIVEMODE_CCR:
 		GFX_write_string(&FontT24, &t7c1, "\f\002" "CCR", 0);
+		break;
+	case DIVEMODE_PSCR:
+		GFX_write_string(&FontT24, &t7c1, "\f\002" "PSCR", 0);
 		break;
 	case DIVEMODE_OC:
 		GFX_write_string(&FontT24, &t7c1, "\f\002" "OC", 0);
@@ -1610,7 +1617,8 @@ uint8_t t7_customview_disabled(uint8_t view)
 uint8_t t7_change_customview(uint8_t action)
 {
     uint8_t *pViews;
-    uint8_t *pStartView,*pCurView, *pLastView;
+    uint8_t *pStartView,*pLastView;
+    uint8_t *pCurView = NULL;
     _Bool cv_disabled = 0;
 
     if(stateUsed->mode == MODE_DIVE)
@@ -1694,6 +1702,9 @@ void t7_refresh_customview(void)
     char text[256];
 	char timeSuffix;
 	uint8_t hoursToDisplay;
+#ifdef ENABLE_PSCR_MODE
+	uint8_t showSimPPO2 = 1;
+#endif
     uint16_t textpointer = 0;
     uint16_t heading = 0;
     int16_t start;
@@ -1790,6 +1801,24 @@ void t7_refresh_customview(void)
             }
             t7cC.WindowNumberOfTextLines = 3;
         }
+        else if(isSettingsWarning())
+		{
+            if(warning_count_high_time)
+            {
+                shiftWindowY0 += 20;
+                t7cC.WindowY0 -= shiftWindowY0;
+                textpointer = 0;
+                text[textpointer++] = '\001';
+                text[textpointer++] = TXT_2BYTE;
+                text[textpointer++] = TXT2BYTE_CheckSettings;
+                text[textpointer++] = '\n';
+                text[textpointer++] = '\r';
+                text[textpointer++] = 0;
+                GFX_write_string_color(&FontT42,&t7cC,text,1, CLUT_WarningRed);
+                t7cC.WindowY0 += shiftWindowY0;
+            }
+            t7cC.WindowNumberOfTextLines = 1;
+		}
         else // customtext
         {
             lineCountCustomtext = t7_customtextPrepare(text);
@@ -1993,13 +2022,24 @@ void t7_refresh_customview(void)
         {
             if((stateUsed->diveSettings.ppo2sensors_deactivated & (1<<i)) || (stateUsed->lifeData.ppO2Sensor_bar[i] == 0.0))
             {
-                text[textpointer++] = '\031'; // labelcolor
-                text[textpointer++] = '\001';
-                text[textpointer++] = '-';
-                text[textpointer++] = '\n';
-                text[textpointer++] = '\r';
-                text[textpointer++] = '\030'; // main color
-                text[textpointer] = 0;
+#ifdef ENABLE_PSCR_MODE
+            	if((stateUsed->diveSettings.diveMode == DIVEMODE_PSCR) && (showSimPPO2) && (stateUsed->mode == MODE_DIVE))	/* display ppo2 sim in blue letters in case a slot is not used in the ppo2 custom view */
+            	{
+            		text[textpointer++] = '\023';
+            		textpointer += snprintf(&text[textpointer],100,"\001%01.2f\n\r\030",stateUsed->lifeData.ppo2Simulated_bar);
+            		showSimPPO2 = 0;
+            	}
+            	else
+#endif
+            	{
+					text[textpointer++] = '\031'; // labelcolor
+					text[textpointer++] = '\001';
+					text[textpointer++] = '-';
+					text[textpointer++] = '\n';
+					text[textpointer++] = '\r';
+					text[textpointer++] = '\030'; // main color
+					text[textpointer] = 0;
+            	}
             }
             else
             {
@@ -2515,9 +2555,10 @@ void t7_refresh_divemode(void)
 
         if(stateUsed->diveSettings.ccrOption)
         {
-            if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+        	if(isLoopMode(stateUsed->diveSettings.diveMode))
             {
                 snprintf(TextC2,TEXTSIZE,"\020%01.2f",stateUsed->lifeData.ppO2);
+
                 if(stateUsed->warnings.betterSetpoint && warning_count_high_time && (stateUsed->diveSettings.diveMode == DIVEMODE_CCR))
                 {
                     TextC2[0] = '\a'; // inverse instead of color \020
@@ -2547,7 +2588,7 @@ void t7_refresh_divemode(void)
         TextC2[1] = TXT_2BYTE;
         TextC2[2] = TXT2BYTE_WarnCnsHigh;
         TextC2[3] = 0;
-        GFX_write_string_color(&FontT48,&t7c1,TextC2,0,CLUT_WarningRed);
+        GFX_write_string_color(&FontT42,&t7c1,TextC2,0,CLUT_WarningRed);
     }
     else
     {
@@ -2567,6 +2608,9 @@ void t7_refresh_divemode(void)
         if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
             GFX_write_string(&FontT24,&t7c1,"\027\f\002" "CCR",0);
         //  GFX_write_string(&FontT24,&t7c1,"\f\177\177\x80" "CCR",0);
+        else
+        if(stateUsed->diveSettings.diveMode == DIVEMODE_PSCR)
+                GFX_write_string(&FontT24,&t7c1,"\027\f\002" "PSCR",0);
         else
         if(stateUsed->diveSettings.ccrOption)
             GFX_write_string(&FontT24,&t7c1,"\f\002\024" "Bailout",0);
@@ -2661,11 +2705,16 @@ void t7_change_field(void)
     {
     	selection_custom_field++;
     }
-    if((selection_custom_field == LLC_ScrubberTime) && ((settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_OFF) || (settingsGetPointer()->dive_mode != DIVEMODE_CCR)))
+    if((selection_custom_field == LLC_ScrubberTime) && ((settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_OFF) || (!isLoopMode(settingsGetPointer()->dive_mode))))
     {
     	selection_custom_field++;
     }
-
+#ifdef ENABLE_PSCR_MODE
+    if((selection_custom_field == LCC_SimPpo2) && (settingsGetPointer()->dive_mode != DIVEMODE_PSCR))
+    {
+    	selection_custom_field++;
+    }
+#endif
     if(selection_custom_field >= LLC_END)
     {
         selection_custom_field = LLC_Empty;
@@ -2803,6 +2852,12 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         	snprintf(text,TEXTSIZE,"\020%u\016\016%%\017", (settingsGetPointer()->scrubTimerCur * 100 / settingsGetPointer()->scrubTimerMax));
         }
 		break;
+#ifdef ENABLE_PSCR_MODE
+    case LCC_SimPpo2:
+        headerText[2] = TXT_SimPpo2;
+        snprintf(text,TEXTSIZE,"\020%.2f\016\016Bar\017",stateUsed->lifeData.ppo2Simulated_bar);
+        break;
+#endif
 
 #ifdef ENABLE_BOTTLE_SENSOR
     case LCC_BottleBar:
@@ -3380,7 +3435,7 @@ void t7_SummaryOfLeftCorner(void)
     text[textpointer++] = TXT_FutureTTS;
     text[textpointer++] = '\n';
     text[textpointer++] = '\r';
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)))
     {
 		text[textpointer++] = TXT_ScrubTime;
 
@@ -3429,7 +3484,7 @@ void t7_SummaryOfLeftCorner(void)
     else
     	textpointer += snprintf(&text[textpointer],10,"\020%ih", (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 3600);
 
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)))
     {
         text[textpointer++] = '\n';
         text[textpointer++] = '\r';

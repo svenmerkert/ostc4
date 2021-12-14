@@ -1002,7 +1002,7 @@ uint16_t logbook_readSampleData(uint8_t StepBackwards, uint16_t length,uint16_t*
             break;
     }
     firstgasid = i + 1;
-    if(header.diveMode == DIVEMODE_CCR)
+    if(isLoopMode(header.diveMode))
       setPointLast = header.setpoint[0].setpoint_cbar;
     else
       setPointLast = 0;
@@ -1166,6 +1166,10 @@ uint16_t logbook_readSampleData(uint8_t StepBackwards, uint16_t length,uint16_t*
 						gas.setPoint_cbar = setPointVal;
 						if(gasidVal > 0)
 						{
+							if((gasidVal >= NUM_GASES) && (header.diveMode == DIVEMODE_PSCR))		/* in case gas switches the absolute gas ID is used => map to the 0..NUM_GASES index used in header */
+							{
+								gasidVal -= NUM_GASES;
+							}
 							gas.helium_percentage = header.gasordil[gasidVal - 1].helium_percentage;
 							gas.nitrogen_percentage = 100 -  gas.helium_percentage - header.gasordil[gasidVal - 1].oxygen_percentage;
 						}
@@ -1175,7 +1179,15 @@ uint16_t logbook_readSampleData(uint8_t StepBackwards, uint16_t length,uint16_t*
 							gas.nitrogen_percentage = 100 -  gas.helium_percentage - manualGasVal.percentageO2;
 						}
 						ambiant_pressure_bar =((float)(depthVal + header.surfacePressure_mbar))/1000;
-						ppO2 = decom_calc_ppO2(ambiant_pressure_bar, &gas );
+
+						if(header.diveMode == DIVEMODE_PSCR)
+						{
+							ppO2 = decom_calc_SimppO2(ambiant_pressure_bar, &gas);
+						}
+						else	/* open circuit calculation */
+						{
+							ppO2 = decom_calc_ppO2(ambiant_pressure_bar, &gas);
+						}
 						ppo2[iNum] = (uint16_t) ( ppO2 * 100);
 					}
 

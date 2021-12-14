@@ -453,6 +453,12 @@ static uint8_t text_FR_ClosedCircuit[] = "Recycleur";
 static uint8_t text_IT_ClosedCircuit[] = "Ciurcuito chiuso";
 static uint8_t text_ES_ClosedCircuit[] = "Circuito cerrado";
 
+static uint8_t text_EN_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_DE_PSClosedCircuit[] = "PSC Kreislauf";
+static uint8_t text_FR_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_IT_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_ES_PSClosedCircuit[] = "PSC circuit";
+
 static uint8_t text_EN_Time[] = "Time";
 static uint8_t text_DE_Time[] = "Uhrzeit";
 static uint8_t text_FR_Time[] = "Heure";
@@ -630,6 +636,13 @@ static uint8_t text_DE_SetFactoryDefaults[] = "Taster zurücksetzen";
 static uint8_t text_FR_SetFactoryDefaults[] = "";
 static uint8_t text_IT_SetFactoryDefaults[] = "Impostazioni pulsante";
 static uint8_t text_ES_SetFactoryDefaults[] = "Restablecer ajustes de fábrica";
+
+// Menu SYS2 sub
+static uint8_t text_EN_ResetBluetooth[] = "Reset bluetooth interface";
+static uint8_t text_DE_ResetBluetooth[] = "Bluetooth interface zurüchsetzen";
+static uint8_t text_FR_ResetBluetooth[] = "";
+static uint8_t text_IT_ResetBluetooth[] = "";
+static uint8_t text_ES_ResetBluetooth[] = "";
 
 // Menu SYS2 sub
 static uint8_t text_EN_SetSampleIndex[] = "Analyse log memory";
@@ -1704,6 +1717,37 @@ static uint8_t text_FR_Percent[] = "Percent";
 static uint8_t text_IT_Percent[] = "Percent";
 static uint8_t text_ES_Percent[] = "Percent";
 
+static uint8_t text_EN_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_DE_PSCRO2Drop[] = "PSCR O2 Abfall";
+static uint8_t text_FR_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_IT_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_ES_PSCRO2Drop[] = "PSCR O2 drop";
+
+static uint8_t text_EN_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_DE_LungRatio[] = "PSCR Lungen Faktor";
+static uint8_t text_FR_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_IT_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_ES_LungRatio[] = "PSCR lung ratio";
+
+static uint8_t text_EN_CheckSettings[] = "Check settings";
+static uint8_t text_DE_CheckSettings[] = "Prüfe Optionen";
+static uint8_t text_FR_CheckSettings[] = "Check settings";
+static uint8_t text_IT_CheckSettings[] = "Check settings";
+static uint8_t text_ES_CheckSettings[] = "Check settings";
+
+static uint8_t text_EN_SimPpo2[] = "Sim ppO2";
+static uint8_t text_DE_SimPpo2[] = "Sim ppO2";
+static uint8_t text_FR_SimPpo2[] = "Sim ppO2";
+static uint8_t text_IT_SimPpo2[] = "Sim ppO2";
+static uint8_t text_ES_SimPpo2[] = "Sim ppO2";
+
+static uint8_t text_EN_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_DE_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_FR_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_IT_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_ES_CO2Sensor[] = "CO2 Sensor";
+
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -1770,7 +1814,8 @@ const tText text_array[] =
     {(uint8_t)TXT_ClosedCircuit,	{text_EN_ClosedCircuit, text_DE_ClosedCircuit, text_FR_ClosedCircuit, text_IT_ClosedCircuit, text_ES_ClosedCircuit}},
     {(uint8_t)TXT_Apnoe,	 		{text_EN_Apnoe, text_DE_Apnoe, text_FR_Apnoe, text_IT_Apnoe, text_ES_Apnoe}},
     {(uint8_t)TXT_Gauge,	 		{text_EN_Gauge, text_DE_Gauge, text_FR_Gauge, text_IT_Gauge, text_ES_Gauge}},
-    {(uint8_t)TXT_Sensor,			{text_EN_Sensor, text_DE_Sensor, text_FR_Sensor, text_IT_Sensor, text_ES_Sensor}},
+    {(uint8_t)TXT_PSClosedCircuit,  {text_EN_PSClosedCircuit, text_DE_PSClosedCircuit, text_FR_PSClosedCircuit, text_IT_PSClosedCircuit, text_ES_PSClosedCircuit}},
+	{(uint8_t)TXT_Sensor,			{text_EN_Sensor, text_DE_Sensor, text_FR_Sensor, text_IT_Sensor, text_ES_Sensor}},
     {(uint8_t)TXT_FixedSP,			{text_EN_FixedSP, text_DE_FixedSP, text_FR_FixedSP, text_IT_FixedSP, text_ES_FixedSP}},
     {(uint8_t)TXT_Decoparameters,	{text_EN_Decoparameters, text_DE_Decoparameters, text_FR_Decoparameters, text_IT_Decoparameters, text_ES_Decoparameters}},
     {(uint8_t)TXT_LastDecostop,		{text_EN_LastDecostop, text_DE_LastDecostop, text_FR_LastDecostop, text_IT_LastDecostop, text_ES_LastDecostop}},
@@ -1787,7 +1832,10 @@ const tText text_array[] =
 	{(uint8_t)TXT_ScrubTimeReset,	{text_EN_ScrubTimeReset, text_DE_ScrubTimeReset, text_FR_ScrubTimeReset, text_IT_ScrubTimeReset, text_ES_ScrubTimeReset}},
 	{(uint8_t)TXT_ScrubTimeMode,	{text_EN_ScrubTimeMode, text_DE_ScrubTimeMode, text_FR_ScrubTimeMode, text_IT_ScrubTimeMode, text_ES_ScrubTimeMode}},
 	{(uint8_t)TXT_Percent,	    	{text_EN_Percent, text_DE_Percent, text_FR_Percent, text_IT_Percent, text_ES_Percent}},
-
+	{(uint8_t)TXT_PSCRO2Drop,	    {text_EN_PSCRO2Drop, text_DE_PSCRO2Drop, text_FR_PSCRO2Drop, text_IT_PSCRO2Drop, text_ES_PSCRO2Drop}},
+	{(uint8_t)TXT_PSCRLungRatio,	{text_EN_LungRatio, text_DE_LungRatio, text_FR_LungRatio, text_IT_LungRatio, text_ES_LungRatio}},
+	{(uint8_t)TXT_SimPpo2,			{text_EN_SimPpo2, text_DE_SimPpo2, text_FR_SimPpo2, text_IT_SimPpo2, text_ES_SimPpo2}},
+	{(uint8_t)TXT_CO2Sensor,		{text_EN_CO2Sensor, text_DE_CO2Sensor, text_FR_CO2Sensor, text_IT_CO2Sensor, text_ES_CO2Sensor}},
 };
 
 const tText text_array2[] =
@@ -1928,6 +1976,7 @@ const tText text_array2[] =
     {(uint8_t)TXT2BYTE_Maintenance,		{text_EN_Maintenance, text_DE_Maintenance, text_FR_Maintenance, text_IT_Maintenance, text_ES_Maintenance}},
     {(uint8_t)TXT2BYTE_SetBatteryCharge,{text_EN_SetBatteryCharge, text_DE_SetBatteryCharge, text_FR_SetBatteryCharge, text_IT_SetBatteryCharge, text_ES_SetBatteryCharge}},
     {(uint8_t)TXT2BYTE_SetFactoryDefaults,{text_EN_SetFactoryDefaults, text_DE_SetFactoryDefaults, text_FR_SetFactoryDefaults, text_IT_SetFactoryDefaults, text_ES_SetFactoryDefaults}},
+    {(uint8_t)TXT2BYTE_ResetBluetooth, {text_EN_ResetBluetooth, text_DE_ResetBluetooth, text_FR_ResetBluetooth, text_IT_ResetBluetooth, text_ES_ResetBluetooth}},
 	{(uint8_t)TXT2BYTE_SetSampleIndex,  {text_EN_SetSampleIndex, text_DE_SetSampleIndex, text_FR_SetSampleIndex, text_IT_SetSampleIndex, text_ES_SetSampleIndex}},
 
     {(uint8_t)TXT2BYTE_Reboot,			{text_EN_Reboot, text_DE_Reboot, text_FR_Reboot, text_IT_Reboot, text_ES_Reboot}},
@@ -1955,4 +2004,8 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_Minimum, 		{text_EN_Minimum, text_DE_Minimum, text_FR_Minimum, text_IT_Minimum, text_ES_Minimum}},
 	{(uint8_t)TXT2BYTE_Normal, 			{text_EN_Normal, text_DE_Normal, text_FR_Normal, text_IT_Normal, text_ES_Normal}},
 	{(uint8_t)TXT2BYTE_Maximum, 		{text_EN_Maximum, text_DE_Maximum, text_FR_Maximum, text_IT_Maximum, text_ES_Maximum}},
+
+	{(uint8_t)TXT2BYTE_CheckSettings, 	{text_EN_CheckSettings, text_DE_CheckSettings, text_FR_CheckSettings, text_IT_CheckSettings, text_ES_CheckSettings}},
+
+
 };

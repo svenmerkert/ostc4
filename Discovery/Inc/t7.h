@@ -49,6 +49,9 @@ typedef enum
 #ifdef ENABLE_BOTTLE_SENSOR
 		LCC_BottleBar,
 #endif
+#ifdef ENABLE_PSCR_MODE
+		LCC_SimPpo2,
+#endif
 		LLC_END
 
 } customview_llc_t;

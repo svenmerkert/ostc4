@@ -947,6 +947,9 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
     SDivetime Stopwatch = {0,0,0,0};
     float fAverageDepth, fAverageDepthAbsolute;
 
+#ifdef ENABLE_PSCR_MODE
+    uint8_t showSimPPO2 = 1;
+#endif
     uint16_t tempWinX0;
     uint16_t tempWinX1;
     uint16_t tempWinY0;
@@ -1264,11 +1267,22 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
 
             if((stateUsed->diveSettings.ppo2sensors_deactivated & (1<<i)) || (stateUsed->lifeData.ppO2Sensor_bar[i] == 0.0))
             {
-                text[textpointer++] = '\031';
-                text[textpointer++] = ' ';
-                text[textpointer++] = '-';
-                text[textpointer++] = ' ';
-                text[textpointer++] = 0;
+#ifdef ENABLE_PSCR_MODE
+            	if((stateUsed->diveSettings.diveMode == DIVEMODE_PSCR) && (showSimPPO2) && (stateUsed->mode == MODE_DIVE))	/* display ppo2 sim in blue letters in case a slot is not used in the ppo2 custom view */
+            	{
+            		text[textpointer++] = '\023';
+            		textpointer += snprintf(&text[textpointer],TEXTSIZE,"%.2f",stateUsed->lifeData.ppo2Simulated_bar);
+            		showSimPPO2 = 0;
+            	}
+            	else
+#endif
+            	{
+					text[textpointer++] = '\031';
+					text[textpointer++] = ' ';
+					text[textpointer++] = '-';
+					text[textpointer++] = ' ';
+					text[textpointer++] = 0;
+            	}
             }
             else
             {
@@ -1279,7 +1293,7 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
             GFX_write_string(&FontT105,tXc1,text,0);
 
 
-            if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR))
+            if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && isLoopMode(pSettings->dive_mode))
             {
                  snprintf(text,TEXTSIZE,"\032\002\f%c",TXT_ScrubTime);
                  GFX_write_string(&FontT42,tXc1,text,0);

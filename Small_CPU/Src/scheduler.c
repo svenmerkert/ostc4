@@ -42,6 +42,7 @@
 #include "decom.h"
 #include "tm_stm32f4_otp.h"
 #include "externalInterface.h"
+#include "uart.h"
 
 /* uncomment to enable restoting of last known date in case of a power loss (RTC looses timing data) */
 /* #define RESTORE_LAST_KNOWN_DATE */
@@ -90,6 +91,7 @@ void copyVpmCrushingData(void);
 void copyDeviceData(void);
 void copyPICdata(void);
 void copyExtADCdata();
+void copyExtCO2data();
 static void schedule_update_timer_helper(int8_t thisSeconds);
 uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow);
 
@@ -301,6 +303,20 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 	memcpy(&DeviceDataFlash, &global.dataSendToSlave.data.DeviceData, sizeof(SDevice));
 	deviceDataFlashValid = 1;
 
+
+	/* handle external interface requests */
+
+	if((global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_33V_ON) != externalInterface_isEnabledPower33())
+	{
+		externalInterface_SwitchPower33(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_33V_ON);
+	}
+
+	if(global.dataSendToSlave.data.externalInterface_Cmd > EXT_INTERFACE_33V_ON)
+	{
+		externalInterface_ExecuteCmd(global.dataSendToSlave.data.externalInterface_Cmd);
+	}
+
+
 #if 0
 	//TODO: Temporary placed here. Duration ~210 ms.
 	if (global.I2C_SystemStatus != HAL_OK) {
@@ -501,6 +517,7 @@ void scheduleDiveMode(void)
 				externalInterface_CalculateADCValue(extAdcChannel);
 				copyExtADCdata();
 			}
+			copyExtCO2data();
 		}
 
 		//Evaluate pressure at 20 ms, 120 ms, 220 ms,....
@@ -761,10 +778,11 @@ void scheduleTestMode(void)
 
 void scheduleSurfaceMode(void)
 {
-
 	uint32_t ticksdiff = 0; 
 	uint32_t lasttick = 0;
 	uint8_t extAdcChannel = 0;
+	uint8_t batteryToggle = 0;		/* ADC is operating in automatic 2 second cycles => consider for battery charge function call */
+
 	Scheduler.tickstart = HAL_GetTick();
 	Scheduler.counterSPIdata100msec = 0;
 	Scheduler.counterCompass100msec = 0;
@@ -787,6 +805,8 @@ void scheduleSurfaceMode(void)
 				setButtonsNow = 0;
 		}
 		
+		HandleUARTData();
+
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
@@ -801,6 +821,7 @@ void scheduleSurfaceMode(void)
 				externalInterface_CalculateADCValue(extAdcChannel);
 				copyExtADCdata();
 			}
+			copyExtCO2data();
 		}
 
 		/* Evaluate pressure at 20 ms, 120 ms, 220 ms,... duration ~22ms] */
@@ -886,8 +907,17 @@ void scheduleSurfaceMode(void)
 			{
 				global.lifeData.desaturation_time_minutes = 0;
 			}
-			battery_gas_gauge_get_data();
-			battery_charger_get_status_and_contral_battery_gas_gauge(1);
+
+			if(!batteryToggle)
+			{
+				battery_gas_gauge_get_data();
+				battery_charger_get_status_and_contral_battery_gas_gauge(2);
+				batteryToggle = 1;
+			}
+			else
+			{
+				batteryToggle = 0;
+			}
 
 			copyCnsAndOtuData();
 			copyTimeData();
@@ -1056,6 +1086,7 @@ void scheduleSleepMode(void)
 		if(global.mode == MODE_SLEEP)
 			secondsCount += 2;
 
+		externalInterface_InitPower33();
 		MX_I2C1_Init();
 		pressure_sensor_get_pressure_raw();
 
@@ -1069,7 +1100,6 @@ void scheduleSleepMode(void)
 			MX_I2C1_Init();
 			HAL_Delay(100);
 
-
 			if((global.I2C_SystemStatus == HAL_OK) && (!is_init_pressure_done()))
 			{
 				init_pressure();
@@ -1080,7 +1110,7 @@ void scheduleSleepMode(void)
 		{
 			pressure_sensor_get_temperature_raw();
 			battery_gas_gauge_get_data();
-//			ReInit_battery_charger_status_pins();
+			ReInit_battery_charger_status_pins();
 			battery_charger_get_status_and_contral_battery_gas_gauge(30);
 //			DeInit_battery_charger_status_pins();
 			secondsCount = 0;
@@ -1363,7 +1393,7 @@ void scheduleUpdateDeviceData(void)
 			}
 			break;
 
-		case	MODE_SLEEP:
+		case MODE_SLEEP:
 		case MODE_SHUTDOWN:
 			break;
 	}
@@ -1636,6 +1666,26 @@ void copyExtADCdata()
 	}
 }
 
+void copyExtCO2data()
+{
+	uint16_t value;
+
+	if(externalInterface_GetCO2State())
+	{
+		value = externalInterface_GetCO2Value();
+		global.dataSendToMaster.data[0].CO2_ppm = value;
+		value = externalInterface_GetCO2SignalStrength();
+		global.dataSendToMaster.data[0].CO2_signalStrength = value;
+		global.dataSendToMaster.data[0].externalInterface_CmdAnswer = externalInterface_GetCO2State();
+		externalInterface_SetCO2State(EXT_INTERFACE_33V_ON); 	/* clear command responses */
+	}
+	else
+	{
+		global.dataSendToMaster.data[0].CO2_ppm = 0;
+		global.dataSendToMaster.data[0].CO2_signalStrength = 0;
+		global.dataSendToMaster.data[0].externalInterface_CmdAnswer = 0;
+	}
+}
 
 typedef enum 
 {

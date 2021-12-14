@@ -47,6 +47,8 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     *tab = 500;
     *subtext = 0;
 
+    SSettings *pSettings = settingsGetPointer();
+
     /* DIVE MODE */
     if(actual_menu_content != MENU_SURFACE)
     {
@@ -133,7 +135,7 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
                 "\017"
                 ,TXT_ScrubTime
 				,TXT_Maximum
-                ,settingsGetPointer()->scrubTimerMax
+                ,pSettings->scrubTimerMax
                 ,TXT_Minutes
             );
         }
@@ -144,14 +146,14 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
             textPointer += snprintf(&text[textPointer], 60,\
                         "%c\002%03u\016\016 %c\017"
                         ,TXT_ScrubTimeReset
-                        ,settingsGetPointer()->scrubTimerCur
+                        ,pSettings->scrubTimerCur
                         ,TXT_Minutes);
         }
         strcpy(&text[textPointer],"\n\r");
         textPointer += 2;
         if((line == 0) || (line == 3))
         {
-        	switch(settingsGetPointer()->scrubTimerMode)
+        	switch(pSettings->scrubTimerMode)
         	{
         		case SCRUB_TIMER_OFF:
         		default: 	textPointer += snprintf(&text[textPointer], 60,"%c\002%c%c",TXT_ScrubTimeMode, TXT_2BYTE, TXT2BYTE_MoCtrlNone );
@@ -165,6 +167,35 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
         strcpy(&text[textPointer],"\n\r");
         textPointer += 2;
 
+#ifdef ENABLE_PSCR_MODE
+        if(pSettings->dive_mode == DIVEMODE_PSCR)
+        {
+            if((line == 0) || (line == 4))
+             {
+                 textPointer += snprintf(&text[textPointer], 60,\
+                             "%c\002%02u\016\016%%\017"
+                             ,TXT_PSCRO2Drop
+                             ,pSettings->pscr_o2_drop);
+             }
+             strcpy(&text[textPointer],"\n\r");
+             textPointer += 2;
+             if((line == 0) || (line == 5))
+              {
+                  textPointer += snprintf(&text[textPointer], 60,\
+                              "%c\002 1/%02u"
+                              ,TXT_PSCRLungRatio
+                              ,pSettings->pscr_lung_ratio);
+              }
+              strcpy(&text[textPointer],"\n\r");
+              textPointer += 2;
+        }
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+        if((line == 0) || (line == 6))
+         {
+             textPointer += snprintf(&text[textPointer], 60, "%c", TXT_CO2Sensor);
+         }
+#endif
     }
     return StMXTRA;
 }

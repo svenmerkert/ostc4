@@ -58,6 +58,8 @@ static uint8_t OnAction_SP_DM_Sensor3	(uint32_t editId, uint8_t blockNumber, uin
 void openEdit_Setpoint(uint8_t line)
 {
     uint8_t useSensorSubMenu = 0;
+    char text[20];
+    uint8_t sensorActive[3];
 
     /* dive mode */
     if(actual_menu_content != MENU_SURFACE)
@@ -66,7 +68,7 @@ void openEdit_Setpoint(uint8_t line)
         setpointCbar = 100;
 
         // actualGasID
-        if(stateUsedWrite->diveSettings.diveMode != DIVEMODE_CCR)
+        if(!isLoopMode(stateUsedWrite->diveSettings.diveMode))
         {
             actualGasID = stateUsedWrite->lifeData.lastDiluent_GasIdInSettings;
             if((actualGasID <= NUM_OFFSET_DILUENT) || (actualGasID > NUM_GASES + NUM_OFFSET_DILUENT))
@@ -76,7 +78,7 @@ void openEdit_Setpoint(uint8_t line)
             actualGasID = stateUsedWrite->lifeData.actualGas.GasIdInSettings;
 
         // setpointCbar, CCR_Mode and sensor menu
-        if(line < 6)
+        if((line < 6) && (stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR))		/* setpoints inactive in PSCR mode */
         {
             setpointCbar = stateUsedWrite->diveSettings.setpoint[line].setpoint_cbar;
             stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_FixedSetpoint;
@@ -96,25 +98,32 @@ void openEdit_Setpoint(uint8_t line)
                 stateUsedWrite->diveSettings.setpoint[line].note.ub.first = 1;
             }
         }
-        else
+        else	/* menu item not pointing to setpoint selection => use sensor or ppo2 simulation */
         {
-            if(stateUsedWrite->diveSettings.CCR_Mode != CCRMODE_Sensors)
-            {
-                /* setpoint_cbar will be written by updateSetpointStateUsed() in main.c loop */
-                setpointCbar = 255;
-                stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Sensors;
-            }
-            else
-            {
-                useSensorSubMenu = 1;
-            }
+        	if((stateUsedWrite->diveSettings.diveMode == DIVEMODE_PSCR) && (line == 2))
+			{
+        		stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Simulation;
+			}
+			else	/* => use sensor */
+			{
+				if(stateUsedWrite->diveSettings.CCR_Mode != CCRMODE_Sensors)
+				{
+					/* setpoint_cbar will be written by updateSetpointStateUsed() in main.c loop */
+					setpointCbar = 255;
+					stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Sensors;
+				}
+				else
+				{
+					useSensorSubMenu = 1;
+				}
+			}
         }
 
         setActualGas_DM(&stateUsedWrite->lifeData,actualGasID,setpointCbar);
 
-        if(stateUsedWrite->diveSettings.diveMode != DIVEMODE_CCR)
+        if(!isLoopMode(stateUsedWrite->diveSettings.diveMode))
         {
-        	stateUsedWrite->diveSettings.diveMode = DIVEMODE_CCR;
+        	stateUsedWrite->diveSettings.diveMode = settingsGetPointer()->dive_mode;
             unblock_diluent_page();
         }
 
@@ -129,9 +138,6 @@ void openEdit_Setpoint(uint8_t line)
             set_globalState_Menu_Line(line);
             resetMenuEdit(CLUT_MenuPageGasSP);
 
-            char text[20];
-            uint8_t sensorActive[3];
-
             text[0] = '\001';
             text[1] = TXT_o2Sensors;
             text[2] = 0;
@@ -145,6 +151,7 @@ void openEdit_Setpoint(uint8_t line)
             else
             {
             	snprintf (text,20,"Sensor 1    (%01.2f)", stateUsed->lifeData.ppO2Sensor_bar[0] );
+            	sensorActive[0] = 1;
             }
             write_label_var(  96, 600, ME_Y_LINE1, &FontT48, text);
             if(stateUsedWrite->diveSettings.ppo2sensors_deactivated & 2)
@@ -155,6 +162,7 @@ void openEdit_Setpoint(uint8_t line)
             else
             {
                	snprintf (text,20,"Sensor 2    (%01.2f)", stateUsed->lifeData.ppO2Sensor_bar[1] );
+               	sensorActive[1] = 1;
             }
             write_label_var(  96, 600, ME_Y_LINE2, &FontT48, text);
             if(stateUsedWrite->diveSettings.ppo2sensors_deactivated & 4)
@@ -165,12 +173,9 @@ void openEdit_Setpoint(uint8_t line)
             else
             {
               	snprintf (text,20,"Sensor 3    (%01.2f)", stateUsed->lifeData.ppO2Sensor_bar[2] );
+              	sensorActive[2] = 1;
             }
             write_label_var(  96, 600, ME_Y_LINE3, &FontT48, text);
-
-            sensorActive[0] = 1;
-            sensorActive[1] = 1;
-            sensorActive[2] = 1;
 
             write_field_on_off(StMSP_Sensor1,	 30, 95, ME_Y_LINE1,  &FontT48, "", sensorActive[0]);
             write_field_on_off(StMSP_Sensor2,	 30, 95, ME_Y_LINE2,  &FontT48, "", sensorActive[1]);
@@ -329,23 +334,26 @@ void openEdit_DiveSelectBetterSetpoint(void)
     uint8_t spId;
     uint8_t depth;
 
-    spId = actualBetterSetpointId();
-
-    depth = stateUsedWrite->diveSettings.setpoint[spId].depth_meter;
-
-    // BetterSetpoint warning only once -> clear active
-    for(int i=0; i<=NUM_GASES; i++)
+    if(stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR)		/* no setpoints in PSCR mode */
     {
-    	stateUsedWrite->diveSettings.setpoint[i].note.ub.first = 0;
-        if(stateUsedWrite->diveSettings.setpoint[i].depth_meter <= depth)
-        	stateUsedWrite->diveSettings.setpoint[i].note.ub.active = 0;
+		spId = actualBetterSetpointId();
+
+		depth = stateUsedWrite->diveSettings.setpoint[spId].depth_meter;
+
+		// BetterSetpoint warning only once -> clear active
+		for(int i=0; i<=NUM_GASES; i++)
+		{
+			stateUsedWrite->diveSettings.setpoint[i].note.ub.first = 0;
+			if(stateUsedWrite->diveSettings.setpoint[i].depth_meter <= depth)
+				stateUsedWrite->diveSettings.setpoint[i].note.ub.active = 0;
+		}
+
+		// new setpoint
+		stateUsedWrite->diveSettings.setpoint[spId].note.ub.first = 1;
+
+		// change in lifeData
+		setActualGas_DM(&stateUsedWrite->lifeData, stateUsedWrite->lifeData.actualGas.GasIdInSettings, stateUsedWrite->diveSettings.setpoint[spId].setpoint_cbar);
     }
-
-    // new setpoint
-    stateUsedWrite->diveSettings.setpoint[spId].note.ub.first = 1;
-
-    // change in lifeData
-    setActualGas_DM(&stateUsedWrite->lifeData, stateUsedWrite->lifeData.actualGas.GasIdInSettings, stateUsedWrite->diveSettings.setpoint[spId].setpoint_cbar);
 }
 
 static uint8_t OnAction_SP_DM_Sensor1	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)

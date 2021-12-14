@@ -169,6 +169,12 @@ void refresh_Customviews(void)
     	text[4] = TXT_AtemGasVorrat;
     	    	break;
 #endif
+
+#ifdef ENABLE_PSCR_MODE
+    case LCC_SimPpo2:
+    	text[4] = TXT_SimPpo2;
+    	    	break;
+#endif
     /* none */
     case LLC_Empty:
         text[4] = '-';
@@ -713,7 +719,7 @@ uint8_t OnAction_CViewPortCalib(uint32_t editId, uint8_t blockNumber, uint8_t di
 uint8_t OnAction_CViewPortLayout(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
 	SSettings* pSettings = settingsGetPointer();
-	if((pSettings->viewPortMode >> 4) & 0x10 != 0)
+	if(((pSettings->viewPortMode >> 4) & 0x10) != 0)
 	{
 		pSettings->viewPortMode &= 0xEF;	/* 1110 1111 */
 	}

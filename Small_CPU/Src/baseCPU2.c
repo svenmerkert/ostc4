@@ -142,6 +142,7 @@
 #include "scheduler.h"
 #include "tm_stm32f4_otp.h"
 #include "externalInterface.h"
+#include "uart.h"
 
 // From Common/Inc:
 #include "calc_crush.h"
@@ -173,8 +174,8 @@ const SFirmwareData cpu2_FirmwareData __attribute__(( section(".firmware_data") 
 		.signature = "mh",
 
 		.release_year = 21,
-		.release_month = 4,
-		.release_day = 26,
+		.release_month = 3,
+		.release_day = 30,
 		.release_sub = 0,
 
 		/* max 48 with trailing 0 */
@@ -229,6 +230,10 @@ uint8_t firmwareVersionLow(void) {
 #define WIRELSS_POWER_GPIO_PIN      	GPIO_PIN_12
 #define WIRELSS_POWER_GPIO_PORT     	GPIOB
 #define WIRELSS_POWER_HAL_RCC_GPIO_CLK_ENABLE()		 __HAL_RCC_GPIOB_CLK_ENABLE()
+
+
+#define LED_CONTROL_PIN          		GPIO_PIN_3		/* PortC */
+#define MAINCPU_CONTROL_PIN				GPIO_PIN_0		/* PortC */
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -353,12 +358,18 @@ int main(void) {
 	HAL_Delay(10);
 	battery_gas_gauge_get_data();
 
+	global.lifeData.battery_voltage = get_voltage();
+	global.lifeData.battery_charge = get_charge();
+	copyBatteryData();
+
 	MX_SPI3_Init();
 
 	if(coldstart != 0xA5)	/* Not reading a 0xA5 means the memory cells has not been initialized before => cold start */
 	{
 		coldstart = 0xA5;
-		battery_gas_gauge_set(0);
+
+		set_charge_state(Charger_ColdStart);
+
 		global.dataSendToMaster.power_on_reset = 1;
 		global.deviceDataSendToMaster.power_on_reset = 1;
 
@@ -373,13 +384,16 @@ int main(void) {
 			}
 		}
 	}
-
-	global.lifeData.battery_voltage = get_voltage();
-	global.lifeData.battery_charge = get_charge();
-	copyBatteryData();
+	else
+	{
+		set_charge_state(Charger_NotConnected);
+	}
 
 	ADCx_Init();
 	GPIO_Power_MainCPU_Init();
+
+	externalInterface_InitPower33();
+
 	global.mode = MODE_POWERUP;
 #else
 	init_pressure();
@@ -408,6 +422,7 @@ int main(void) {
 			SPI_synchronize_with_Master();
 			MX_DMA_Init();
 			MX_SPI1_Init();
+			MX_USART1_UART_Init();
 			SPI_Start_single_TxRx_with_Master(); /* be prepared for the first data exchange */
 			Scheduler_Request_sync_with_SPI(SPI_SYNC_METHOD_HARD);
 			EXTI_Test_Button_Init();
@@ -478,7 +493,9 @@ int main(void) {
 			 EXTI_Wakeup_Button_Init();
 			 NOT_USED_AT_THE_MOMENT_scheduleSleepMode();
 			 */
+
 			EXTI_Test_Button_DeInit();
+			externalInterface_SwitchPower33(false);
 			if (hasExternalClock())
 				SystemClock_Config_HSI();
 			sleep_prepare();
@@ -499,6 +516,11 @@ int main(void) {
 			MX_DMA_Init();
 			MX_SPI1_Init();
 			SPI_Start_single_TxRx_with_Master();
+
+			if(externalInterface_isEnabledPower33())
+			{
+				externalInterface_SwitchPower33(true);
+			}
 
 			// EXTILine0_Button_DeInit(); not now, later after testing
 			break;
@@ -793,7 +815,7 @@ static void GPIO_LED_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	__GPIOC_CLK_ENABLE();
-	GPIO_InitStructure.Pin = GPIO_PIN_3;
+	GPIO_InitStructure.Pin = LED_CONTROL_PIN;
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Speed = GPIO_SPEED_FAST;
@@ -805,7 +827,7 @@ void GPIO_new_DEBUG_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	__GPIOC_CLK_ENABLE();
-	GPIO_InitStructure.Pin = GPIO_PIN_3;
+	GPIO_InitStructure.Pin = LED_CONTROL_PIN;
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Speed = GPIO_SPEED_FAST;
@@ -815,33 +837,33 @@ void GPIO_new_DEBUG_Init(void) {
 
 void GPIO_new_DEBUG_LOW(void) {
 #ifdef DEBUG_PIN_ACTIVE
-	HAL_GPIO_WritePin(GPIOC,GPIO_PIN_3,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOC,LED_CONTROL_PIN,GPIO_PIN_RESET);
 #endif
 }
 
 void GPIO_new_DEBUG_HIGH(void) {
 #ifdef DEBUG_PIN_ACTIVE
-	HAL_GPIO_WritePin(GPIOC,GPIO_PIN_3,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOC,LED_CONTROL_PIN,GPIO_PIN_SET);
 #endif
 }
 
 static void GPIO_Power_MainCPU_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	__GPIOC_CLK_ENABLE();
-	GPIO_InitStructure.Pin = GPIO_PIN_0;
+	GPIO_InitStructure.Pin = MAINCPU_CONTROL_PIN;
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
 	HAL_GPIO_Init( GPIOC, &GPIO_InitStructure);
-	HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin( GPIOC, MAINCPU_CONTROL_PIN, GPIO_PIN_RESET);
 }
 
 static void GPIO_Power_MainCPU_ON(void) {
-	HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin( GPIOC, MAINCPU_CONTROL_PIN, GPIO_PIN_RESET);
 }
 
 static void GPIO_Power_MainCPU_OFF(void) {
-	HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin( GPIOC, MAINCPU_CONTROL_PIN, GPIO_PIN_SET);
 }
 
 /**
@@ -938,11 +960,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *I2cHandle) {
 
 void sleep_prepare(void) {
 	EXTI_Wakeup_Button_Init();
-	/*
-	 GPIO_InitStruct.Pull = GPIO_PULLUP;
-	 GPIO_InitStruct.Pin =  GPIO_PIN_0;
-	 HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	 */
+
 	compass_sleep();
 	HAL_Delay(100);
 	accelerator_sleep();
@@ -972,8 +990,8 @@ void sleep_prepare(void) {
 
 	GPIO_InitStruct.Pin =
 			GPIO_PIN_All
-					^ ( GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_14
-							| GPIO_PIN_15); /* power off & charger in & charge out & OSC32*/
+					^ ( MAINCPU_CONTROL_PIN | CHARGE_OUT_PIN | CHARGE_IN_PIN | EXT33V_CONTROL_PIN | LED_CONTROL_PIN); /* power off & charger in & charge out & OSC32 & ext33Volt */
+
 	HAL_GPIO_Init( GPIOC, &GPIO_InitStruct);
 
 	GPIO_InitStruct.Pin = GPIO_PIN_All ^ ( GPIO_PIN_0);

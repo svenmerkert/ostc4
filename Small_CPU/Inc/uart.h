@@ -24,10 +24,24 @@
 
 #include "stm32f4xx_hal.h"
 
-void MX_USART2_UART_Init(void);
-void MX_USART2_UART_DeInit(void);
-uint8_t UART_ButtonAdjust(uint8_t *array);
 
+ typedef enum
+ {
+ 	RX_Ready= 0,					/* Initial state */
+ 	RX_Data0,						/* Process incoming data */
+	RX_Data1,
+	RX_Data2,
+	RX_Data3,
+	RX_Data4,
+	RX_DataComplete
+ } receiveState_t;
+
+
+void MX_USART1_UART_Init(void);
+void MX_USART1_UART_DeInit(void);
+void MX_USART1_DMA_Init(void);
+uint8_t UART_ButtonAdjust(uint8_t *array);
+void HandleUARTData(void);
 
 #ifdef __cplusplus
 }

@@ -689,7 +689,7 @@ void refresh_PlanResult(void)
                     textpointer += snprintf(&text[textpointer],20,"GF %u/%u", stateUsed->diveSettings.gf_low, stateUsed->diveSettings.gf_high);
                 break;
             case 1:
-                if(settingsGetPointer()->dive_mode == DIVEMODE_CCR)
+                if(isLoopMode(settingsGetPointer()->dive_mode))
                     text[textpointer++] = 'C';
                 else
                     text[textpointer++] = 'O';

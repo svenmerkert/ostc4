@@ -61,4 +61,13 @@
 /* Enable to have PPO2 adjustments in T3 sensor view during dive simulation */
 /* #define ENABLE_T3_PPO_SIM */
 
+/* Enable to have PSCR functionality available */
+/* #define ENABLE_PSCR_MODE */
+
+/* Enable to have CO2 sensor functionality available */
+/* #define ENABLE_CO2_SUPPORT */
+
+/* Enable if you are using sensors with a voltage range 8..16 mV at surface / air level */
+/* #define ENABLE_ALTERNATIVE_SENSORTYP */
+
 #endif

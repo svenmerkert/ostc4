@@ -28,7 +28,7 @@
 #include "stm32f4xx_hal.h"
 #include "i2c.h"
 
-static float battery_f_voltage = 6.0;		/* max assumed voltage */
+static float battery_f_voltage = BATTERY_DEFAULT_VOLTAGE;		/* max assumed voltage */
 static float battery_f_charge_percent = 0;
 
 #define BGG_BATTERY_OFFSET          (26123)  //; 65536-(3,35Ah/0,085mAh)

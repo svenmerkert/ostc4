@@ -67,6 +67,9 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
         case DIVEMODE_Apnea:
             divemode = TXT_Apnoe;
             break;
+        case DIVEMODE_PSCR:
+            divemode = TXT_PSClosedCircuit;
+        break;
         default :
         	divemode = TXT_OpenCircuit;
         	break;
@@ -81,14 +84,22 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if(data->dive_mode == DIVEMODE_CCR)
+    if(isLoopMode(data->dive_mode))
     {
         if((line == 0) || (line == 2))
         {
-            if(data->CCR_Mode == CCRMODE_Sensors)
-                CcrModusTxtId = TXT_Sensor;
-            else
-                CcrModusTxtId = TXT_FixedSP;
+        	switch(data->CCR_Mode)
+        	{
+        		case CCRMODE_Sensors: CcrModusTxtId = TXT_Sensor;
+        			break;
+        		case CCRMODE_FixedSetpoint: CcrModusTxtId = TXT_FixedSP;
+        			break;
+        		case CCRMODE_Simulation: CcrModusTxtId = TXT_SimPpo2;
+        			break;
+        		default:	CcrModusTxtId = 'X';
+        			break;
+        	}
+
 
             textPointer += snprintf(&text[textPointer], 60,\
                 "%c"

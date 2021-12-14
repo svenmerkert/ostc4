@@ -55,7 +55,7 @@ uint32_t tMOG_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     }
     else
     {
-        if (stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+        if (isLoopMode(stateUsed->diveSettings.diveMode))
             gas_mode = OCGAS_BAILOUT_INACTIVE;
         else
             gas_mode = OCGAS_BAILOUT_ACTIVE;
@@ -328,7 +328,7 @@ void tMG_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext, uint8_t
 			text[textPointer++] = 0;
     	}
     	else	/* switch to bailout selection in surface mode */
-    	if((settingsGetPointer()->dive_mode == DIVEMODE_CCR) || (stateUsed->diveSettings.ccrOption == 1))
+    	if((isLoopMode(settingsGetPointer()->dive_mode)) || (stateUsed->diveSettings.ccrOption == 1))
     	{
 			text[textPointer++] = '\024';
 			if(gasMode == CCGAS_STANDARD)

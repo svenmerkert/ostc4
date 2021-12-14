@@ -34,6 +34,7 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "dma.h"
+#include "uart.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -55,6 +56,7 @@ void MX_DMA_Init(void)
   /* DMA controller clock enable */
   __DMA2_CLK_ENABLE();
 
+  MX_USART1_DMA_Init();
   /* DMA interrupt init */
 
 }

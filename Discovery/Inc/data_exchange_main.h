@@ -45,7 +45,7 @@ SDataExchangeSlaveToMaster* get_dataInPointer(void);
 void DataEX_copy_to_LifeData(_Bool *modeChangeFlag);
 void DataEX_copy_to_deco(void);
 void DateEx_copy_to_dataOut(void);
-void DataEX_merge_deviceData(void);
+void DataEX_merge_devicedata(void);
 uint32_t DataEX_lost_connection_count(void);
 void DataEX_control_connection_while_asking_for_sleep(void);
 uint8_t DataEX_check_RTE_version__needs_update(void);
@@ -55,5 +55,7 @@ uint8_t DataEX_external_ADC_Present(void);
 SDataReceiveFromMaster * dataOutGetPointer(void);
 
 uint16_t DataEX_debug_data(uint16_t *dataOut20x5);
+
+void DataEX_setExtInterface_Cmd(uint16_t Cmd);
 
 #endif /* DATA_EXCHANGE_MAIN_H */

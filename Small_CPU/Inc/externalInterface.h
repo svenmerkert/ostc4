@@ -32,10 +32,24 @@
 #define MAX_ADC_CHANNEL		(3u)		/* number of channels to be read */
 #define EXTERNAL_ADC_NO_DATA	0xFF
 
+#define EXT33V_CONTROL_PIN				GPIO_PIN_7	/* PortC */
+
 void externalInterface_Init(void);
+void externalInterface_InitPower33(void);
 uint8_t externalInterface_StartConversion(uint8_t channel);
 uint8_t externalInterface_ReadAndSwitch();
 float externalInterface_CalculateADCValue(uint8_t channel);
 float getExternalInterfaceChannel(uint8_t channel);
+void externalInterface_SwitchPower33(uint8_t state);
+uint8_t externalInterface_isEnabledPower33();
+
+void externalInterface_SetCO2Value(uint16_t CO2_ppm);
+void externalInterface_SetCO2SignalStrength(uint16_t LED_qa);
+uint16_t externalInterface_GetCO2Value(void);
+uint16_t externalInterface_GetCO2SignalStrength(void);
+void externalInterface_SetCO2State(uint16_t state);
+uint16_t externalInterface_GetCO2State(void);
+
+void externalInterface_ExecuteCmd(uint16_t Cmd);
 
 #endif /* EXTERNAL_INTERFACE_H */

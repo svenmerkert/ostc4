@@ -119,6 +119,7 @@ extern const tText text_array2[];
 		TXT_ClosedCircuit,
 		TXT_Apnoe,
 		TXT_Gauge,
+		TXT_PSClosedCircuit,
 		TXT_Sensor,
 		TXT_FixedSP,
 		TXT_Decoparameters,
@@ -141,6 +142,10 @@ extern const tText text_array2[];
 		TXT_ScrubTimeReset,
 		TXT_ScrubTimeMode,
 		TXT_Percent,
+		TXT_PSCRO2Drop,
+		TXT_PSCRLungRatio,
+		TXT_SimPpo2,
+		TXT_CO2Sensor,
 		/* */
 		TXT_END,
 
@@ -308,6 +313,7 @@ extern const tText text_array2[];
 		TXT2BYTE_Maintenance,
 		TXT2BYTE_SetBatteryCharge,
 		TXT2BYTE_SetFactoryDefaults,
+		TXT2BYTE_ResetBluetooth,
 		TXT2BYTE_SetSampleIndex,
 		TXT2BYTE_Reboot,
 		TXT2BYTE_ButtonLeft,
@@ -334,6 +340,8 @@ extern const tText text_array2[];
 		TXT2BYTE_Minimum,
 		TXT2BYTE_Normal,
 		TXT2BYTE_Maximum,
+
+		TXT2BYTE_CheckSettings,
 
 		TXT2BYTE_END
 };

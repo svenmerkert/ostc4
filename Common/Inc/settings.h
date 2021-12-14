@@ -47,11 +47,13 @@
 
 #define CCRMODE_FixedSetpoint 0
 #define CCRMODE_Sensors 1
+#define CCRMODE_Simulation 2
 
 #define DIVEMODE_OC 0
 #define DIVEMODE_CCR 1
 #define DIVEMODE_Gauge 2
 #define DIVEMODE_Apnea 3
+#define DIVEMODE_PSCR 4
 
 #define GF_MODE 1
 #define VPM_MODE 2
@@ -73,6 +75,12 @@
 
 #define MAX_SCRUBBER_TIME 		(500u)
 #define MIN_PPO2_SP_CBAR		(40u)
+
+#define PSCR_MAX_O2_DROP		(15u)
+#define PSCR_MIN_LUNG_RATIO		(5u)
+#define PSCR_MAX_LUNG_RATIO		(20u)
+
+#define FUTURE_SPARE_SIZE		(29u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
@@ -202,13 +210,10 @@ typedef struct
 	uint8_t bluetoothActive; /* will be set to zero on each startup at the moment */
 	uint8_t safetystopDepth;
 	uint32_t updateSettingsAllowedFromHeader;
-	uint8_t scooterControl;
-	uint8_t scooterDrag;
-	uint8_t scooterLoad;
-	uint8_t scooterNumberOfBatteries;
-	uint16_t scooterBattSize;
-	uint8_t scooterSPARE1[7];
-	uint8_t scooterSPARE2[19];
+	uint8_t pscr_lung_ratio;									/* redefined in 0xFFFF0020 */
+	uint8_t pscr_o2_drop;										/* redefined in 0xFFFF0020 */
+	uint8_t co2_sensor_active;									/* redefined in 0xFFFF0021 */
+	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
 	// new in 0xFFFF0006
 	uint8_t ppo2sensors_deactivated;
 	uint8_t tX_colorscheme;
@@ -339,5 +344,8 @@ void settingsWriteFactoryDefaults(uint8_t inputValueRaw, uint8_t *inputBalanceAr
 void settingsHelperButtonSens_keepPercentageValues(uint32_t inputValueRaw, uint8_t *outArray4Values);
 uint8_t settingsHelperButtonSens_translate_percentage_to_hwOS_values(uint8_t inputValuePercentage);
 uint8_t settingsHelperButtonSens_translate_hwOS_values_to_percentage(uint8_t inputValuePIC);
+
+void reset_SettingWarning();
+uint8_t isSettingsWarning();
 
 #endif // SETTINGS_H

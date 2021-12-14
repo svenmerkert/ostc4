@@ -27,8 +27,11 @@
 #include "i2c.h"
 #include "externalInterface.h"
 #include "scheduler.h"
+#include "uart.h"
+#include "data_exchange.h"
 
 extern SGlobal global;
+extern UART_HandleTypeDef huart1;
 
 #define ADC_ANSWER_LENGTH	(5u)		/* 3424 will provide addr + 4 data bytes */
 #define ADC_TIMEOUT			(10u)		/* conversion stuck for unknown reason => restart */
@@ -52,6 +55,10 @@ static uint8_t timeoutCnt = 0;
 static uint8_t externalInterfacePresent = 0;
 
 float externalChannel_mV[MAX_ADC_CHANNEL];
+static uint8_t  externalV33_On = 0;
+static uint16_t externalCO2Value;
+static uint16_t externalCO2SignalStrength;
+static uint16_t  externalCO2Status = 0;
 
 
 void externalInterface_Init(void)
@@ -65,6 +72,12 @@ void externalInterface_Init(void)
 		global.deviceDataSendToMaster.hw_Info.extADC = 1;
 	}
 	global.deviceDataSendToMaster.hw_Info.checkADC = 1;
+
+/* init data values */
+	externalV33_On = 0;
+	externalCO2Value = 0;
+	externalCO2SignalStrength = 0;
+	externalCO2Status = 0;
 }
 
 
@@ -168,3 +181,92 @@ float getExternalInterfaceChannel(uint8_t channel)
 	}
 	return retval;
 }
+
+void externalInterface_InitPower33(void)
+{
+	GPIO_InitTypeDef   GPIO_InitStructure;
+
+	GPIO_InitStructure.Pin = GPIO_PIN_7;
+	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStructure.Pull = GPIO_PULLUP;
+	GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
+	HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
+}
+
+
+uint8_t externalInterface_isEnabledPower33()
+{
+	return externalV33_On;
+}
+void externalInterface_SwitchPower33(uint8_t state)
+{
+	if(state != externalV33_On)
+	{
+		if(state)
+		{
+			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_RESET);
+			externalV33_On = 1;
+			MX_USART1_UART_Init();
+		}
+		else
+		{
+			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
+			externalV33_On = 0;
+			externalInterface_SetCO2Value(0);
+			externalInterface_SetCO2SignalStrength(0);
+			MX_USART1_UART_DeInit();
+		}
+	}
+}
+
+void externalInterface_SetCO2Value(uint16_t CO2_ppm)
+{
+	externalCO2Value = CO2_ppm;
+}
+
+void externalInterface_SetCO2SignalStrength(uint16_t LED_qa)
+{
+	externalCO2SignalStrength = LED_qa;
+}
+
+uint16_t externalInterface_GetCO2Value(void)
+{
+	return externalCO2Value;
+}
+
+uint16_t externalInterface_GetCO2SignalStrength(void)
+{
+	return externalCO2SignalStrength;
+}
+
+
+void externalInterface_SetCO2State(uint16_t state)
+{
+	externalCO2Status = state;
+}
+
+uint16_t externalInterface_GetCO2State(void)
+{
+	return externalCO2Status;
+}
+
+void externalInterface_ExecuteCmd(uint16_t Cmd)
+{
+	char cmdString[10];
+	uint8_t cmdLength = 0;
+
+	switch(Cmd & 0x00FF)		/* lower byte is reserved for commands */
+	{
+		case EXT_INTERFACE_CO2_CALIB:	cmdLength = snprintf(cmdString, 10, "G\r\n");
+			break;
+		default:
+			break;
+	}
+	if(cmdLength != 0)
+	{
+		HAL_UART_Transmit(&huart1,(uint8_t*)cmdString,cmdLength,10);
+	}
+	return;
+}
+
