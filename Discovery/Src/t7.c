@@ -746,8 +746,6 @@ void t7_refresh_surface(void)
 */
     if(DataEX_was_power_on()) {
         GFX_write_string_color(&FontT42,&t7surfaceR,"cold start",4,CLUT_WarningRed);
-	// Reset the bluetooth interface after a cold start
-	tComm_Set_Bluetooth_Name(1);
     }
 
     /* time and date */
