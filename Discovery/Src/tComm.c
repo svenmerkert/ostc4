@@ -2001,7 +2001,8 @@ uint8_t tComm_CheckAnswerOK()
     char aRxBuffer[UART_CMD_BUF_SIZE];
     uint8_t sizeAnswer = sizeof(answerOkay) -1;
 	uint8_t result = HAL_OK;
-	uint8_t index = 0;
+	uint8_t indexRef = 0;
+	uint8_t indexBuf = 0;
 	uint8_t answer;
 
 	memset(aRxBuffer,0,UART_CMD_BUF_SIZE);
@@ -2009,25 +2010,46 @@ uint8_t tComm_CheckAnswerOK()
 	{
 		do
 		{
-			if(answerOkay[index] != aRxBuffer[index])
+			if(answerOkay[indexRef] == aRxBuffer[indexBuf])
 			{
-				index = sizeAnswer;
-				result = HAL_ERROR;		/* unexpected answer => there might be characters left in RX que => read and discard all rx bytes */
-				do
-				{
-					answer = HAL_UART_Receive(&UartHandle, (uint8_t*)&aRxBuffer[index], 1, 10);
-					if (index < UART_CMD_BUF_SIZE) 
-					{
-						index++;
-					}
-				}while(answer == HAL_OK);
-				index = sizeAnswer;
+				indexRef++;
 			}
 			else
 			{
-				index++;
+				if(indexRef != 0)
+				{
+					indexRef = 0;
+				}
 			}
-		}while(index < sizeAnswer);
+			indexBuf++;
+		}while(indexBuf < sizeAnswer);
+
+		if(indexRef != sizeAnswer)		/* unexpected answer => there might be characters left in RX que => read and check all rx bytes */
+		{
+			do
+			{
+				answer = HAL_UART_Receive(&UartHandle, (uint8_t*)&aRxBuffer[indexBuf], 1, 10);
+				if (indexBuf < UART_CMD_BUF_SIZE)
+				{
+					if(answerOkay[indexRef] == aRxBuffer[indexBuf])
+					{
+						indexRef++;
+					}
+					else
+					{
+						if(indexRef != 0)
+						{
+							indexRef = 0;
+						}
+					}
+					indexBuf++;
+				}
+			}while(answer == HAL_OK);
+			if(indexRef != sizeAnswer)
+			{
+				result = HAL_ERROR;
+			}
+		}
 	}
 	else
 	{
@@ -2175,13 +2197,7 @@ uint8_t tComm_HandleBlueModConfig()
 		CmdSize = strlen(TxBuffer);
 		if(HAL_UART_Transmit(&UartHandle, (uint8_t*)TxBuffer,CmdSize, 2000) == HAL_OK)
 		{
-			if(BmTmpConfig == BM_CONFIG_ECHO)	/* echo is not yet turned off => read and discard echo */
-			{
-				HAL_UART_Receive(&UartHandle, (uint8_t*)TxBuffer, CmdSize, UART_OPERATION_TIMEOUT);
-			}
-
 			result = tComm_CheckAnswerOK();
-
 
 			if((BmTmpConfig == BM_CONFIG_BAUD) && (result == HAL_OK) && (UartHandle.Init.BaudRate != 460800)) /* is com already switched to fast speed? */
 			{
@@ -2190,6 +2206,19 @@ uint8_t tComm_HandleBlueModConfig()
 				UartHandle.Init.BaudRate   = 460800;
 				HAL_UART_Init(&UartHandle);
 			}
+			if((BmTmpConfig == BM_CONFIG_BAUD) && (result == HAL_OK) && (UartHandle.Init.BaudRate == 460800)) /* This shut not happen because default speed is 115200 => update module configuration */
+			{
+				sprintf(TxBuffer,"AT%%B8\r");	/* set default baudrate */
+				CmdSize = strlen(TxBuffer);
+				HAL_UART_Transmit(&UartHandle, (uint8_t*)TxBuffer,CmdSize, 2000);
+				HAL_UART_DeInit(&UartHandle);
+				HAL_Delay(10);
+				UartHandle.Init.BaudRate   = 115200;
+				HAL_UART_Init(&UartHandle);
+				sprintf(TxBuffer,"AT&W\r");		/* write configuration */
+				CmdSize = strlen(TxBuffer);
+				HAL_UART_Transmit(&UartHandle, (uint8_t*)TxBuffer,CmdSize, 2000);
+			}
 			if(result == HAL_OK)
 			{
 				BmTmpConfig++;
@@ -2197,6 +2226,7 @@ uint8_t tComm_HandleBlueModConfig()
 			if(BmTmpConfig == BM_CONFIG_DONE)
 			{
 				ConfigRetryCnt = 0;
+				RestartModule = 1;
 			}
 		}
 	}
@@ -2210,6 +2240,14 @@ uint8_t tComm_HandleBlueModConfig()
 			{
 				RestartModule = 0;      /* only one try */
 				ConfigRetryCnt = 200;	/* used for delay to startup module again */
+
+				if(BmTmpConfig == BM_CONFIG_ECHO)	/* the module did not answer even once => try again with alternative baud rate */
+				{
+					HAL_UART_DeInit(&UartHandle);
+					HAL_Delay(1);
+					UartHandle.Init.BaudRate   = 460800;
+					HAL_UART_Init(&UartHandle);
+				}
 				BmTmpConfig = BM_CONFIG_RETRY;
 			}
 			else						/* even restarting module failed => switch bluetooth off */
