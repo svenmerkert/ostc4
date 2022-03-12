@@ -1153,6 +1153,13 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
         /* important levelAmbient 300 - 1200 */
         levelAmbient = 10 * pStateReal->lifeData.ambient_light_level;
 
+        if((pStateReal->chargeStatus == CHARGER_running) || (pStateReal->chargeStatus == CHARGER_lostConnection))
+        {
+        	levelMax = 1000;
+        	levelMin = 500;
+        }
+        else
+        {
         switch(	pSettings->brightness + blBoost)
         {
         case 0: /* Cave */
@@ -1194,6 +1201,7 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
 //			wasLostConnection = 0;
         }
 //	}
+        }
 
     if(levelAmbient > levelActual)
         levelActual += levelUpStep_100ms;
@@ -1205,8 +1213,9 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
         levelActual = levelMax;
     else
     if(levelActual < levelMin)
+    {
         levelActual = levelMin;
-
+    }
 //	sConfig.Pulse = levelActual / 20;
     sConfig.Pulse = (levelMin + ((levelMax - levelMin)/2)) / 20; // added 170306
 
@@ -1214,8 +1223,8 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
     if(sConfig.Pulse > 600)
         sConfig.Pulse = 600;
     else
-    if(sConfig.Pulse < 100)
-        sConfig.Pulse = 100;
+    if(sConfig.Pulse < 25)
+        sConfig.Pulse = 25;
 
     HAL_TIM_PWM_ConfigChannel(&TimBacklightHandle, &sConfig, TIM_BACKLIGHT_CHANNEL);
     HAL_TIM_PWM_Start(&TimBacklightHandle, TIM_BACKLIGHT_CHANNEL);
@@ -1718,17 +1727,30 @@ static void TimeoutControl(void)
 			switch(status.base)
 			{
 			case BaseHome:
-				// added hw 161027
-				if(!(stateRealGetPointer()->warnings.lowBattery) && (stateRealGetPointer()->lifeData.battery_charge > 9))
+				/* The RTE will mark a charge value as suspect after startup. Main know the update condition and may confirm that the value is most likely valid */
+	//			if(!(stateRealGetPointer()->warnings.lowBattery) && ((stateRealGetPointer()->lifeData.battery_charge > 9) || (wasFirmwareUpdateCheckBattery)))
 				{
-					stateRealGetPointerWrite()->lastKnownBatteryPercentage = stateRealGetPointer()->lifeData.battery_charge;
+					if(stateRealGetPointer()->lifeData.battery_charge < 0.0)
+					{
+						if(fabs(stateRealGetPointerWrite()->lastKnownBatteryPercentage - fabs(stateRealGetPointer()->lifeData.battery_charge)) < 1.0)
+						{
+							setBatteryPercentage(settingsGetPointer()->lastKnownBatteryPercentage);	/* confirm that value provided by RTE is valid (maybe reset happened) */
+						}
+					}
+					else
+					{
+						if(!(stateRealGetPointer()->warnings.lowBattery) && (stateRealGetPointer()->lifeData.battery_charge > 9))
+						{
+							stateRealGetPointerWrite()->lastKnownBatteryPercentage = stateRealGetPointer()->lifeData.battery_charge;
+						}
+					}
 				}
-				else if((wasFirmwareUpdateCheckBattery) && (timeout_in_seconds > 3))
+				if((wasFirmwareUpdateCheckBattery) && (timeout_in_seconds > 3))
 				{
 					wasFirmwareUpdateCheckBattery = 0;
 					setButtonResponsiveness(settingsGetPointer()->ButtonResponsiveness); // added 170306
 					if(	(settingsGetPointer()->lastKnownBatteryPercentage > 0)
-					&& 	(settingsGetPointer()->lastKnownBatteryPercentage <= 100)
+					&& 	(settingsGetPointer()->lastKnownBatteryPercentage <= 101.0)
 					&& 	(stateRealGetPointer()->warnings.lowBattery))
 					{
 						setBatteryPercentage(settingsGetPointer()->lastKnownBatteryPercentage);
