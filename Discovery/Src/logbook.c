@@ -1309,7 +1309,14 @@ void logbook_InitAndWrite(const SDiveState *pStateReal)
 		logbook_SetCompartmentDesaturation(pStateReal);
 		logbook_SetLastStop(pStateReal->diveSettings.last_stop_depth_bar);
 		gheader.batteryVoltage = pStateReal->lifeData.battery_voltage * 1000;
-		gheader.batteryCharge = pStateReal->lifeData.battery_charge;
+		if(pStateReal->lifeData.battery_charge > 0.0)
+		{
+			gheader.batteryCharge = pStateReal->lifeData.battery_charge;
+		}
+		else
+		{
+			gheader.batteryCharge = 0.0;
+		}
 		logbook_EndDive();
 		bDiveMode = 0;
 	} else

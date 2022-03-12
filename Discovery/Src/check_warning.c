@@ -348,7 +348,7 @@ static int8_t check_CNS(SDiveState * pDiveState)
 
 static int8_t check_Battery(SDiveState * pDiveState)
 {
-	if(pDiveState->lifeData.battery_charge < 10)
+	if((pDiveState->lifeData.battery_charge > 0) && (pDiveState->lifeData.battery_charge < 10))
 		pDiveState->warnings.lowBattery = 1;
 	else
 		pDiveState->warnings.lowBattery = 0;
