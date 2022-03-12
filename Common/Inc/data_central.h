@@ -31,6 +31,7 @@
 
 #include "settings.h"
 #include "stm32f4xx_hal.h"
+#include "configuration.h"
 
 #define BUEHLMANN_STRUCT_MAX_GASES 11
 #define BUEHLMANN_STRUCT_MAX_ASCENDRATES 3

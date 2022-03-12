@@ -459,11 +459,11 @@ static uint8_t text_FR_PSClosedCircuit[] = "PSC circuit";
 static uint8_t text_IT_PSClosedCircuit[] = "PSC circuit";
 static uint8_t text_ES_PSClosedCircuit[] = "PSC circuit";
 
-static uint8_t text_EN_Time[] = "Time";
-static uint8_t text_DE_Time[] = "Uhrzeit";
-static uint8_t text_FR_Time[] = "Heure";
-static uint8_t text_IT_Time[] = "Ora";
-static uint8_t text_ES_Time[] = "Hora";
+static uint8_t text_EN_ChargeHour[] = "Hour(s) till 100%";
+static uint8_t text_DE_ChargeHour[] = "Stunde(n) bis 100%";
+static uint8_t text_FR_ChargeHour[] = "";
+static uint8_t text_IT_ChargeHour[] = "";
+static uint8_t text_ES_ChargeHour[] = "";
 
 static uint8_t text_EN_Date[] = "Date";
 static uint8_t text_DE_Date[] = "Datum";
@@ -1140,6 +1140,13 @@ static uint8_t text_FR_Warning[] = "Alerte";
 static uint8_t text_IT_Warning[] = "Pericolo";
 static uint8_t text_ES_Warning[] = "Peligro";
 
+// Customview Header
+static uint8_t text_EN_Charging[] = "Charging";
+static uint8_t text_DE_Charging[] = "Ladezyklus";
+static uint8_t text_FR_Charging[] = "";
+static uint8_t text_IT_Charging[] = "";
+static uint8_t text_ES_Charging[] = "";
+
 // Menu SYS2 sub Information
 static uint8_t text_EN_Usage_Battery[] = "Battery life";
 static uint8_t text_DE_Usage_Battery[] = "Batterie-Nutzung";
@@ -1762,10 +1769,11 @@ const tText text_array[] =
     {(uint8_t)TXT_ActualGradient,   {text_EN_ActualGradient, text_DE_ActualGradient, text_FR_ActualGradient, text_IT_ActualGradient, text_ES_ActualGradient}},
     {(uint8_t)TXT_Stopwatch, 		{text_EN_Stopwatch, text_DE_Stopwatch, text_FR_Stopwatch, text_IT_Stopwatch, text_ES_Stopwatch}},
     {(uint8_t)TXT_Gas, 				{text_EN_Gas, text_DE_Gas, text_FR_Gas, text_IT_Gas, text_ES_Gas}},
-    {(uint8_t)TXT_Time, 			{text_EN_Time, text_DE_Time, text_FR_Time, text_IT_Time, text_ES_Time}},
+    {(uint8_t)TXT_ChargeHour,		{text_EN_ChargeHour, text_DE_ChargeHour, text_FR_ChargeHour, text_IT_ChargeHour, text_ES_ChargeHour}},
     {(uint8_t)TXT_Date, 			{text_EN_Date, text_DE_Date, text_FR_Date, text_IT_Date, text_ES_Date}},
     {(uint8_t)TXT_Format, 			{text_EN_Format, text_DE_Format, text_FR_Format, text_IT_Format, text_ES_Format}},
     {(uint8_t)TXT_Warning, 			{text_EN_Warning, text_DE_Warning, text_FR_Warning, text_IT_Warning, text_ES_Warning}},
+    {(uint8_t)TXT_Charging, 		{text_EN_Charging, text_DE_Charging, text_FR_Charging, text_IT_Charging, text_ES_Charging}},
     {(uint8_t)TXT_o2Sensors, 		{text_EN_o2Sensors, text_DE_o2Sensors, text_FR_o2Sensors, text_IT_o2Sensors, text_ES_o2Sensors}},
     {(uint8_t)TXT_Brightness, 		{text_EN_Brightness, text_DE_Brightness, text_FR_Brightness, text_IT_Brightness, text_ES_Brightness}},
     {(uint8_t)TXT_Cave, 			{text_EN_Cave, text_DE_Cave, text_FR_Cave, text_IT_Cave, text_ES_Cave}},

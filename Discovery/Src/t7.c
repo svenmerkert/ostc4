@@ -62,6 +62,7 @@ void t7_debug(void);
 
 void t7_miniLiveLogProfile(void);
 void t7_logo_OSTC(void);
+void t7_ChargerView(void);
 static void t7_colorscheme_mod(char *text);
 
 uint8_t t7_test_customview_warnings(void);
@@ -137,7 +138,7 @@ const uint8_t customviewsSurfaceStandard[] =
     CVIEW_Compass,
     CVIEW_Tissues,
     CVIEW_sensors_mV,
-    CVIEW_END,
+	CVIEW_Charger,
     CVIEW_END
 };
 
@@ -686,6 +687,7 @@ void t7_refresh_sleep_design_fun(void)
 void t7_refresh_surface(void)
 {
 	static float debounceAmbientPressure = 0;
+	static uint8_t lastChargeStatus = 0;
     char text[256];
     char timeSuffix;
     uint8_t hours;
@@ -1185,6 +1187,11 @@ void t7_refresh_surface(void)
     }
     else
     {
+        if(lastChargeStatus == CHARGER_off)
+        {
+        	t7_select_customview(CVIEW_Charger);
+        }
+
         GFX_write_string_color(&Batt24,&t7batt,text,0,CLUT_BatteryCharging);
 
         switch(stateUsed->chargeStatus)
@@ -1205,6 +1212,7 @@ void t7_refresh_surface(void)
         GFX_write_string_color(&Batt24,&t7charge,text,0,color);
     }
 
+    lastChargeStatus = stateUsed->chargeStatus;
 
 
     customview_warnings = t7_test_customview_warnings_surface_mode();
@@ -1609,6 +1617,13 @@ uint8_t t7_customview_disabled(uint8_t view)
     {
       	cv_disabled = 1;
     }
+
+    if ((view == CVIEW_Charger) && (stateUsed->chargeStatus != CHARGER_running) && (stateUsed->chargeStatus != CHARGER_lostConnection))
+    {
+       	cv_disabled = 1;
+    }
+
+
     return cv_disabled;
 }
 
@@ -1737,6 +1752,13 @@ void t7_refresh_customview(void)
             // content
             t7_debug();
         }
+        break;
+
+    case CVIEW_Charger:
+             snprintf(text,100,"\032\f\001%c",TXT_Charging);
+            GFX_write_string(&FontT42,&t7cH,text,0);
+            t7_ChargerView();
+
         break;
 
     case CVIEW_SummaryOfLeftCorner:
@@ -3831,4 +3853,196 @@ void t7_logo_OSTC(void)
 
     windowGimp.top = 40 + 32;
     GFX_draw_image_monochrome(&t7screen, windowGimp, &ImgOSTC, 0);
+}
+
+static uint16_t ChargerLog[60] = {10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10};
+
+uint16_t LogDeltaCharge(float charge)
+{
+	static uint8_t curIndex = 0;
+	static float averageSpeed = 0.0;
+	uint16_t level = 0;
+	uint16_t completeSec = 0;
+
+	if(charge > 0.003)
+	{
+		level = 2;
+	}
+	else if(charge > 0.0025)
+	{
+			level = 3;
+	}
+	else if(charge > 0.002)
+	{
+			level = 4;
+	}
+	else if(charge > 0.0015)
+	{
+			level = 5;
+	}
+	else if(charge > 0.001)
+	{
+			level = 6;
+	}
+	else if(charge > 0.0005)
+	{
+			level = 7;
+	}
+	else if(charge > 0.00)
+	{
+			level = 8;
+	}
+	else
+	{
+		level = 10;
+	}
+	if(curIndex < 59)
+	{
+		ChargerLog[curIndex++] = level;
+	}
+	else
+	{
+		memcpy (&ChargerLog[0],&ChargerLog[1],sizeof(ChargerLog) - 1);
+		ChargerLog[curIndex] = level;
+	}
+	if(curIndex > 1)
+	{
+		averageSpeed = ((averageSpeed * (curIndex-1)) + charge) / curIndex;
+		completeSec = (100.0 - stateUsed->lifeData.battery_charge) / averageSpeed;
+	}
+	else
+	{
+		completeSec = 0xffff;
+	}
+	return completeSec;
+}
+
+uint16_t* getChargeLog()
+{
+	return ChargerLog;
+}
+
+void t7_ChargerView(void)
+{
+	static float lastCharge = 0.0;
+	float localCharge = 0.0;
+	static uint32_t lastTick = 0;
+	uint32_t curTick = 0;
+	static float speed = 0.0;
+	float deltatime = 0.0;
+
+    char text[256+50];
+    uint8_t textpointer = 0;
+    static uint16_t remainingSec = 0;
+    uint16_t hoursto100 = 0;
+    char indicator = '~';
+
+    point_t start, stop;
+
+    t7cY0free.WindowLineSpacing = 28 + 48 + 14;
+    t7cY0free.WindowY0 = t7cH.WindowY0 - 5 - 2 * t7cY0free.WindowLineSpacing;
+    t7cY0free.WindowNumberOfTextLines = 3;
+
+    localCharge = stateUsed->lifeData.battery_charge;
+    if(localCharge < 0.0)
+    {
+    	localCharge *= -1.0;
+    }
+
+    if(stateUsed->chargeStatus != CHARGER_off)
+    {
+		if(lastCharge != localCharge)
+		{
+			curTick = HAL_GetTick();
+			deltatime = (curTick - lastTick);
+			lastTick = curTick;
+			if(lastCharge < localCharge)
+			{
+				speed = (localCharge - lastCharge) * 1000.0 / deltatime;
+			}
+
+			lastCharge = localCharge;
+		}
+
+		if(deltatime > 1000)
+		{
+			deltatime = 0;
+			remainingSec = LogDeltaCharge(speed);
+			speed = 0;
+		}
+    }
+    textpointer += snprintf(&text[textpointer],50,"\n\r");
+    textpointer += snprintf(&text[textpointer],50,"\001%c\n\r",TXT_ChargeHour);
+
+    GFX_write_string(&FontT24, &t7cY0free, text, 1);
+
+    hoursto100 = remainingSec / 3600;		/* reduce to hours */
+    if(hoursto100 < 1)
+    {
+    	indicator = '<';
+    	hoursto100 = 1;
+    }
+    t7cY0free.WindowY0 -= 52;
+
+    if((stateUsed->lifeData.battery_charge > 0) && (stateUsed->chargeStatus != CHARGER_off))
+    {
+		snprintf(text,60,
+			"\001%0.2f\n\r"
+			"\001%c%d\n\r"
+			,stateUsed->lifeData.battery_charge
+			,indicator
+			,hoursto100);
+    }
+    else
+    {
+		snprintf(text,60,
+			"\001---\n\r"
+			"\001---\n\r");
+    }
+    GFX_write_string(&FontT42, &t7cY0free, text, 1);
+
+    SWindowGimpStyle wintemp;
+	SSettings* pSettings;
+	pSettings = settingsGetPointer();
+
+
+
+    wintemp.left = CUSTOMBOX_LINE_LEFT + CUSTOMBOX_INSIDE_OFFSET + 50;
+    wintemp.right = wintemp.left + CUSTOMBOX_SPACE_INSIDE - 100;
+
+
+    if(!pSettings->FlipDisplay)
+    {
+    	wintemp.top = 480 - t7l1.WindowY0 + 115;
+    	wintemp.bottom = wintemp.top + 100;
+    }
+    else
+    {
+    	wintemp.top = t7l1.WindowY1;
+    	wintemp.bottom = wintemp.top + 200;
+    }
+
+    start.x =  wintemp.left-5;
+    //start.y =  wintemp.top + 100;
+    start.y =  90;
+
+    stop.x = wintemp.right + 5 - start.x;
+    //stop.y = wintemp.bottom - start.y;
+    stop.y = 100;
+    GFX_draw_box(&t7screen, start, stop,1, CLUT_Font020);
+
+    if(stateUsed->chargeStatus != CHARGER_off)
+    {
+    	GFX_graph_print(&t7screen, &wintemp, 1,1,0, 10, getChargeLog(), 60, CLUT_Font030, NULL);
+    }
+    else
+    {
+        	GFX_graph_print(&t7screen, &wintemp, 1,1,0, 10, getChargeLog(), 60, CLUT_Font031, NULL);
+    }
+
 }
