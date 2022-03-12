@@ -39,8 +39,8 @@ CHG F4 7 O Open-drain output � active when BAT is enabled. Float if not used.
 
 #define CHARGER_DEBOUNCE_SECONDS	(6u)		/* 6 seconds used to avoid problems with charger interrupts / disconnections */
 
-uint8_t battery_i_charge_status = 0;
-uint16_t battery_charger_counter = 0;
+static uint8_t battery_i_charge_status = 0;
+static uint16_t battery_charger_counter = 0;
 
 #ifdef ENABLE_CHARGER_STATUS_V2
 static chargerState_t batteryChargerState = Charger_NotConnected;
@@ -141,7 +141,6 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 {
 #ifdef ENABLE_CHARGER_STATUS_V2
 	static uint8_t notifyChargeComplete = 0;
-	static float chargeValueAtStart = 0;
 #endif 
 
 	#ifdef OSTC_ON_DISCOVERY_HARDWARE
@@ -158,10 +157,6 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 			{
 				battery_gas_gauge_set_charge_full();
 			}
-			else										/* unknown state => reset to 0% */
-			{
-				battery_gas_gauge_set(0);
-			}
 			batteryChargerState = Charger_NotConnected;
 		}
 	}
@@ -176,13 +171,15 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 													batteryChargerState = Charger_LostConnection;
 													battery_charger_counter = CHARGER_DEBOUNCE_SECONDS;
 											break;
-				case Charger_LostConnection:		if(get_voltage() >= BATTERY_ENDOF_CHARGE_VOLTAGE)	 	/* the charger stops charging when charge current is 1/10 	*/
-																											/* Basically it is OK to rate a charging as complete if a defined voltage is reached */
+				case Charger_LostConnection:		/* the charger stops charging when charge current is 1/10 	*/
+													/* Basically it is OK to rate a charging as complete if a defined voltage is reached */
+													if(((battery_gas_gauge_isChargeValueValid() == 0) || (global.lifeData.battery_charge < 90)) && (get_voltage() >= BATTERY_ENDOF_CHARGE_VOLTAGE))
 													{
 														batteryChargerState = Charger_Finished;
 														global.dataSendToMaster.chargeStatus = CHARGER_complete;
 														global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
 														notifyChargeComplete = 1;
+														battery_charger_counter = 0;
 													}
 				/* no break */
 				case Charger_WarmUp:
@@ -210,13 +207,6 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 																HAL_Delay(50);		/* I2C operations are pending in the background. Wait to avoid data loose in caused to potential change to sleep state */
 															}
 														}
-														else
-														{
-															if(chargeValueAtStart < 1.0) /* charging started with unknown value => reset charge state reported by charger */
-															{
-																battery_gas_gauge_set(0);
-															}
-														}
 														batteryChargerState = Charger_NotConnected;
 													}
 											break;
@@ -232,7 +222,6 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 					case Charger_NotConnected:		battery_i_charge_status = 1;
 													battery_charger_counter = 0;
 													batteryChargerState = Charger_WarmUp;
-													chargeValueAtStart = global.lifeData.battery_charge;
 											break;
 					case Charger_LostConnection:		batteryChargerState = Charger_Active;
 											break;
@@ -268,6 +257,10 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 													}
 													else
 													{
+														if(global.lifeData.battery_charge > 100.0)				/* still charging but indicator is set to full => decrease to 99% to keep count increasing */
+														{
+															battery_gas_gauge_set(99.0);
+														}
 														if(batteryChargerState == Charger_Finished)				/* voltage dropped below the hysteresis again => charging restarted */
 														{
 															batteryChargerState = Charger_Active;

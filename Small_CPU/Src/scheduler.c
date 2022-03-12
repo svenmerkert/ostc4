@@ -127,6 +127,8 @@ void initGlobals(void)
 
 	global.I2C_SystemStatus = HAL_ERROR; // 0x00 would be everything working
 	
+	global.lifeData.battery_voltage = BATTERY_DEFAULT_VOLTAGE;
+
 	global.lifeData.pressure_ambient_bar = INVALID_PREASURE_VALUE;
 	global.lifeData.pressure_surface_bar = INVALID_PREASURE_VALUE;
 	decom_reset_with_1000mbar(&global.lifeData);
@@ -1064,6 +1066,7 @@ void scheduleSleepMode(void)
 {
 	global.dataSendToMaster.mode = 0;
 	global.deviceDataSendToMaster.mode = 0;
+	secondsCount = 0;
 	
 	/* prevent button wake up problem while in sleep_prepare
 	 * sleep prepare does I2C_DeInit()
@@ -1150,6 +1153,7 @@ void scheduleSleepMode(void)
 	clearDecoNow = 0;
 	setButtonsNow = 0;
 	reinitGlobals();
+	ReInit_battery_charger_status_pins();
 }
 
 
@@ -1579,8 +1583,17 @@ void copyCompassDataDuringCalibration(int16_t dx, int16_t dy, int16_t dz)
 void copyBatteryData(void)
 {
 	uint8_t boolBatteryData = !global.dataSendToMaster.boolBatteryData;
+	global.lifeData.battery_charge = get_charge();
 	global.dataSendToMaster.data[boolBatteryData].battery_voltage = get_voltage();
-	global.dataSendToMaster.data[boolBatteryData].battery_charge= get_charge();
+
+	if(battery_gas_gauge_isChargeValueValid())
+	{
+		global.dataSendToMaster.data[boolBatteryData].battery_charge= global.lifeData.battery_charge;
+	}
+	else
+	{
+		global.dataSendToMaster.data[boolBatteryData].battery_charge = global.lifeData.battery_charge * -1.0;	/* negate value to show that this is just an assumption */
+	}
 	global.dataSendToMaster.boolBatteryData = boolBatteryData;
 }
 

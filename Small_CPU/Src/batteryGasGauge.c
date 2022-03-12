@@ -30,6 +30,8 @@
 
 static float battery_f_voltage = BATTERY_DEFAULT_VOLTAGE;		/* max assumed voltage */
 static float battery_f_charge_percent = 0;
+static uint8_t chargeValueKnown = 0;							/* indicator if the charge of the battery is known (for example after a full charge cycle) */
+
 
 #define BGG_BATTERY_OFFSET          (26123)  //; 65536-(3,35Ah/0,085mAh)
 #define BGG_BATTERY_DIVIDER         (394)    //; 3,35Ah/0,085mAh/100 [%]
@@ -66,7 +68,7 @@ void init_battery_gas_gauge(void)
 	// F8 = 11111000:
 	// ADC auto mode (11)
 	// Prescale M = 128 (111)
-	// AL/CC pin disable (0)
+	// AL/CC pin disable (00)
 	// Shutdown (0)
 	buffer[1] = 0xF8;
 	I2C_Master_Transmit(DEVICE_BATTERYGAUGE, buffer, 2);
@@ -152,6 +154,7 @@ void battery_gas_gauge_set_charge_full(void)
 	bufferSend[2] = 0xFF;
 	I2C_Master_Transmit(  DEVICE_BATTERYGAUGE, bufferSend, 3);
 	init_battery_gas_gauge();
+	chargeValueKnown = 1;
 }
 
 
@@ -177,7 +180,17 @@ void battery_gas_gauge_set(float percentage)
 	bufferSend[2] = (uint8_t)(mAhSend & 0xFF);
 	I2C_Master_Transmit(  DEVICE_BATTERYGAUGE, bufferSend, 3);
 	init_battery_gas_gauge();
+	chargeValueKnown = 1;
 }
 
+uint8_t battery_gas_gauge_isChargeValueValid(void)
+{
+	return chargeValueKnown;
+}
+
+void battery_gas_gauge_setChargeValueValid(void)
+{
+	chargeValueKnown = 1;
+}
 
 /************************ (C) COPYRIGHT heinrichs weikamp *****END OF FILE****/
