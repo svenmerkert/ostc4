@@ -383,7 +383,7 @@ void openEdit_O2Sensors(void)
         write_label_fix(   30, 800, ME_Y_LINE4, &FontT48, TXT2BYTE_O2Calib);
         write_label_var(  400, 800, ME_Y_LINE4, &FontT48, "\016\016 %\017");
 
-        write_field_toggle(StMHARD3_O2_Calibrate,	400, 800, ME_Y_LINE4, &FontT48, "", 21, 100);
+        write_field_toggle(StMHARD3_O2_Calibrate,	400, 800, ME_Y_LINE4, &FontT48, "", 21, 98);
     }
 
     text[0] = TXT_Fallback;
@@ -517,7 +517,7 @@ uint8_t OnAction_O2_Calibrate (uint32_t editId, uint8_t blockNumber, uint8_t dig
     {
 		if(O2_calib_gas == 21)
 		{
-			O2_calib_gas = 100;
+			O2_calib_gas = 98;
 		}
 		else
 		{

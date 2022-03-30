@@ -24,7 +24,6 @@
 ///     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////////////
 
-
 #ifndef CONFIGURATION_HEADER
 #define CONFIGURATION_HEADER
 
@@ -50,24 +49,24 @@
 /* #define HAVE_DEBUG_VIEW */
 
 /* Enable to have access to the motion control selection menu */
-/* #define ENABLE_MOTION_CONTROL */
+#define ENABLE_MOTION_CONTROL
 
 /* Enable to have option to hide not needed gases from dive views */
 /* #define ENABLE_UNUSED_GAS_HIDING */
 
 /* Enable to have the new T3 profile view available */
-/* #define ENABLE_T3_PROFILE_VIEW */
+#define ENABLE_T3_PROFILE_VIEW
 
 /* Enable to have PPO2 adjustments in T3 sensor view during dive simulation */
 /* #define ENABLE_T3_PPO_SIM */
 
 /* Enable to have PSCR functionality available */
-/* #define ENABLE_PSCR_MODE */
+#define ENABLE_PSCR_MODE
 
 /* Enable to have CO2 sensor functionality available */
 /* #define ENABLE_CO2_SUPPORT */
 
 /* Enable if you are using sensors with a voltage range 8..16 mV at surface / air level */
-/* #define ENABLE_ALTERNATIVE_SENSORTYP */
+#define ENABLE_ALTERNATIVE_SENSORTYP
 
 #endif
