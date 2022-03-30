@@ -3944,9 +3944,20 @@ void t7_ChargerView(void)
 
     point_t start, stop;
 
+    SWindowGimpStyle wintemp;
+	SSettings* pSettings;
+	pSettings = settingsGetPointer();
+
     t7cY0free.WindowLineSpacing = 28 + 48 + 14;
     t7cY0free.WindowY0 = t7cH.WindowY0 - 5 - 2 * t7cY0free.WindowLineSpacing;
     t7cY0free.WindowNumberOfTextLines = 3;
+
+
+    if(pSettings->FlipDisplay)
+    {
+       	t7cY0free.WindowY0 = t7cH.WindowY0 + 15;
+        t7cY0free.WindowY1 = t7cY0free.WindowY0 + 250;
+    }
 
     localCharge = stateUsed->lifeData.battery_charge;
     if(localCharge < 0.0)
@@ -3987,7 +3998,15 @@ void t7_ChargerView(void)
     	indicator = '<';
     	hoursto100 = 1;
     }
-    t7cY0free.WindowY0 -= 52;
+
+    if(!pSettings->FlipDisplay)
+    {
+    	t7cY0free.WindowY0 -= 52;
+    }
+    else
+    {
+        	t7cY0free.WindowY1 += 52;
+    }
 
     if((stateUsed->lifeData.battery_charge > 0) && (stateUsed->chargeStatus != CHARGER_off))
     {
@@ -4006,12 +4025,6 @@ void t7_ChargerView(void)
     }
     GFX_write_string(&FontT42, &t7cY0free, text, 1);
 
-    SWindowGimpStyle wintemp;
-	SSettings* pSettings;
-	pSettings = settingsGetPointer();
-
-
-
     wintemp.left = CUSTOMBOX_LINE_LEFT + CUSTOMBOX_INSIDE_OFFSET + 50;
     wintemp.right = wintemp.left + CUSTOMBOX_SPACE_INSIDE - 100;
 
@@ -4023,16 +4036,14 @@ void t7_ChargerView(void)
     }
     else
     {
-    	wintemp.top = t7l1.WindowY1;
-    	wintemp.bottom = wintemp.top + 200;
+    	wintemp.top = t7l1.WindowY1 + 102;
+    	wintemp.bottom = wintemp.top + 100;
     }
 
     start.x =  wintemp.left-5;
-    //start.y =  wintemp.top + 100;
     start.y =  90;
 
     stop.x = wintemp.right + 5 - start.x;
-    //stop.y = wintemp.bottom - start.y;
     stop.y = 100;
     GFX_draw_box(&t7screen, start, stop,1, CLUT_Font020);
 
