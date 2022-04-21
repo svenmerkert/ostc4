@@ -391,6 +391,9 @@ SDecoinfo* simulation_decoplaner(uint16_t depth_meter, uint16_t intervall_time_m
 {
     uint8_t ptrGasChangeList = 0; // new hw 160704
 
+    for (int i = 0; i < 40; i++)
+    	gasChangeListDepthGas20x2[i] = 0;
+
     SDiveState * pDiveState = &stateSim;
     copyDiveSettingsToSim();
     vpm_init(&pDiveState->vpm,  pDiveState->diveSettings.vpm_conservatism, 0, 0);
