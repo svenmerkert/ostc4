@@ -307,7 +307,7 @@ void openEdit_PlanSettings(void)
     strncpy(text,
         "  "
         "\016\016"
-        "  l\\min"
+        "  l/min"
         "\017"
         "  "
         "\016\016"
@@ -315,36 +315,18 @@ void openEdit_PlanSettings(void)
         "\017"
         "   "
         "\016\016"
-        "   l\\min"
+        "   l/min"
         "\017",
         40
     );
     write_label_var(  400, 800, y_line, &FontT48, text);
 
     write_field_udigit(StMPLAN4_Settings,		400, 800, y_line, &FontT48, "##            ##", (uint32_t)travel_lbar, (uint32_t)deco_lbar, 0, 0);
-//	write_field_udigit(StMPLAN4_Settings,		400, 800, y_line, &FontT48, "##\016\016 l\\min\017  \016\016deco\017 ##\016\016 l\\min\017", (uint32_t)travel_lbar, (uint32_t)deco_lbar, 0, 0);
     // note : text max is 32 byte! -> ok and it does not like small fonts in between -> problem
     write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
 
     setEvent(StMPLAN4_Settings,			(uint32_t)OnAction_PlanSettings);
     startEdit();
-
-/*
-    text[textPointer++] = TXT_2BYTE;
-    text[textPointer++] = TXT2BYTE_SimConsumption;
-    text[textPointer++] = '\t';
-    textPointer += snprintf(&text[textPointer],30,
-        "%u"
-        "\016\016 l\\min\017"
-        ,tMplan_gasConsumTravel);
-    text[textPointer++] = ' ';
-    text[textPointer++] = ' ';
-    textPointer += snprintf(&text[textPointer],30,
-        "\016\016deco\017"
-        " %u"
-        "\016\016 l\\min\017"
-        ,tMplan_gasConsumDeco);
-*/
 }
 
 
@@ -622,14 +604,14 @@ void refresh_PlanResult(void)
             switch(j)
             {
             case 0: // descent
-                textpointer = snprintf(&text[textpointer],20,"-%u\016\016 m\\min\017",tMplan_Summary.descentRateMeterPerMinute);
+                textpointer = snprintf(&text[textpointer],20,"-%u\016\016 m/min\017",tMplan_Summary.descentRateMeterPerMinute);
                 break;
             case 1: // level
                 textpointer = snprintf(&text[textpointer],20,"%1.2f\016\016 %c\017",tMplan_Summary.ppO2AtBottom, TXT_ppO2);
                 break;
             case 2: // first stop
             case 3: // surface
-                textpointer = snprintf(&text[textpointer],20,"%u\016\016 m\\min\017",tMplan_Summary.ascentRateMeterPerMinute);
+                textpointer = snprintf(&text[textpointer],20,"%u\016\016 m/min\017",tMplan_Summary.ascentRateMeterPerMinute);
                 break;
             default:
                 break;
