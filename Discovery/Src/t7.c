@@ -2472,7 +2472,7 @@ void t7_refresh_divemode(void)
         TextR1[textPointer++] = '\a';
         TextR1[textPointer++] = '\001';
         TextR1[textPointer++] = ' ';
-        textPointer += snprintf(&TextR1[textPointer],TEXTSIZE,"%f01.2",((float)(stateUsed->diveSettings.setpoint[actualBetterSetpointId()].setpoint_cbar))/100);
+        textPointer += snprintf(&TextR1[textPointer],TEXTSIZE,"%01.2f",(float)(stateUsed->diveSettings.setpoint[actualBetterSetpointId()].setpoint_cbar) / 100.0);
         TextR1[textPointer++] = '?';
         TextR1[textPointer++] = ' ';
         TextR1[textPointer++] = 0;
