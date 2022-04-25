@@ -412,7 +412,7 @@ void copyVpmRepetetiveDataToSim(void)
 
 void updateSetpointStateUsed(void)
 {
-	if(!isLoopMode(stateReal.diveSettings.diveMode))
+	if(!isLoopMode(stateUsed->diveSettings.diveMode))
 	{
 		stateUsedWrite->lifeData.actualGas.setPoint_cbar = 0;
 		stateUsedWrite->lifeData.ppO2 = decom_calc_ppO2(stateUsed->lifeData.pressure_ambient_bar, &stateUsed->lifeData.actualGas);
@@ -498,7 +498,7 @@ void setActualGas(SLifeData *lifeData, uint8_t gasId, uint8_t setpoint_cbar)
 	lifeData->actualGas.helium_percentage = pSettings->gas[gasId].helium_percentage;
 	lifeData->actualGas.setPoint_cbar = setpoint_cbar;
 	lifeData->actualGas.change_during_ascent_depth_meter_otherwise_zero = 0;
-	lifeData->actualGas.AppliedDiveMode = pSettings->dive_mode;
+	lifeData->actualGas.AppliedDiveMode = stateUsed->diveSettings.diveMode;
 	lifeData->actualGas.pscr_factor = 1.0 / pSettings->pscr_lung_ratio * pSettings->pscr_o2_drop;
 	if(isLoopMode(pSettings->dive_mode) && (gasId > NUM_OFFSET_DILUENT))
 		lifeData->lastDiluent_GasIdInSettings = gasId;

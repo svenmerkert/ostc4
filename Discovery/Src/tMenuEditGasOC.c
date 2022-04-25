@@ -167,9 +167,12 @@ void openEdit_DiveSelectBetterGas(void)
 /* select gas in divemode */
 void openEdit_DiveGasSelect(uint8_t line, uint8_t ccr)
 {
-    openEdit_DiveGasSelect_Subroutine(line, ccr);
-    if(!ccr)
-        tMEGas_check_switch_to_bailout();
+	if(!ccr)
+	{
+		tMEGas_check_switch_to_bailout();
+	}
+	openEdit_DiveGasSelect_Subroutine(line, ccr);
+
     exitMenuEdit_to_Home_with_Menu_Update();
 }
 
