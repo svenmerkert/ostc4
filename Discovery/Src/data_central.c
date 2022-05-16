@@ -320,8 +320,6 @@ void createDiveSettings(void)
 	int i;
 	SSettings* pSettings = settingsGetPointer();
 
-	setActualGasFirst(&stateReal.lifeData);
-
 	stateReal.diveSettings.compassHeading = pSettings->compassBearing;
 	stateReal.diveSettings.ascentRate_meterperminute = 10;
 
@@ -339,6 +337,9 @@ void createDiveSettings(void)
 		stateReal.diveSettings.ccrOption = 0;
 	memcpy(stateReal.diveSettings.gas, pSettings->gas,sizeof(pSettings->gas));
 	memcpy(stateReal.diveSettings.setpoint, pSettings->setpoint,sizeof(pSettings->setpoint));
+
+	setActualGasFirst(&stateReal.lifeData);
+
 	stateReal.diveSettings.gf_high = pSettings->GF_high;
 	stateReal.diveSettings.gf_low = pSettings->GF_low;
 	stateReal.diveSettings.input_next_stop_increment_depth_bar = ((float)pSettings->stop_increment_depth_meter) / 10.0f;
