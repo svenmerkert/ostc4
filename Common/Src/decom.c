@@ -637,15 +637,15 @@ void decom_CreateGasChangeList(SDiveSettings* pInput, const SLifeData* pLifeData
 			//divmode CCR or PSCR
 				for(i=6; i <= 10; i++)
 				{
-						if(pInput->gas[i].note.ub.active && pInput->gas[i].depth_meter
+						if((pInput->gas[i].note.ub.active) && (pInput->gas[i].depth_meter)
 							 && (pLifeData->actualGas.GasIdInSettings != i)
-							 &&(pInput->gas[i].depth_meter < pLifeData->depth_meter ) )
+							 && (pInput->gas[i].depth_meter < pLifeData->depth_meter ))
 						{
 								count = 1;
 								for(j=6;j<= 10;j++)
 								{
 //                    if(pInput->gas[j].note.ub.active && pInput->gas[j].depth_meter > 0 &&pInput->gas[j].depth_meter > pInput->gas[i].depth_meter)
-										if(			(pInput->gas[j].note.ub.active && pInput->gas[j].depth_meter > 0)
+										if(((pInput->gas[j].note.ub.active) && (pInput->gas[j].depth_meter > 0))
 												&&	(pLifeData->actualGas.GasIdInSettings != j) // new hw 160905
 												&&	(pInput->gas[j].depth_meter > pInput->gas[i].depth_meter))
 												count++;
@@ -661,59 +661,13 @@ void decom_CreateGasChangeList(SDiveSettings* pInput, const SLifeData* pLifeData
 								else
 								{
 									pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].oxygen_percentage;
+									pInput->decogaslist[count].AppliedDiveMode = DIVEMODE_CCR;
+									pInput->decogaslist[count].setPoint_cbar = pInput->decogaslist[0].setPoint_cbar;		/* assume that current setpoint is kept till end of the dive */
 								}
 								pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].helium_percentage = pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].GasIdInSettings = i;
-
 						}
-				}
-				if(pInput->diveMode == DIVEMODE_CCR)
-				{
-					/* Include Setpoint Changes */
-					for(j=0; j <= count; j++)
-					{
-						uint8_t depth = 0;
-						uint8_t changedepth = 0;
-						char newSetpoint;
-
-						pInput->decogaslist[j].AppliedDiveMode = DIVEMODE_CCR;
-						if(j == 0)
-						{
-							depth = pLifeData->depth_meter;
-						}
-						else
-						{
-							//no setpointchange ?
-							pInput->decogaslist[j].setPoint_cbar =  pInput->decogaslist[j - 1].setPoint_cbar;
-							depth = pInput->decogaslist[j].change_during_ascent_depth_meter_otherwise_zero + 0.1f;
-						}
-						/* Setpoint change at the same depth as gas changes */
-						if(nextSetpointChange(pInput,depth + 1, &changedepth,&newSetpoint) && changedepth == depth)
-						{
-							 pInput->decogaslist[j].setPoint_cbar = newSetpoint;
-						}
-						/* Setpoint changes inbetween gas changes */
-						while(nextSetpointChange(pInput, depth, &changedepth,&newSetpoint)
-								&& (
-											( (j < count) && (changedepth > pInput->decogaslist[j + 1].change_during_ascent_depth_meter_otherwise_zero))
-											|| ((j == count) && (changedepth > 0))
-									 ))
-						{
-							//Include new entry with setpoint change in decogaslist
-							for(int k = count; k > j; k--)
-							{
-									 pInput->decogaslist[k+1] = pInput->decogaslist[k];
-							}
-							pInput->decogaslist[j + 1] =  pInput->decogaslist[j];
-							pInput->decogaslist[j + 1].setPoint_cbar = newSetpoint;
-							j++;
-							count++;
-							depth = changedepth;
-						}
-
-					}
-
 				}
 		}
 }
