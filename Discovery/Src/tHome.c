@@ -590,7 +590,7 @@ void tHome_tick(void)
         }
     }
 
-    if((stateUsed->mode == MODE_SURFACE) && (stateUsed->diveSettings.ppo2sensors_deactivated != 0x07) && (stateUsed->diveSettings.ccrOption != 0))
+    if((stateUsed->mode == MODE_SURFACE) && (stateUsed->diveSettings.ppo2sensors_deactivated != 0x07) && (stateUsed->diveSettings.ccrOption != 0) && (!t7_customview_disabled(CVIEW_sensors)))
     {
     	tHome_tick_count_o2sens++;
     	if(tHome_tick_count_o2sens > AUTORETURN_O2SENS)
