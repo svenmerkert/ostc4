@@ -336,11 +336,18 @@ void refresh_O2Sensors(void)
 		switch(settingsGetPointer()->ppo2sensors_source)
 		{
 			default:
-			case O2_SENSOR_SOURCE_OPTIC: text[1] = TXT2BYTE_O2IFOptic;
+			case O2_SENSOR_SOURCE_OPTIC: 	text[1] = TXT2BYTE_O2IFOptic;
+											text[2] = 0;
 				break;
-			case O2_SENSOR_SOURCE_ANALOG: text[1] = TXT2BYTE_O2IFAnalog;
+			case O2_SENSOR_SOURCE_ANALOG: 	text[1] = TXT2BYTE_O2IFAnalog;
+											text[2] = 0;
+				break;
+#ifdef ENABLE_SENTINEL_MODE
+			case O2_SENSOR_SOURCE_SENTINEL: snprintf(text, 10,"Sentinel");
+				break;
+#endif
 		}
-		text[2] = 0;
+
 		write_label_var(  400, 800, ME_Y_LINE6, &FontT48, text);
     }
     tMenuEdit_refresh_field(StMHARD3_O2_Sensor1);
@@ -378,7 +385,11 @@ void openEdit_O2Sensors(void)
     write_field_on_off(StMHARD3_O2_Sensor2,	 30, 95, ME_Y_LINE2,  &FontT48, "", sensorActive[1]);
     write_field_on_off(StMHARD3_O2_Sensor3,	 30, 95, ME_Y_LINE3,  &FontT48, "", sensorActive[2]);
 
-    if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+#ifdef ENABLE_SENTINEL_MODE
+    		|| (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+#endif
+	)
     {
         write_label_fix(   30, 800, ME_Y_LINE4, &FontT48, TXT2BYTE_O2Calib);
         write_label_var(  400, 800, ME_Y_LINE4, &FontT48, "\016\016 %\017");
@@ -399,7 +410,11 @@ void openEdit_O2Sensors(void)
     setEvent(StMHARD3_O2_Sensor1, (uint32_t)OnAction_Sensor1);
     setEvent(StMHARD3_O2_Sensor2, (uint32_t)OnAction_Sensor2);
     setEvent(StMHARD3_O2_Sensor3, (uint32_t)OnAction_Sensor3);
-    if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+#ifdef ENABLE_SENTINEL_MODE
+    		|| (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+#endif
+	)
     {
     	setEvent(StMHARD3_O2_Calibrate, (uint32_t)OnAction_O2_Calibrate);
     }
@@ -537,11 +552,8 @@ uint8_t OnAction_O2_Source	(uint32_t editId, uint8_t blockNumber, uint8_t digitN
 {
     uint8_t source = settingsGetPointer()->ppo2sensors_source;
 
-    if(source == O2_SENSOR_SOURCE_OPTIC)
-    {
-    	source = O2_SENSOR_SOURCE_ANALOG;
-    }
-    else
+    source++;
+    if(source == O2_SENSOR_SOURCE_MAX)
     {
     	source = O2_SENSOR_SOURCE_OPTIC;
     }
