@@ -3977,8 +3977,14 @@ void t7_ChargerView(void)
 				speed = (localCharge - lastCharge) * 1000.0 / deltatime;
 			}
 
+			if(localCharge > 100.0)
+			{
+				localCharge = 100.0;
+			}
+
 			lastCharge = localCharge;
 		}
+
 
 		if(deltatime > 1000)
 		{
@@ -4011,7 +4017,7 @@ void t7_ChargerView(void)
     if((stateUsed->lifeData.battery_charge > 0) && (stateUsed->chargeStatus != CHARGER_off))
     {
 		snprintf(text,60,
-			"\001%0.2f\n\r"
+			"\001%0.2f\016\016%%\017\n\r"
 			"\001%c%d\n\r"
 			,stateUsed->lifeData.battery_charge
 			,indicator
