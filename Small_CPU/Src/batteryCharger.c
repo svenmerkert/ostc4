@@ -151,7 +151,7 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 
 	if(batteryChargerState == Charger_ColdStart)	/* wait for the first valid voltage meassurement */
 	{
-		if(global.lifeData.battery_voltage != BATTERY_DEFAULT_VOLTAGE)
+		if((global.lifeData.battery_voltage != BATTERY_DEFAULT_VOLTAGE) && (global.lifeData.battery_voltage < BATTERY_CHARGER_CONNECTED_VOLTAGE))
 		{
 			if(global.lifeData.battery_voltage > BATTERY_ENDOF_CHARGE_VOLTAGE) 						/* Voltage close to full state => maybe new battery inserted 	*/
 			{
@@ -166,29 +166,35 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 		{
 			switch(batteryChargerState)
 			{
+				case Charger_WarmUp:
 				case Charger_Active:				global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
 													global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
 													batteryChargerState = Charger_LostConnection;
-													battery_charger_counter = CHARGER_DEBOUNCE_SECONDS;
+													if(cycleTimeBase > CHARGER_DEBOUNCE_SECONDS)	/* adapt connection lost detection to sleep mode */
+													{
+														battery_charger_counter = cycleTimeBase + 1;
+													}
+													else
+													{
+														battery_charger_counter = CHARGER_DEBOUNCE_SECONDS;
+													}
 											break;
+				case Charger_Finished:				battery_charger_counter = 0;
+													batteryChargerState = Charger_LostConnection;
+					/* no break */
 				case Charger_LostConnection:		/* the charger stops charging when charge current is 1/10 	*/
 													/* Basically it is OK to rate a charging as complete if a defined voltage is reached */
-													if(((battery_gas_gauge_isChargeValueValid() == 0) || (global.lifeData.battery_charge < 90)) && (get_voltage() >= BATTERY_ENDOF_CHARGE_VOLTAGE))
+													if(((battery_gas_gauge_isChargeValueValid() == 0) || (global.lifeData.battery_charge < 90)) && (get_voltage() >= BATTERY_ENDOF_CHARGE_VOLTAGE) && (get_voltage() < BATTERY_CHARGER_CONNECTED_VOLTAGE))
 													{
-														batteryChargerState = Charger_Finished;
-														global.dataSendToMaster.chargeStatus = CHARGER_complete;
-														global.deviceDataSendToMaster.chargeStatus = CHARGER_complete;
 														notifyChargeComplete = 1;
-														battery_charger_counter = 0;
 													}
-				/* no break */
-				case Charger_WarmUp:
-				case Charger_Finished:				if(battery_charger_counter >= cycleTimeBase)
+													else
+													{
+														notifyChargeComplete = 0;
+													}
+													if(battery_charger_counter >= cycleTimeBase)
 													{
 														battery_charger_counter -= cycleTimeBase;
-														global.dataSendToMaster.chargeStatus = CHARGER_lostConnection;
-														global.deviceDataSendToMaster.chargeStatus = CHARGER_lostConnection;
-														batteryChargerState = Charger_LostConnection;
 													}
 													else
 													{
@@ -202,10 +208,6 @@ void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeB
 															battery_gas_gauge_set_charge_full();
 															scheduleUpdateDeviceDataChargerFull();
 															notifyChargeComplete = 0;
-															if(cycleTimeBase > 2)
-															{
-																HAL_Delay(50);		/* I2C operations are pending in the background. Wait to avoid data loose in caused to potential change to sleep state */
-															}
 														}
 														batteryChargerState = Charger_NotConnected;
 													}
