@@ -313,7 +313,13 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 		externalInterface_SwitchPower33(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_33V_ON);
 	}
 
-	if(global.dataSendToSlave.data.externalInterface_Cmd > EXT_INTERFACE_33V_ON)
+	if(((global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_ADC_ON) != 0) != externalInterface_isEnabledADC())
+	{
+		externalInterface_SwitchADC(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_ADC_ON);
+	}
+
+
+	if(global.dataSendToSlave.data.externalInterface_Cmd & 0x00FF)	/* lowest nibble for commands */
 	{
 		externalInterface_ExecuteCmd(global.dataSendToSlave.data.externalInterface_Cmd);
 	}
@@ -505,6 +511,20 @@ void scheduleDiveMode(void)
 		lasttick = HAL_GetTick();
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
+#ifdef ENABLE_CO2_SUPPORT
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTCO2Data();
+		}
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTSentinelData();
+		}
+#endif
+
+
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
 			if(SPI_Evaluate_RX_Data()!=0) /* did we receive something ? */
@@ -513,12 +533,15 @@ void scheduleDiveMode(void)
 			}
 			schedule_check_resync();
 
-			extAdcChannel = externalInterface_ReadAndSwitch();
-			if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+			if(externalInterface_isEnabledADC())
 			{
-				externalInterface_CalculateADCValue(extAdcChannel);
-				copyExtADCdata();
+				extAdcChannel = externalInterface_ReadAndSwitch();
+				if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+				{
+					externalInterface_CalculateADCValue(extAdcChannel);
+				}
 			}
+			copyExtADCdata();
 			copyExtCO2data();
 		}
 
@@ -806,8 +829,19 @@ void scheduleSurfaceMode(void)
 			if(scheduleSetButtonResponsiveness())
 				setButtonsNow = 0;
 		}
-		
-		HandleUARTData();
+
+#ifdef ENABLE_CO2_SUPPORT
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTCO2Data();
+		}
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTSentinelData();
+		}
+#endif
 
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
@@ -817,12 +851,16 @@ void scheduleSurfaceMode(void)
 				Scheduler.counterSPIdata100msec++;
 			}
 			schedule_check_resync();
-			extAdcChannel = externalInterface_ReadAndSwitch();
-			if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+			if(externalInterface_isEnabledADC())
 			{
-				externalInterface_CalculateADCValue(extAdcChannel);
-				copyExtADCdata();
+				extAdcChannel = externalInterface_ReadAndSwitch();
+				if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+				{
+					externalInterface_CalculateADCValue(extAdcChannel);
+
+				}
 			}
+			copyExtADCdata();
 			copyExtCO2data();
 		}
 
@@ -925,6 +963,7 @@ void scheduleSurfaceMode(void)
 			copyTimeData();
 			copyBatteryData();
 			copyDeviceData();
+
 
 /* check if I2C is not up an running and try to reactivate if necessary. Also do initialization if problem occured during startup */
 			if(global.I2C_SystemStatus != HAL_OK)
@@ -1109,12 +1148,12 @@ void scheduleSleepMode(void)
 			}
 		}
 
-		if(secondsCount >= 30)
+		if((secondsCount >= 30) || (global.mode != MODE_SLEEP)) /* Service battery charge state in case sleep is left */
 		{
 			pressure_sensor_get_temperature_raw();
 			battery_gas_gauge_get_data();
 			ReInit_battery_charger_status_pins();
-			battery_charger_get_status_and_contral_battery_gas_gauge(30);
+			battery_charger_get_status_and_contral_battery_gas_gauge(secondsCount);
 //			DeInit_battery_charger_status_pins();
 			secondsCount = 0;
 		}
@@ -1672,32 +1711,43 @@ void copyExtADCdata()
 
 	uint8_t channel = 0;
 
+	uint8_t boolADCBuffer =  ~(global.dataSendToMaster.boolADCO2Data & DATA_BUFFER_ADC);
+
+	boolADCBuffer &= DATA_BUFFER_ADC;
+	global.dataSendToMaster.boolADCO2Data &= ~DATA_BUFFER_ADC;
+
 	for(channel = 0; channel < MAX_ADC_CHANNEL; channel++)
 	{
 		value = getExternalInterfaceChannel(channel);
-		global.dataSendToMaster.data[0].extADC_voltage[channel] = value;
+		global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].extADC_voltage[channel] = value;
 	}
+	global.dataSendToMaster.boolADCO2Data |= boolADCBuffer;
 }
 
 void copyExtCO2data()
 {
 	uint16_t value;
+	uint8_t boolCO2Buffer =  ~(global.dataSendToMaster.boolADCO2Data & DATA_BUFFER_CO2);
+
+	global.dataSendToMaster.boolADCO2Data &= ~DATA_BUFFER_CO2;
+	boolCO2Buffer &= DATA_BUFFER_CO2;
 
 	if(externalInterface_GetCO2State())
 	{
 		value = externalInterface_GetCO2Value();
-		global.dataSendToMaster.data[0].CO2_ppm = value;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_ppm = value;
 		value = externalInterface_GetCO2SignalStrength();
-		global.dataSendToMaster.data[0].CO2_signalStrength = value;
-		global.dataSendToMaster.data[0].externalInterface_CmdAnswer = externalInterface_GetCO2State();
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_signalStrength = value;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].externalInterface_CmdAnswer = externalInterface_GetCO2State();
 		externalInterface_SetCO2State(EXT_INTERFACE_33V_ON); 	/* clear command responses */
 	}
 	else
 	{
-		global.dataSendToMaster.data[0].CO2_ppm = 0;
-		global.dataSendToMaster.data[0].CO2_signalStrength = 0;
-		global.dataSendToMaster.data[0].externalInterface_CmdAnswer = 0;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_ppm = 0;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_signalStrength = 0;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].externalInterface_CmdAnswer = 0;
 	}
+	global.dataSendToMaster.boolADCO2Data |= boolCO2Buffer;
 }
 
 typedef enum 

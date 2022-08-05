@@ -56,6 +56,7 @@ static uint8_t externalInterfacePresent = 0;
 
 float externalChannel_mV[MAX_ADC_CHANNEL];
 static uint8_t  externalV33_On = 0;
+static uint8_t  externalADC_On = 0;
 static uint16_t externalCO2Value;
 static uint16_t externalCO2SignalStrength;
 static uint16_t  externalCO2Status = 0;
@@ -182,6 +183,18 @@ float getExternalInterfaceChannel(uint8_t channel)
 	return retval;
 }
 
+uint8_t setExternalInterfaceChannel(uint8_t channel, float value)
+{
+	uint8_t retval = 0;
+
+	if(channel < MAX_ADC_CHANNEL)
+	{
+		externalChannel_mV[channel] = value;
+		retval = 1;
+	}
+	return retval;
+}
+
 void externalInterface_InitPower33(void)
 {
 	GPIO_InitTypeDef   GPIO_InitStructure;
@@ -199,6 +212,12 @@ uint8_t externalInterface_isEnabledPower33()
 {
 	return externalV33_On;
 }
+
+uint8_t externalInterface_isEnabledADC()
+{
+	return externalADC_On;
+}
+
 void externalInterface_SwitchPower33(uint8_t state)
 {
 	if(state != externalV33_On)
@@ -217,6 +236,18 @@ void externalInterface_SwitchPower33(uint8_t state)
 			externalInterface_SetCO2SignalStrength(0);
 			MX_USART1_UART_DeInit();
 		}
+	}
+}
+void externalInterface_SwitchADC(uint8_t state)
+{
+	if((state) && (externalInterfacePresent))
+	{
+		externalInterface_StartConversion(activeChannel);
+		externalADC_On = 1;
+	}
+	else
+	{
+		externalADC_On = 0;
 	}
 }
 

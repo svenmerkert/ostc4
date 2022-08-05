@@ -40,8 +40,11 @@ uint8_t externalInterface_StartConversion(uint8_t channel);
 uint8_t externalInterface_ReadAndSwitch();
 float externalInterface_CalculateADCValue(uint8_t channel);
 float getExternalInterfaceChannel(uint8_t channel);
+uint8_t setExternalInterfaceChannel(uint8_t channel, float value);
 void externalInterface_SwitchPower33(uint8_t state);
-uint8_t externalInterface_isEnabledPower33();
+void externalInterface_SwitchADC(uint8_t state);
+uint8_t externalInterface_isEnabledPower33(void);
+uint8_t externalInterface_isEnabledADC(void);
 
 void externalInterface_SetCO2Value(uint16_t CO2_ppm);
 void externalInterface_SetCO2SignalStrength(uint16_t LED_qa);

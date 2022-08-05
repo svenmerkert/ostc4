@@ -391,9 +391,28 @@ void DateEx_copy_to_dataOut(void)
 	dataOut.data.offsetPressureSensor_mbar = settings->offsetPressure_mbar;
 	dataOut.data.offsetTemperatureSensor_centiDegree = settings->offsetTemperature_centigrad;
 
+
+
+	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+	{
+			externalInterface_Cmd |= EXT_INTERFACE_ADC_ON | EXT_INTERFACE_33V_ON;
+	}
+
+#ifdef ENABLE_SENTINEL_MODE
+	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+	{
+			externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_SENTINEL;
+			externalInterface_Cmd &= (~EXT_INTERFACE_ADC_ON);
+	}
+#endif
+
+	if(settings->ext_uart_protocol)
+	{
+		externalInterface_Cmd |= (settings->ext_uart_protocol << 8);
+	}
 	if(settings->co2_sensor_active)
 	{
-		externalInterface_Cmd |= EXT_INTERFACE_33V_ON;
+		externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_CO2;
 	}
 	dataOut.data.externalInterface_Cmd = externalInterface_Cmd;
 	externalInterface_Cmd = 0;
@@ -920,7 +939,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		{
 			for(idx = 0; idx < 3; idx++)
 			{
-				pStateReal->lifeData.sensorVoltage_mV[idx] = dataIn.data[0].extADC_voltage[idx];
+				pStateReal->lifeData.sensorVoltage_mV[idx] = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].extADC_voltage[idx];
 				if(pStateReal->lifeData.sensorVoltage_mV[idx] < IGNORE_O2_VOLTAGE_LEVEL_MV)
 				{
 					pStateReal->lifeData.sensorVoltage_mV[idx] = 0.0;
@@ -1082,8 +1101,8 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		pStateReal->sensorErrorsRTE = dataIn.sensorErrors;
 
 		/* data from CO2 sensor */
-		pStateReal->lifeData.CO2_data.CO2_ppm = dataIn.data[0].CO2_ppm;
-		pStateReal->lifeData.CO2_data.signalStrength = dataIn.data[0].CO2_signalStrength;
+		pStateReal->lifeData.CO2_data.CO2_ppm = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_ppm;
+		pStateReal->lifeData.CO2_data.signalStrength = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_signalStrength;
 	}
 
 	/* apnea specials

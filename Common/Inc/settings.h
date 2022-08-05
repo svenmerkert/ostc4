@@ -36,6 +36,8 @@
 // From Common/Drivers/
 #include "stm32f4xx_hal.h"
 
+#include "configuration.h"
+
 #include <stdint.h>
 
 
@@ -80,12 +82,17 @@
 #define PSCR_MIN_LUNG_RATIO		(5u)
 #define PSCR_MAX_LUNG_RATIO		(20u)
 
-#define FUTURE_SPARE_SIZE		(29u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
+#define UART_MAX_PROTOCOL		(2u)
+
+#define FUTURE_SPARE_SIZE		(28u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
 	O2_SENSOR_SOURCE_OPTIC = 0,
 	O2_SENSOR_SOURCE_ANALOG,
+#ifdef ENABLE_SENTINEL_MODE
+	O2_SENSOR_SOURCE_SENTINEL,
+#endif
 	O2_SENSOR_SOURCE_MAX
 } SensorSource;
 #define MAX_O2_SENSOR_SOURCE 	(2u)
@@ -213,6 +220,7 @@ typedef struct
 	uint8_t pscr_lung_ratio;									/* redefined in 0xFFFF0020 */
 	uint8_t pscr_o2_drop;										/* redefined in 0xFFFF0020 */
 	uint8_t co2_sensor_active;									/* redefined in 0xFFFF0021 */
+	uint8_t ext_uart_protocol;									/* redefined in 0xFFFF0022 */
 	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
 	// new in 0xFFFF0006
 	uint8_t ppo2sensors_deactivated;

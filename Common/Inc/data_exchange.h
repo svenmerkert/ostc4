@@ -31,9 +31,20 @@
 #include "settings.h"
 #include "stm32f4xx_hal.h"
 
-/* Command definitions for contral of external interface */
-#define EXT_INTERFACE_33V_ON	(0x8000u)	/* Bit set to enable 3.3V power interface */
-#define EXT_INTERFACE_CO2_CALIB (0x0001u)	/* Request calibration of CO2Sensor */
+/* Command definitions for control of external interface */
+/* 1st nibble binary on/off states */
+/* 2nd nibble UART protocol selection */
+/* 3rd nibble reserve */
+/* 4th nibble command channel */
+#define EXT_INTERFACE_33V_ON		(0x8000u)	/* Bit set to enable 3.3V power interface */
+#define EXT_INTERFACE_ADC_ON		(0x4000u)	/* Bit set to enable ADC conversion */
+#define EXT_INTERFACE_UART_MASK 	(0x0700u)   /* Reserve 3 bits for UART protocol selection */
+#define EXT_INTERFACE_UART_CO2  	(0x0100u)	/* Activate protocol for CO2 sensor */
+#define EXT_INTERFACE_UART_SENTINEL (0x0200u)	/* Activate Sentinel Backup monitor protocol */
+#define EXT_INTERFACE_CO2_CALIB 	(0x0001u)	/* Request calibration of CO2Sensor */
+
+#define DATA_BUFFER_ADC				(0x01u)
+#define DATA_BUFFER_CO2				(0x02u)
 
 enum MODE
 {
@@ -216,7 +227,7 @@ typedef struct
 	uint8_t chargeStatus;
 	uint8_t boolPICdata;
 	confirmbit8_Type confirmRequest; // confirmbit8_Type
-	uint8_t boolWirelessData;
+	uint8_t boolADCO2Data;
 
 	uint8_t boolPressureData;
 	uint8_t boolCompassData;
