@@ -49,7 +49,7 @@
 /* #define HAVE_DEBUG_VIEW */
 
 /* Enable to have access to the motion control selection menu */
-#define ENABLE_MOTION_CONTROL
+/* #define ENABLE_MOTION_CONTROL */
 
 /* Enable to have option to hide not needed gases from dive views */
 /* #define ENABLE_UNUSED_GAS_HIDING */
@@ -65,6 +65,9 @@
 
 /* Enable to have CO2 sensor functionality available */
 /* #define ENABLE_CO2_SUPPORT */
+
+/* Enable to have Sentinel rebreather interface available */
+/* #define ENABLE_SENTINEL_MODE */
 
 /* Enable if you are using sensors with a voltage range 8..16 mV at surface / air level */
 #define ENABLE_ALTERNATIVE_SENSORTYP
