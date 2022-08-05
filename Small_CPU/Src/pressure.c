@@ -49,7 +49,11 @@
 /* remove comment to use a predefined profile for pressure changes instead of real world data */
 /* #define SIMULATE_PRESSURE */
 
+
 #define PRESSURE_SURFACE_MAX_MBAR			(1060.0f)		/* It is unlikely that pressure at surface is greater than this value => clip to it */
+
+#define PRESSURE_MINIMUM					(0.0f)
+#define TEMPERATURE_MINIMUM					(-100.0f)
 
 #define PRESSURE_SURFACE_QUE					(30u)			/* history buffer [minutes] for past pressure measurements */
 #define PRESSURE_SURFACE_EVA_WINDOW				(15u)			/* Number of entries evaluated during instability test. Used to avoid detection while dive enters water */
@@ -664,6 +668,11 @@ static void pressure_calculation_AN520_004_mod_MS5803_30BA__09_2015(void)
 	ambient_temperature = ((float)local_Tx100) / 100;
 	ambient_temperature	+= temperature_offset;
 
+	if(ambient_temperature < TEMPERATURE_MINIMUM)
+	{
+		ambient_temperature = 20.0;
+	}
+
 	calc_pressure = ((float)local_Px10) / 10;
 	calc_pressure += pressure_offset;
 
@@ -673,6 +682,11 @@ static void pressure_calculation_AN520_004_mod_MS5803_30BA__09_2015(void)
 		avgCnt++;		/* by the measurement range of the sensor which is focused on under water pressure measurement */
 	}
 	ambient_pressure_mbar = runningAvg;
+
+	if(ambient_pressure_mbar < PRESSURE_MINIMUM)
+	{
+		ambient_pressure_mbar = 1000.0;
+	}
 }
 
 
