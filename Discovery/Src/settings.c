@@ -41,7 +41,7 @@ static uint8_t settingsWarning = 0;		/* Active if setting values have been corre
 SSettings Settings;
 
 const uint8_t RTErequiredHigh = 2;
-const uint8_t RTErequiredLow = 7;
+const uint8_t RTErequiredLow = 9;
 
 const uint8_t FONTrequiredHigh = 1;
 const uint8_t FONTrequiredLow =	0;
@@ -60,7 +60,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
 {
     .versionFirst   = 1,
     .versionSecond 	= 5,
-    .versionThird   = 9,
+    .versionThird   = 10,
     .versionBeta    = 0,
 
     /* 4 bytes with trailing 0 */
@@ -87,7 +87,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0021,
+    .header = 0xFFFF0022,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -498,6 +498,9 @@ void set_new_settings_missing_in_ext_flash(void)
     	// no break
     case 0xFFFF0020:
     	pSettings->co2_sensor_active = 0;
+    	// no break;
+    case 0xFFFF0021:
+    	pSettings->ext_uart_protocol = 0;
     	// no break;
     default:
         pSettings->header = pStandard->header;
@@ -1485,6 +1488,11 @@ uint8_t check_and_correct_settings(void)
     if(Settings.co2_sensor_active > 1)
     {
     	Settings.co2_sensor_active = 0;
+    	corrections++;
+    }
+    if(Settings.co2_sensor_active > UART_MAX_PROTOCOL)
+    {
+    	Settings.ext_uart_protocol = 0;
     	corrections++;
     }
 
