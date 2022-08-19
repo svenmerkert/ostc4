@@ -32,6 +32,7 @@
 #include "gfx_fonts.h"
 #include "tMenuEdit.h"
 #include "unit.h"
+#include "configuration.h"
 
 /* Private variables ---------------------------------------------------------*/
 static uint8_t lineSelected = 0;
@@ -46,11 +47,7 @@ static void openEdit_FutureTTS(void);
 static void openEdit_Salinity(void);
 
 /* Announced function prototypes -----------------------------------------------*/
-
-static uint8_t OnAction_OC			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-static uint8_t OnAction_CC			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-static uint8_t OnAction_Apnea		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-static uint8_t OnAction_Gauge		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+static uint8_t OnAction_setMode (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_FutureTTS	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_ppO2Max	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_SafetyStop (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -66,7 +63,7 @@ void openEdit_Deco(uint8_t line)
 
     lineSelected = line;
 
-    if((data->dive_mode != DIVEMODE_CCR )&&  (line > 1))
+    if((!isLoopMode(data->dive_mode)) &&  (line > 1))
         line += 1;
 
     switch(line)
@@ -101,6 +98,7 @@ static void openEdit_DiveMode(void)
 #define APNEAANDGAUGE
 
     char text[32];
+    uint8_t lineOffset = 0;
     uint8_t actualDiveMode, active;
     SSettings *pSettings = settingsGetPointer();
     actualDiveMode = pSettings->dive_mode;
@@ -112,6 +110,10 @@ static void openEdit_DiveMode(void)
 
     text[1] = 0;
 
+
+#ifdef ENABLE_PSCR_MODE
+    lineOffset = ME_Y_LINE_STEP;
+#endif
 
     text[0] = TXT_OpenCircuit;
     if(actualDiveMode == DIVEMODE_OC)
@@ -127,89 +129,81 @@ static void openEdit_DiveMode(void)
         active = 0;
     write_field_on_off(StMDECO1_CC,			 30, 500, ME_Y_LINE2,  &FontT48, text, active);
 
-    #ifdef APNEAANDGAUGE
+#ifdef ENABLE_PSCR_MODE
+    text[0] = TXT_PSClosedCircuit;
+    if(actualDiveMode == DIVEMODE_PSCR)
+        active = 1;
+    else
+        active = 0;
+    write_field_on_off(StMDECO1_PSCR,		 30, 500, ME_Y_LINE3,  &FontT48, text, active);
+#endif
+#ifdef APNEAANDGAUGE
     text[0] = TXT_Apnoe;
     if(actualDiveMode == DIVEMODE_Apnea)
         active = 1;
     else
         active = 0;
-    write_field_on_off(StMDECO1_Apnea,	 30, 500, ME_Y_LINE3,  &FontT48, text, active);
+    write_field_on_off(StMDECO1_Apnea,	 30, 500, ME_Y_LINE3 + lineOffset,  &FontT48, text, active);
 
     text[0] = TXT_Gauge;
     if(actualDiveMode == DIVEMODE_Gauge)
         active = 1;
     else
         active = 0;
-    write_field_on_off(StMDECO1_Gauge,	 30, 500, ME_Y_LINE4,  &FontT48, text, active);
-    #endif
+    write_field_on_off(StMDECO1_Gauge,	 30, 500, ME_Y_LINE4 + lineOffset,  &FontT48, text, active);
+#endif
 
-    setEvent(StMDECO1_OC, 			(uint32_t)OnAction_OC);
-    setEvent(StMDECO1_CC, 			(uint32_t)OnAction_CC);
-    #ifdef APNEAANDGAUGE
-    setEvent(StMDECO1_Apnea, 		(uint32_t)OnAction_Apnea);
-    setEvent(StMDECO1_Gauge, 		(uint32_t)OnAction_Gauge);
-    #endif
+    setEvent(StMDECO1_OC, 			(uint32_t)OnAction_setMode);
+    setEvent(StMDECO1_CC, 			(uint32_t)OnAction_setMode);
+#ifdef ENABLE_PSCR_MODE
+    setEvent(StMDECO1_PSCR,			(uint32_t)OnAction_setMode);
+#endif
+
+#ifdef APNEAANDGAUGE
+    setEvent(StMDECO1_Apnea, 		(uint32_t)OnAction_setMode);
+    setEvent(StMDECO1_Gauge, 		(uint32_t)OnAction_setMode);
+#endif
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
 
-static uint8_t OnAction_OC						(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+
+static uint8_t OnAction_setMode (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action) //(uint32_t newMode)
 {
-    SSettings *pSettings = settingsGetPointer();
-    if(pSettings->dive_mode == DIVEMODE_OC)
-        return EXIT_TO_MENU;
-    pSettings->dive_mode = DIVEMODE_OC;
-    setActualGasFirst(&stateRealGetPointerWrite()->lifeData);
-    tMenuEdit_set_on_off(editId, 1);
-    tMenuEdit_set_on_off(StMDECO1_CC, 0);
-    tMenuEdit_set_on_off(StMDECO1_Apnea, 0);
-    tMenuEdit_set_on_off(StMDECO1_Gauge, 0);
-    return UPDATE_DIVESETTINGS;
-}
+	uint32_t modeArray[] = {StMDECO1_OC, StMDECO1_CC, StMDECO1_Gauge, StMDECO1_Apnea  /* definition needs to follow order of DIVEMODE (settings.h) */
+#ifdef ENABLE_PSCR_MODE
+			, StMDECO1_PSCR
+#endif
+	};
+
+	uint8_t index = 0;
+	SSettings *pSettings = settingsGetPointer();
+	uint8_t retVal = EXIT_TO_MENU;
+	uint8_t lastMode = pSettings->dive_mode;
 
 
-static uint8_t OnAction_CC						(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
-{
-    SSettings *pSettings = settingsGetPointer();
-    if(pSettings->dive_mode == DIVEMODE_CCR)
-        return EXIT_TO_MENU;
-    pSettings->dive_mode = DIVEMODE_CCR;
-    setActualGasFirst(&stateRealGetPointerWrite()->lifeData);
-    tMenuEdit_set_on_off(editId, 1);
-    tMenuEdit_set_on_off(StMDECO1_OC, 0);
-    tMenuEdit_set_on_off(StMDECO1_Apnea, 0);
-    tMenuEdit_set_on_off(StMDECO1_Gauge, 0);
-    return UPDATE_DIVESETTINGS;
-}
-
-
-static uint8_t OnAction_Apnea				(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
-{
-    SSettings *pSettings = settingsGetPointer();
-    if(pSettings->dive_mode == DIVEMODE_Apnea)
-        return EXIT_TO_MENU;
-    pSettings->dive_mode = DIVEMODE_Apnea;
-    setActualGasFirst(&stateRealGetPointerWrite()->lifeData);
-    tMenuEdit_set_on_off(editId, 1);
-    tMenuEdit_set_on_off(StMDECO1_CC, 0);
-    tMenuEdit_set_on_off(StMDECO1_OC, 0);
-    tMenuEdit_set_on_off(StMDECO1_Gauge, 0);
-    return UPDATE_DIVESETTINGS;
-}
-
-
-static uint8_t OnAction_Gauge				(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
-{
-    SSettings *pSettings = settingsGetPointer();
-    if(pSettings->dive_mode == DIVEMODE_Gauge)
-        return EXIT_TO_MENU;
-    pSettings->dive_mode = DIVEMODE_Gauge;
-    setActualGasFirst(&stateRealGetPointerWrite()->lifeData);
-    tMenuEdit_set_on_off(editId, 1);
-    tMenuEdit_set_on_off(StMDECO1_CC, 0);
-    tMenuEdit_set_on_off(StMDECO1_Apnea, 0);
-    tMenuEdit_set_on_off(StMDECO1_OC, 0);
-    return UPDATE_DIVESETTINGS;
+	setActualGasFirst(&stateRealGetPointerWrite()->lifeData);
+	while(index < sizeof(modeArray) / 4)	/* calculate number of items out of array size (bytes) */
+	{
+		if(editId == modeArray[index])
+		{
+			if(pSettings->dive_mode != index)
+			{
+				tMenuEdit_set_on_off(modeArray[index], 1);
+				pSettings->dive_mode = index;
+				retVal = UPDATE_DIVESETTINGS;
+			}
+		}
+		else
+		{
+			if(lastMode == index)		/* reset state of previous mode selection */
+			{
+				tMenuEdit_set_on_off(modeArray[index], 0);
+			}
+		}
+		index++;
+	}
+	return retVal;
 }
 
 

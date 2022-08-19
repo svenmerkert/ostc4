@@ -36,10 +36,12 @@
 #include "t7.h"
 #include "data_central.h"
 
+static uint8_t settingsWarning = 0;		/* Active if setting values have been corrected */
+
 SSettings Settings;
 
 const uint8_t RTErequiredHigh = 2;
-const uint8_t RTErequiredLow = 7;
+const uint8_t RTErequiredLow = 9;
 
 const uint8_t FONTrequiredHigh = 1;
 const uint8_t FONTrequiredLow =	0;
@@ -57,16 +59,16 @@ uint8_t RTEactualLow = 0;
 const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_firmware_data")) ) =
 {
     .versionFirst   = 1,
-    .versionSecond 	= 5,
-    .versionThird   = 8,
-    .versionBeta    = 1,
+    .versionSecond 	= 6,
+    .versionThird   = 0,
+    .versionBeta    = 0,
 
     /* 4 bytes with trailing 0 */
     .signature = "mh",
 
-    .release_year = 21,
-    .release_month = 04,
-    .release_day = 26,
+    .release_year = 22,
+    .release_month = 8,
+    .release_day = 19,
     .release_sub = 0,
 
     /* max 48 with trailing 0 */
@@ -85,10 +87,10 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF001F,
+    .header = 0xFFFF0022,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
-    .logFlashNextSampleStartAddress = 0,
+    .logFlashNextSampleStartAddress = SAMPLESTART,
 
     .gas[0].oxygen_percentage = 21,
     .gas[1].oxygen_percentage = 21,
@@ -219,7 +221,7 @@ const SSettings SettingsStandard = {
     .ppO2_min = 15,
     .CNS_max = 90,
     .ascent_MeterPerMinute_max = 30,
-    .ascent_MeterPerMinute_showGraph = 7,
+    .ascent_MeterPerMinute_showGraph = 30,
     .future_TTS = 5,
     .GF_high = 85,
     .GF_low = 30,
@@ -268,13 +270,9 @@ const SSettings SettingsStandard = {
     .bluetoothActive = 0,
     .safetystopDepth = 5,
     .updateSettingsAllowedFromHeader = 0xFFFF0002,
-    .scooterControl = 0,
-    .scooterDrag = 2,
-    .scooterLoad = 2,
-    .scooterNumberOfBatteries = 1,
-    .scooterBattSize = 760,
-    .scooterSPARE1[0] = 0,
-    .scooterSPARE2[0] = 0,
+	.pscr_lung_ratio = 10,
+	.pscr_o2_drop = 4,
+	.co2_sensor_active = 0,
     .ppo2sensors_deactivated = 0,
     .tX_colorscheme  = 0,
     .tX_userselectedLeftLowerCornerPrimary = LLC_Temperature,
@@ -371,8 +369,6 @@ void set_new_settings_missing_in_ext_flash(void)
     SSettings* pSettings = settingsGetPointer();
     const SSettings* pStandard = settingsGetPointerStandard();
 
-    pSettings->scooterControl = 0;
-
     /* Pointing to the old header data => set new data depending on what had been added since last version */
     switch(pSettings->header)
     {
@@ -433,15 +429,7 @@ void set_new_settings_missing_in_ext_flash(void)
     case 0xFFFF000F:
         pSettings->compassBearing                   = 0;
         // no break
-    case 0xFFFF0010:
-        pSettings->scooterDrag                      = 2;
-        pSettings->scooterLoad                      = 2;
-        pSettings->scooterSPARE1[0]                 = 0;
-        pSettings->scooterSPARE2[0]                 = 0;
-        // no break
     case 0xFFFF0011:
-        pSettings->scooterNumberOfBatteries         = 1;
-        pSettings->scooterBattSize                  = 760;
         pSettings->lastKnownBatteryPercentage       = 0;
         // no break
     case 0xFFFF0012:
@@ -496,7 +484,24 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->ppo2sensors_calibCoeff[0] = 0.0;
     	pSettings->ppo2sensors_calibCoeff[1] = 0.0;
     	pSettings->ppo2sensors_calibCoeff[2] = 0.0;
+    	pSettings->amPMTime = 0;
     	// no break
+    case 0xFFFF001E:
+    	pSettings->autoSetpoint = 0;
+    	pSettings->scrubTimerMax = 0;
+    	pSettings->scrubTimerCur = 0;
+    	pSettings->scrubTimerMode = SCRUB_TIMER_OFF;
+    	// no break
+    case 0xFFFF001F:
+    	pSettings->pscr_lung_ratio = 10;
+    	pSettings->pscr_o2_drop = 4;
+    	// no break
+    case 0xFFFF0020:
+    	pSettings->co2_sensor_active = 0;
+    	// no break;
+    case 0xFFFF0021:
+    	pSettings->ext_uart_protocol = 0;
+    	// no break;
     default:
         pSettings->header = pStandard->header;
         break; // no break before!!
@@ -536,6 +541,9 @@ uint8_t check_and_correct_settings(void)
     uint8_t firstGasFoundOC = 0;
     uint8_t firstGasFoundCCR = 0;
 
+
+    settingsWarning = 0; /* reset warning indicator */
+
 /*	uint32_t header;
  */
 
@@ -564,7 +572,8 @@ uint8_t check_and_correct_settings(void)
     if(	(Settings.dive_mode != DIVEMODE_OC) 		&&
             (Settings.dive_mode != DIVEMODE_CCR)  	&&
             (Settings.dive_mode != DIVEMODE_Gauge)	&&
-            (Settings.dive_mode != DIVEMODE_Apnea)		)
+            (Settings.dive_mode != DIVEMODE_Apnea)	&&
+			(Settings.dive_mode != DIVEMODE_PSCR))
     {
         Settings.dive_mode = DIVEMODE_OC;
         corrections++;
@@ -618,9 +627,9 @@ uint8_t check_and_correct_settings(void)
         }
         if(Settings.gas[i].note.ub.first)
         {
-            if(Settings.setpoint[i].note.ub.active != 1)
+            if(Settings.gas[i].note.ub.active != 1)
             {
-                Settings.setpoint[i].note.ub.active = 1;
+                Settings.gas[i].note.ub.active = 1;
                 corrections++;
             }
             if(Settings.gas[i].note.ub.travel == 1)
@@ -671,6 +680,7 @@ uint8_t check_and_correct_settings(void)
         Settings.gas[1].note.ub.first = 1;
         Settings.gas[1].note.ub.travel = 0;
         Settings.gas[1].note.ub.deco = 0;
+        corrections++;
     }
     if(!firstGasFoundCCR)
     {
@@ -678,6 +688,7 @@ uint8_t check_and_correct_settings(void)
         Settings.gas[1 + NUM_GASES].note.ub.first = 1;
         Settings.gas[1 + NUM_GASES].note.ub.travel = 0;
         Settings.gas[1 + NUM_GASES].note.ub.deco = 0;
+        corrections++;
     }
 /*	SSetpointLine setpoint[1 + NUM_GASES];
  */
@@ -747,6 +758,7 @@ uint8_t check_and_correct_settings(void)
 /*	uint8_t CCR_Mode;
  */
     if(	(Settings.CCR_Mode != CCRMODE_Sensors) &&
+    		(Settings.CCR_Mode != CCRMODE_Simulation) &&
             (Settings.CCR_Mode != CCRMODE_FixedSetpoint))
     {
         Settings.CCR_Mode = CCRMODE_FixedSetpoint;
@@ -1461,10 +1473,41 @@ uint8_t check_and_correct_settings(void)
     	Settings.scrubTimerMode = SCRUB_TIMER_OFF;
     	corrections++;
     }
-    if(corrections > 255)
-        return 255;
+
+    if((Settings.pscr_lung_ratio > PSCR_MAX_LUNG_RATIO) || (Settings.pscr_lung_ratio < PSCR_MIN_LUNG_RATIO))
+    {
+    	Settings.pscr_lung_ratio = 10;
+    	corrections++;
+    }
+    if(Settings.pscr_o2_drop > PSCR_MAX_O2_DROP)
+    {
+    	Settings.pscr_o2_drop = 4;
+    	corrections++;
+    }
+
+    if(Settings.co2_sensor_active > 1)
+    {
+    	Settings.co2_sensor_active = 0;
+    	corrections++;
+    }
+    if(Settings.co2_sensor_active > UART_MAX_PROTOCOL)
+    {
+    	Settings.ext_uart_protocol = 0;
+    	corrections++;
+    }
+
+    if(corrections)
+    {
+    	settingsWarning = 1;
+    }
     else
-        return (uint8_t)corrections;
+
+    if(corrections > 255)
+    {
+    	corrections = 255;
+    }
+
+    return (uint8_t)corrections;
 }
 
 
@@ -2921,3 +2964,13 @@ uint8_t settingsHelperButtonSens_translate_hwOS_values_to_percentage(uint8_t inp
         }
     }
 }
+
+void reset_SettingWarning()
+{
+	settingsWarning = 0;
+}
+inline uint8_t isSettingsWarning()
+{
+	return settingsWarning;
+}
+

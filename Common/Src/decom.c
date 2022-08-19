@@ -217,24 +217,34 @@ void decom_get_inert_gases(const float ambient_pressure_bar,const SGas* pGas, fl
 	float ppo2_fraction_setpoint;
 	float diluent_divisor;
 
-
 	*fraction_nitrogen = ((float)pGas->nitrogen_percentage) / 100.0f;
 	*fraction_helium = ((float)pGas->helium_percentage) / 100.0f;
 
-	if(!pGas->setPoint_cbar)
-		return;
+	if(pGas->AppliedDiveMode == DIVEMODE_CCR)
+	{
+		// continue with CCR
+		fraction_all_inertgases = *fraction_nitrogen + *fraction_helium;
 
-	// continue with CCR
-	fraction_all_inertgases = *fraction_nitrogen + *fraction_helium;
+		ppo2_fraction_setpoint = (float)pGas->setPoint_cbar/ (100 * ambient_pressure_bar);
 
-	ppo2_fraction_setpoint = (float)pGas->setPoint_cbar/ (100 * ambient_pressure_bar);
+		diluent_divisor = (1.0f - ppo2_fraction_setpoint) / fraction_all_inertgases;
+		if(diluent_divisor < 0)
+			diluent_divisor = 0;
 
-	diluent_divisor = (1.0f - ppo2_fraction_setpoint) / fraction_all_inertgases;
-	if(diluent_divisor < 0)
-		diluent_divisor = 0;
+		*fraction_nitrogen *= diluent_divisor;
+		*fraction_helium   *= diluent_divisor;
+	}
+	if(pGas->AppliedDiveMode == DIVEMODE_PSCR)
+	{
+		fraction_all_inertgases = *fraction_nitrogen + *fraction_helium;
+		ppo2_fraction_setpoint =  decom_calc_SimppO2(ambient_pressure_bar, pGas) / ambient_pressure_bar;
+		diluent_divisor = (1.0f - ppo2_fraction_setpoint) / fraction_all_inertgases;
+		if(diluent_divisor < 0)
+			diluent_divisor = 0;
 
-	*fraction_nitrogen *= diluent_divisor;
-	*fraction_helium   *= diluent_divisor;
+		*fraction_nitrogen *= diluent_divisor;
+		*fraction_helium   *= diluent_divisor;
+	}
 }
 
 
@@ -618,79 +628,47 @@ void decom_CreateGasChangeList(SDiveSettings* pInput, const SLifeData* pLifeData
 								pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].helium_percentage = pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].GasIdInSettings = i;
-
+								pInput->decogaslist[count].AppliedDiveMode = DIVEMODE_OC;
 						}
 				}
 		}
 		else
 		{
-			//divmode CCR
+			//divmode CCR or PSCR
 				for(i=6; i <= 10; i++)
 				{
-						if(pInput->gas[i].note.ub.active && pInput->gas[i].depth_meter
+						if((pInput->gas[i].note.ub.active) && (pInput->gas[i].depth_meter)
 							 && (pLifeData->actualGas.GasIdInSettings != i)
-							 &&(pInput->gas[i].depth_meter < pLifeData->depth_meter ) )
+							 && (pInput->gas[i].depth_meter < pLifeData->depth_meter ))
 						{
 								count = 1;
 								for(j=6;j<= 10;j++)
 								{
 //                    if(pInput->gas[j].note.ub.active && pInput->gas[j].depth_meter > 0 &&pInput->gas[j].depth_meter > pInput->gas[i].depth_meter)
-										if(			(pInput->gas[j].note.ub.active && pInput->gas[j].depth_meter > 0)
+										if(((pInput->gas[j].note.ub.active) && (pInput->gas[j].depth_meter > 0))
 												&&	(pLifeData->actualGas.GasIdInSettings != j) // new hw 160905
 												&&	(pInput->gas[j].depth_meter > pInput->gas[i].depth_meter))
 												count++;
 								}
 								pInput->decogaslist[count].change_during_ascent_depth_meter_otherwise_zero = pInput->gas[i].depth_meter;
 								pInput->decogaslist[count].nitrogen_percentage = 100;
-								pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].oxygen_percentage;
+								if(pInput->diveMode == DIVEMODE_PSCR)
+								{
+									pInput->decogaslist[count].AppliedDiveMode = DIVEMODE_PSCR;
+									pInput->decogaslist[count].setPoint_cbar = decom_calc_SimppO2_O2based((float)(pInput->gas[i].depth_meter / 10.0 + 1.0), pInput->gas[i].oxygen_percentage, pInput->decogaslist[count].pscr_factor ) * 100;
+									pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].oxygen_percentage;
+								}
+								else
+								{
+									pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].oxygen_percentage;
+									pInput->decogaslist[count].AppliedDiveMode = DIVEMODE_CCR;
+									pInput->decogaslist[count].setPoint_cbar = pInput->decogaslist[0].setPoint_cbar;		/* assume that current setpoint is kept till end of the dive */
+								}
 								pInput->decogaslist[count].nitrogen_percentage -= pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].helium_percentage = pInput->gas[i].helium_percentage;
 								pInput->decogaslist[count].GasIdInSettings = i;
-
 						}
 				}
-				/* Include Setpoint Changes */
-				for(j=0; j <= count; j++)
-				{
-					uint8_t depth = 0;
-					uint8_t changedepth = 0;
-					char newSetpoint;
-					if(j == 0)
-					{
-						depth = pLifeData->depth_meter;
-					}
-					else
-					{
-						//no setpointchange ?
-						pInput->decogaslist[j].setPoint_cbar =  pInput->decogaslist[j - 1].setPoint_cbar;
-						depth = pInput->decogaslist[j].change_during_ascent_depth_meter_otherwise_zero + 0.1f;
-					}
-					/* Setpoint change at the same depth as gas changes */
-					if(nextSetpointChange(pInput,depth + 1, &changedepth,&newSetpoint) && changedepth == depth)
-					{
-						 pInput->decogaslist[j].setPoint_cbar = newSetpoint;
-					}
-					/* Setpoint changes inbetween gas changes */
-					while(nextSetpointChange(pInput, depth, &changedepth,&newSetpoint)
-							&& (
-										( (j < count) && (changedepth > pInput->decogaslist[j + 1].change_during_ascent_depth_meter_otherwise_zero))
-										|| ((j == count) && (changedepth > 0))
-								 ))
-					{
-						//Include new entry with setpoint change in decogaslist
-						for(int k = count; k > j; k--)
-						{
-								 pInput->decogaslist[k+1] = pInput->decogaslist[k];
-						}
-						pInput->decogaslist[j + 1] =  pInput->decogaslist[j];
-						pInput->decogaslist[j + 1].setPoint_cbar = newSetpoint;
-						j++;
-						count++;
-						depth = changedepth;
-					}
-
-				}
-
 		}
 }
 void test_decom_CreateGasChangeList(void)
@@ -1022,15 +1000,50 @@ void decom_oxygen_calculate_cns_stage_SchreinerStyle(int period_in_seconds, SGas
 
 float decom_calc_ppO2(const float ambiant_pressure_bar, const SGas* pGas)
 {
-		float percent_N2 = 0;
+	float percent_N2 = 0;
 	float percent_He = 0;
 	float percent_O2 = 0;
-		decom_get_inert_gases(ambiant_pressure_bar, pGas, &percent_N2, &percent_He);
-		percent_O2 = 1 - percent_N2 - percent_He;
 
-		return  (ambiant_pressure_bar - WATER_VAPOUR_PRESSURE) * percent_O2;
+	decom_get_inert_gases(ambiant_pressure_bar, pGas, &percent_N2, &percent_He);
+	percent_O2 = 1 - percent_N2 - percent_He;
+
+	return  (ambiant_pressure_bar - WATER_VAPOUR_PRESSURE) * percent_O2;
 }
 
+
+float decom_calc_SimppO2(float ambiant_pressure_bar, const SGas* pGas)
+{
+	float o2Ratio = 0.0;
+	float inertGasRatio = 0.0;
+	float simulatedPSCRppo2 = 0.0;
+
+	o2Ratio = (100.0 - pGas->nitrogen_percentage - pGas->helium_percentage) / 100.0;
+	inertGasRatio = 1.0 - o2Ratio;
+	simulatedPSCRppo2 = (ambiant_pressure_bar - WATER_VAPOUR_PRESSURE) * o2Ratio;
+	simulatedPSCRppo2 -= (inertGasRatio * pGas->pscr_factor);
+	if(simulatedPSCRppo2 < 0.0)
+	{
+		simulatedPSCRppo2 = 0.0;
+	}
+	return simulatedPSCRppo2;
+}
+
+float decom_calc_SimppO2_O2based(float ambiant_pressure_bar, uint8_t O2PerCent, float factor)
+{
+	float o2Ratio = 0.0;
+	float inertGasRatio = 0.0;
+	float simulatedPSCRppo2 = 0.0;
+
+	o2Ratio = O2PerCent / 100.0;
+	inertGasRatio = 1.0 - o2Ratio;
+	simulatedPSCRppo2 = (ambiant_pressure_bar - WATER_VAPOUR_PRESSURE) * o2Ratio;
+	simulatedPSCRppo2 -= (inertGasRatio * factor);
+	if(simulatedPSCRppo2 < 0.0)
+	{
+		simulatedPSCRppo2 = 0.0;
+	}
+	return simulatedPSCRppo2;
+}
 
 uint8_t decom_get_actual_deco_stop(SDiveState* pDiveState)
 {

@@ -72,7 +72,7 @@
 #include "buehlmann.h"
 #include "externLogbookFlash.h"
 
-//#define TESTBENCH
+/* #define TESTBENCH */
 
 /* Exported variables --------------------------------------------------------*/
 static uint8_t	wasPowerOn = 0;
@@ -93,6 +93,8 @@ static uint8_t data_old__lost_connection_to_slave_counter_retry = 0;
 static uint32_t data_old__lost_connection_to_slave_counter_total = 0;
 
 static uint8_t DeviceDataUpdated = 0;
+
+static uint16_t externalInterface_Cmd = 0;
 
 /* Private types -------------------------------------------------------------*/
 #define UNKNOWN_TIME_HOURS		1
@@ -181,12 +183,12 @@ static void DataEx_call_helper_requests(void)
 	if(getDeviceDataWasSend)
 	{
 		dataOut.getDeviceDataNow = 0;
-		requestNecessary.ub.devicedata = 1;
 	}
 	getDeviceDataWasSend = 0;
 	if(dataOut.getDeviceDataNow)
 	{
 		getDeviceDataWasSend = 1;
+		requestNecessary.ub.devicedata = 1;
 	}
 	
 	if(setEndDiveWasSend)
@@ -203,40 +205,39 @@ static void DataEx_call_helper_requests(void)
 	if(setAccidentFlagWasSend)
 	{
 		dataOut.setAccidentFlag = 0;
-		requestNecessary.ub.accident = 1;
 	}
 	setAccidentFlagWasSend = 0;
 	if(dataOut.setAccidentFlag)
 	{
 		setAccidentFlagWasSend = 1;
+		requestNecessary.ub.accident = 1;
 	}
 
 	if(setDateWasSend)
 	{
 		dataOut.setDateNow = 0;
-		requestNecessary.ub.date = 1;
 	}
 	setDateWasSend = 0;
 	if(dataOut.setDateNow)
 	{
 		setDateWasSend = 1;
+		requestNecessary.ub.date = 1;
 	}
 
 	if(setTimeWasSend)
 	{
 		dataOut.setTimeNow = 0;
-		requestNecessary.ub.time = 1;
 	}
 	setTimeWasSend = 0;
 	if(dataOut.setTimeNow)
 	{
 		setTimeWasSend = 1;
+		requestNecessary.ub.time = 1;
 	}
 
 	if(calibrateCompassWasSend)
 	{
 		dataOut.calibrateCompassNow = 0;
-		requestNecessary.ub.compass = 1;
 	}
 	calibrateCompassWasSend = 0;
 	if(dataOut.calibrateCompassNow)
@@ -247,22 +248,23 @@ static void DataEx_call_helper_requests(void)
 	if(clearDecoWasSend)
 	{
 		dataOut.clearDecoNow = 0;
-		requestNecessary.ub.clearDeco = 1;
+		requestNecessary.ub.compass = 1;
 	}
 	if(dataOut.clearDecoNow)
 	{
 		clearDecoWasSend = 1;
+		requestNecessary.ub.clearDeco = 1;
 	}
 	
 	if(setButtonSensitivityWasSend)
 	{
 		dataOut.setButtonSensitivityNow = 0;
-		requestNecessary.ub.button = 1;
 	}
 	setButtonSensitivityWasSend = 0;
 	if(dataOut.setButtonSensitivityNow)
 	{
 		setButtonSensitivityWasSend = 1;
+		requestNecessary.ub.button = 1;
 	}
 }
 
@@ -388,6 +390,32 @@ void DateEx_copy_to_dataOut(void)
 	
 	dataOut.data.offsetPressureSensor_mbar = settings->offsetPressure_mbar;
 	dataOut.data.offsetTemperatureSensor_centiDegree = settings->offsetTemperature_centigrad;
+
+
+
+	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+	{
+			externalInterface_Cmd |= EXT_INTERFACE_ADC_ON | EXT_INTERFACE_33V_ON;
+	}
+
+#ifdef ENABLE_SENTINEL_MODE
+	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+	{
+			externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_SENTINEL;
+			externalInterface_Cmd &= (~EXT_INTERFACE_ADC_ON);
+	}
+#endif
+
+	if(settings->ext_uart_protocol)
+	{
+		externalInterface_Cmd |= (settings->ext_uart_protocol << 8);
+	}
+	if(settings->co2_sensor_active)
+	{
+		externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_CO2;
+	}
+	dataOut.data.externalInterface_Cmd = externalInterface_Cmd;
+	externalInterface_Cmd = 0;
 
 	if((hardwareDataGetPointer()->primarySerial <= 32) || (((hardwareDataGetPointer()->primarySerial == 72) && (hardwareDataGetPointer()->secondarySerial == 15))))
 	{
@@ -773,9 +801,14 @@ static float getTemperature(SDataExchangeSlaveToMaster *d)
 
 void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 {
-	SDiveState *pStateReal = stateRealGetPointerWrite();
 	static uint16_t getDeviceDataAfterStartOfMainCPU = 20;
+
+	SDiveState *pStateReal = stateRealGetPointerWrite();
 	uint8_t idx;
+	float meter = 0;
+	SSettings *pSettings;
+
+
 	
 	// wireless - �ltere daten aufr�umen
 #if 0
@@ -836,23 +869,46 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		}
 	}
 
-	/* new 151207 hw */
-	if(requestNecessary.uw != 0)
+	if((requestNecessary.uw != 0) && (dataIn.confirmRequest.uw != 0))
 	{
 		if(((dataIn.confirmRequest.uw) & CRBUTTON) != 0)
 		{
 			requestNecessary.ub.button = 0;
 		}
+		if(((dataIn.confirmRequest.uw) & CRCLEARDECO) != 0)
+		{
+			requestNecessary.ub.clearDeco = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRDATE) != 0)
+		{
+			requestNecessary.ub.date = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRTIME) != 0)
+		{
+			requestNecessary.ub.time = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRCOMPASS) != 0)
+		{
+			requestNecessary.ub.compass = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRDEVICEDATA) != 0)
+		{
+			requestNecessary.ub.devicedata = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRBATTERY) != 0)
+		{
+			requestNecessary.ub.batterygauge = 0;
+		}
+		if(((dataIn.confirmRequest.uw) & CRACCIDENT) != 0)
+		{
+			requestNecessary.ub.accident = 0;
+		}
 
-		if(requestNecessary.ub.button == 1)
+		if(requestNecessary.ub.button == 1)	/* send button values to RTE */
 		{
 			setButtonResponsiveness(settingsGetPointer()->ButtonResponsiveness);
 		}
 	}
-	requestNecessary.uw = 0; // clear all 
-	
-	float meter = 0;
-	SSettings *pSettings;
 
 	/*	uint8_t IAmStolenPleaseKillMe;
 	 */
@@ -883,7 +939,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		{
 			for(idx = 0; idx < 3; idx++)
 			{
-				pStateReal->lifeData.sensorVoltage_mV[idx] = dataIn.data[0].extADC_voltage[idx];
+				pStateReal->lifeData.sensorVoltage_mV[idx] = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].extADC_voltage[idx];
 				if(pStateReal->lifeData.sensorVoltage_mV[idx] < IGNORE_O2_VOLTAGE_LEVEL_MV)
 				{
 					pStateReal->lifeData.sensorVoltage_mV[idx] = 0.0;
@@ -909,7 +965,6 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		pStateReal->lifeData.dateBinaryFormat = dataIn.data[dataIn.boolTimeData].localtime_rtc_dr;
 		pStateReal->lifeData.timeBinaryFormat = dataIn.data[dataIn.boolTimeData].localtime_rtc_tr;
 	}
-	dataOut.setAccidentFlag = 0;
 
 	if(pStateReal->data_old__lost_connection_to_slave == 0)
 	{
@@ -971,11 +1026,25 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 			  pStateReal->lifeData.max_depth_meter = meter;
 		}
 
-		if(dataIn.accidentFlags & ACCIDENT_DECOSTOP)
-			pStateReal->decoMissed_at_the_end_of_dive = 1;
-		if(dataIn.accidentFlags & ACCIDENT_CNS)
-			pStateReal->cnsHigh_at_the_end_of_dive = 1;
-
+		if(requestNecessary.ub.clearDeco == 0)		/* No "reset deco" is send to RTE ? */
+		{
+			if(dataIn.accidentFlags & ACCIDENT_DECOSTOP)
+			{
+				pStateReal->decoMissed_at_the_end_of_dive = 1;
+			}
+			else
+			{
+				pStateReal->decoMissed_at_the_end_of_dive = 0;
+			}
+			if(dataIn.accidentFlags & ACCIDENT_CNS)
+			{
+				pStateReal->cnsHigh_at_the_end_of_dive = 1;
+			}
+			else
+			{
+				pStateReal->cnsHigh_at_the_end_of_dive = 0;
+			}
+		}
 		pStateReal->lifeData.dive_time_seconds = (int32_t)dataIn.data[dataIn.boolTimeData].divetime_seconds;
 		pStateReal->lifeData.dive_time_seconds_without_surface_time = (int32_t)dataIn.data[dataIn.boolTimeData].dive_time_seconds_without_surface_time;
 		pStateReal->lifeData.counterSecondsShallowDepth = dataIn.data[dataIn.boolTimeData].counterSecondsShallowDepth;
@@ -1030,6 +1099,10 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		/* sensorErrors
 		 */
 		pStateReal->sensorErrorsRTE = dataIn.sensorErrors;
+
+		/* data from CO2 sensor */
+		pStateReal->lifeData.CO2_data.CO2_ppm = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_ppm;
+		pStateReal->lifeData.CO2_data.signalStrength = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_signalStrength;
 	}
 
 	/* apnea specials
@@ -1205,3 +1278,10 @@ uint8_t DataEX_external_ADC_Present(void)
 
 	return retval;
 }
+
+void DataEX_setExtInterface_Cmd(uint16_t Cmd)
+{
+	externalInterface_Cmd = Cmd;
+	return;
+}
+

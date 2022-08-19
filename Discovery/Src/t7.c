@@ -35,6 +35,7 @@
 #include "gfx_fonts.h"
 #include "logbook_miniLive.h"
 #include "math.h"
+#include "tComm.h"
 #include "tHome.h"
 #include "simulation.h"
 #include "timer.h"
@@ -61,6 +62,7 @@ void t7_debug(void);
 
 void t7_miniLiveLogProfile(void);
 void t7_logo_OSTC(void);
+void t7_ChargerView(void);
 static void t7_colorscheme_mod(char *text);
 
 uint8_t t7_test_customview_warnings(void);
@@ -136,7 +138,7 @@ const uint8_t customviewsSurfaceStandard[] =
     CVIEW_Compass,
     CVIEW_Tissues,
     CVIEW_sensors_mV,
-    CVIEW_END,
+	CVIEW_Charger,
     CVIEW_END
 };
 
@@ -685,6 +687,7 @@ void t7_refresh_sleep_design_fun(void)
 void t7_refresh_surface(void)
 {
 	static float debounceAmbientPressure = 0;
+	static uint8_t lastChargeStatus = 0;
     char text[256];
     char timeSuffix;
     uint8_t hours;
@@ -743,8 +746,9 @@ void t7_refresh_surface(void)
     }
     else
 */
-    if(DataEX_was_power_on())
+    if(DataEX_was_power_on()) {
         GFX_write_string_color(&FontT42,&t7surfaceR,"cold start",4,CLUT_WarningRed);
+    }
 
     /* time and date */
     translateDate(stateUsed->lifeData.dateBinaryFormat, &Sdate);
@@ -1015,7 +1019,7 @@ void t7_refresh_surface(void)
     else
     {
     	textIdx = 0;
-        if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+        if(isLoopMode(stateUsed->diveSettings.diveMode))
             gasOffset = NUM_OFFSET_DILUENT;
         else
             gasOffset = 0;
@@ -1089,6 +1093,9 @@ void t7_refresh_surface(void)
 	switch (stateUsed->diveSettings.diveMode) {
 	case DIVEMODE_CCR:
 		GFX_write_string(&FontT24, &t7c1, "\f\002" "CCR", 0);
+		break;
+	case DIVEMODE_PSCR:
+		GFX_write_string(&FontT24, &t7c1, "\f\002" "PSCR", 0);
 		break;
 	case DIVEMODE_OC:
 		GFX_write_string(&FontT24, &t7c1, "\f\002" "OC", 0);
@@ -1180,6 +1187,11 @@ void t7_refresh_surface(void)
     }
     else
     {
+        if(lastChargeStatus == CHARGER_off)
+        {
+        	t7_select_customview(CVIEW_Charger);
+        }
+
         GFX_write_string_color(&Batt24,&t7batt,text,0,CLUT_BatteryCharging);
 
         switch(stateUsed->chargeStatus)
@@ -1200,6 +1212,7 @@ void t7_refresh_surface(void)
         GFX_write_string_color(&Batt24,&t7charge,text,0,color);
     }
 
+    lastChargeStatus = stateUsed->chargeStatus;
 
 
     customview_warnings = t7_test_customview_warnings_surface_mode();
@@ -1604,13 +1617,21 @@ uint8_t t7_customview_disabled(uint8_t view)
     {
       	cv_disabled = 1;
     }
+
+    if ((view == CVIEW_Charger) && (stateUsed->chargeStatus != CHARGER_running) && (stateUsed->chargeStatus != CHARGER_lostConnection))
+    {
+       	cv_disabled = 1;
+    }
+
+
     return cv_disabled;
 }
 
 uint8_t t7_change_customview(uint8_t action)
 {
     uint8_t *pViews;
-    uint8_t *pStartView,*pCurView, *pLastView;
+    uint8_t *pStartView,*pLastView;
+    uint8_t *pCurView = NULL;
     _Bool cv_disabled = 0;
 
     if(stateUsed->mode == MODE_DIVE)
@@ -1694,6 +1715,9 @@ void t7_refresh_customview(void)
     char text[256];
 	char timeSuffix;
 	uint8_t hoursToDisplay;
+#ifdef ENABLE_PSCR_MODE
+	uint8_t showSimPPO2 = 1;
+#endif
     uint16_t textpointer = 0;
     uint16_t heading = 0;
     int16_t start;
@@ -1728,6 +1752,13 @@ void t7_refresh_customview(void)
             // content
             t7_debug();
         }
+        break;
+
+    case CVIEW_Charger:
+             snprintf(text,100,"\032\f\001%c",TXT_Charging);
+            GFX_write_string(&FontT42,&t7cH,text,0);
+            t7_ChargerView();
+
         break;
 
     case CVIEW_SummaryOfLeftCorner:
@@ -1790,6 +1821,24 @@ void t7_refresh_customview(void)
             }
             t7cC.WindowNumberOfTextLines = 3;
         }
+        else if(isSettingsWarning())
+		{
+            if(warning_count_high_time)
+            {
+                shiftWindowY0 += 20;
+                t7cC.WindowY0 -= shiftWindowY0;
+                textpointer = 0;
+                text[textpointer++] = '\001';
+                text[textpointer++] = TXT_2BYTE;
+                text[textpointer++] = TXT2BYTE_CheckSettings;
+                text[textpointer++] = '\n';
+                text[textpointer++] = '\r';
+                text[textpointer++] = 0;
+                GFX_write_string_color(&FontT42,&t7cC,text,1, CLUT_WarningRed);
+                t7cC.WindowY0 += shiftWindowY0;
+            }
+            t7cC.WindowNumberOfTextLines = 1;
+		}
         else // customtext
         {
             lineCountCustomtext = t7_customtextPrepare(text);
@@ -1993,13 +2042,24 @@ void t7_refresh_customview(void)
         {
             if((stateUsed->diveSettings.ppo2sensors_deactivated & (1<<i)) || (stateUsed->lifeData.ppO2Sensor_bar[i] == 0.0))
             {
-                text[textpointer++] = '\031'; // labelcolor
-                text[textpointer++] = '\001';
-                text[textpointer++] = '-';
-                text[textpointer++] = '\n';
-                text[textpointer++] = '\r';
-                text[textpointer++] = '\030'; // main color
-                text[textpointer] = 0;
+#ifdef ENABLE_PSCR_MODE
+            	if((stateUsed->diveSettings.diveMode == DIVEMODE_PSCR) && (showSimPPO2) && (stateUsed->mode == MODE_DIVE))	/* display ppo2 sim in blue letters in case a slot is not used in the ppo2 custom view */
+            	{
+            		text[textpointer++] = '\023';
+            		textpointer += snprintf(&text[textpointer],100,"\001%01.2f\n\r\030",stateUsed->lifeData.ppo2Simulated_bar);
+            		showSimPPO2 = 0;
+            	}
+            	else
+#endif
+            	{
+					text[textpointer++] = '\031'; // labelcolor
+					text[textpointer++] = '\001';
+					text[textpointer++] = '-';
+					text[textpointer++] = '\n';
+					text[textpointer++] = '\r';
+					text[textpointer++] = '\030'; // main color
+					text[textpointer] = 0;
+            	}
             }
             else
             {
@@ -2412,7 +2472,7 @@ void t7_refresh_divemode(void)
         TextR1[textPointer++] = '\a';
         TextR1[textPointer++] = '\001';
         TextR1[textPointer++] = ' ';
-        textPointer += snprintf(&TextR1[textPointer],TEXTSIZE,"%f01.2",((float)(stateUsed->diveSettings.setpoint[actualBetterSetpointId()].setpoint_cbar))/100);
+        textPointer += snprintf(&TextR1[textPointer],TEXTSIZE,"%01.2f",(float)(stateUsed->diveSettings.setpoint[actualBetterSetpointId()].setpoint_cbar) / 100.0);
         TextR1[textPointer++] = '?';
         TextR1[textPointer++] = ' ';
         TextR1[textPointer++] = 0;
@@ -2515,9 +2575,10 @@ void t7_refresh_divemode(void)
 
         if(stateUsed->diveSettings.ccrOption)
         {
-            if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+        	if(isLoopMode(stateUsed->diveSettings.diveMode))
             {
                 snprintf(TextC2,TEXTSIZE,"\020%01.2f",stateUsed->lifeData.ppO2);
+
                 if(stateUsed->warnings.betterSetpoint && warning_count_high_time && (stateUsed->diveSettings.diveMode == DIVEMODE_CCR))
                 {
                     TextC2[0] = '\a'; // inverse instead of color \020
@@ -2547,7 +2608,7 @@ void t7_refresh_divemode(void)
         TextC2[1] = TXT_2BYTE;
         TextC2[2] = TXT2BYTE_WarnCnsHigh;
         TextC2[3] = 0;
-        GFX_write_string_color(&FontT48,&t7c1,TextC2,0,CLUT_WarningRed);
+        GFX_write_string_color(&FontT42,&t7c1,TextC2,0,CLUT_WarningRed);
     }
     else
     {
@@ -2567,6 +2628,9 @@ void t7_refresh_divemode(void)
         if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
             GFX_write_string(&FontT24,&t7c1,"\027\f\002" "CCR",0);
         //  GFX_write_string(&FontT24,&t7c1,"\f\177\177\x80" "CCR",0);
+        else
+        if(stateUsed->diveSettings.diveMode == DIVEMODE_PSCR)
+                GFX_write_string(&FontT24,&t7c1,"\027\f\002" "PSCR",0);
         else
         if(stateUsed->diveSettings.ccrOption)
             GFX_write_string(&FontT24,&t7c1,"\f\002\024" "Bailout",0);
@@ -2661,11 +2725,16 @@ void t7_change_field(void)
     {
     	selection_custom_field++;
     }
-    if((selection_custom_field == LLC_ScrubberTime) && ((settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_OFF) || (settingsGetPointer()->dive_mode != DIVEMODE_CCR)))
+    if((selection_custom_field == LLC_ScrubberTime) && ((settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_OFF) || (!isLoopMode(settingsGetPointer()->dive_mode))))
     {
     	selection_custom_field++;
     }
-
+#ifdef ENABLE_PSCR_MODE
+    if((selection_custom_field == LCC_SimPpo2) && (settingsGetPointer()->dive_mode != DIVEMODE_PSCR))
+    {
+    	selection_custom_field++;
+    }
+#endif
     if(selection_custom_field >= LLC_END)
     {
         selection_custom_field = LLC_Empty;
@@ -2803,6 +2872,12 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         	snprintf(text,TEXTSIZE,"\020%u\016\016%%\017", (settingsGetPointer()->scrubTimerCur * 100 / settingsGetPointer()->scrubTimerMax));
         }
 		break;
+#ifdef ENABLE_PSCR_MODE
+    case LCC_SimPpo2:
+        headerText[2] = TXT_SimPpo2;
+        snprintf(text,TEXTSIZE,"\020%.2f\016\016Bar\017",stateUsed->lifeData.ppo2Simulated_bar);
+        break;
+#endif
 
 #ifdef ENABLE_BOTTLE_SENSOR
     case LCC_BottleBar:
@@ -3380,7 +3455,7 @@ void t7_SummaryOfLeftCorner(void)
     text[textpointer++] = TXT_FutureTTS;
     text[textpointer++] = '\n';
     text[textpointer++] = '\r';
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)))
     {
 		text[textpointer++] = TXT_ScrubTime;
 
@@ -3429,7 +3504,7 @@ void t7_SummaryOfLeftCorner(void)
     else
     	textpointer += snprintf(&text[textpointer],10,"\020%ih", (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 3600);
 
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)))
     {
         text[textpointer++] = '\n';
         text[textpointer++] = '\r';
@@ -3778,4 +3853,213 @@ void t7_logo_OSTC(void)
 
     windowGimp.top = 40 + 32;
     GFX_draw_image_monochrome(&t7screen, windowGimp, &ImgOSTC, 0);
+}
+
+static uint16_t ChargerLog[60] = {10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10,
+								  10,10,10,10,10,10,10,10,10,10};
+
+uint16_t LogDeltaCharge(float charge)
+{
+	static uint8_t curIndex = 0;
+	static float averageSpeed = 0.0;
+	uint16_t level = 0;
+	uint16_t completeSec = 0;
+
+	if(charge > 0.003)
+	{
+		level = 2;
+	}
+	else if(charge > 0.0025)
+	{
+			level = 3;
+	}
+	else if(charge > 0.002)
+	{
+			level = 4;
+	}
+	else if(charge > 0.0015)
+	{
+			level = 5;
+	}
+	else if(charge > 0.001)
+	{
+			level = 6;
+	}
+	else if(charge > 0.0005)
+	{
+			level = 7;
+	}
+	else if(charge > 0.00)
+	{
+			level = 8;
+	}
+	else
+	{
+		level = 10;
+	}
+	if(curIndex < 59)
+	{
+		ChargerLog[curIndex++] = level;
+	}
+	else
+	{
+		memcpy (&ChargerLog[0],&ChargerLog[1],sizeof(ChargerLog) - 1);
+		ChargerLog[curIndex] = level;
+	}
+	if(curIndex > 1)
+	{
+		averageSpeed = ((averageSpeed * (curIndex-1)) + charge) / curIndex;
+		completeSec = (100.0 - stateUsed->lifeData.battery_charge) / averageSpeed;
+	}
+	else
+	{
+		completeSec = 0xffff;
+	}
+	return completeSec;
+}
+
+uint16_t* getChargeLog()
+{
+	return ChargerLog;
+}
+
+void t7_ChargerView(void)
+{
+	static float lastCharge = 0.0;
+	float localCharge = 0.0;
+	static uint32_t lastTick = 0;
+	uint32_t curTick = 0;
+	static float speed = 0.0;
+	float deltatime = 0.0;
+
+    char text[256+50];
+    uint8_t textpointer = 0;
+    static uint16_t remainingSec = 0;
+    uint16_t hoursto100 = 0;
+    char indicator = '~';
+
+    point_t start, stop;
+
+    SWindowGimpStyle wintemp;
+	SSettings* pSettings;
+	pSettings = settingsGetPointer();
+
+    t7cY0free.WindowLineSpacing = 28 + 48 + 14;
+    t7cY0free.WindowY0 = t7cH.WindowY0 - 5 - 2 * t7cY0free.WindowLineSpacing;
+    t7cY0free.WindowNumberOfTextLines = 3;
+
+
+    if(pSettings->FlipDisplay)
+    {
+       	t7cY0free.WindowY0 = t7cH.WindowY0 + 15;
+        t7cY0free.WindowY1 = t7cY0free.WindowY0 + 250;
+    }
+
+    localCharge = stateUsed->lifeData.battery_charge;
+    if(localCharge < 0.0)
+    {
+    	localCharge *= -1.0;
+    }
+
+    if(stateUsed->chargeStatus != CHARGER_off)
+    {
+		if(lastCharge != localCharge)
+		{
+			curTick = HAL_GetTick();
+			deltatime = (curTick - lastTick);
+			lastTick = curTick;
+			if(lastCharge < localCharge)
+			{
+				speed = (localCharge - lastCharge) * 1000.0 / deltatime;
+			}
+
+			if(localCharge > 100.0)
+			{
+				localCharge = 100.0;
+			}
+
+			lastCharge = localCharge;
+		}
+
+
+		if(deltatime > 1000)
+		{
+			deltatime = 0;
+			remainingSec = LogDeltaCharge(speed);
+			speed = 0;
+		}
+    }
+    textpointer += snprintf(&text[textpointer],50,"\n\r");
+    textpointer += snprintf(&text[textpointer],50,"\001%c\n\r",TXT_ChargeHour);
+
+    GFX_write_string(&FontT24, &t7cY0free, text, 1);
+
+    hoursto100 = remainingSec / 3600;		/* reduce to hours */
+    if(hoursto100 < 1)
+    {
+    	indicator = '<';
+    	hoursto100 = 1;
+    }
+
+    if(!pSettings->FlipDisplay)
+    {
+    	t7cY0free.WindowY0 -= 52;
+    }
+    else
+    {
+        	t7cY0free.WindowY1 += 52;
+    }
+
+    if((stateUsed->lifeData.battery_charge > 0) && (stateUsed->chargeStatus != CHARGER_off))
+    {
+		snprintf(text,60,
+			"\001%0.2f\016\016%%\017\n\r"
+			"\001%c%d\n\r"
+			,stateUsed->lifeData.battery_charge
+			,indicator
+			,hoursto100);
+    }
+    else
+    {
+		snprintf(text,60,
+			"\001---\n\r"
+			"\001---\n\r");
+    }
+    GFX_write_string(&FontT42, &t7cY0free, text, 1);
+
+    wintemp.left = CUSTOMBOX_LINE_LEFT + CUSTOMBOX_INSIDE_OFFSET + 50;
+    wintemp.right = wintemp.left + CUSTOMBOX_SPACE_INSIDE - 100;
+
+
+    if(!pSettings->FlipDisplay)
+    {
+    	wintemp.top = 480 - t7l1.WindowY0 + 115;
+    	wintemp.bottom = wintemp.top + 100;
+    }
+    else
+    {
+    	wintemp.top = t7l1.WindowY1 + 102;
+    	wintemp.bottom = wintemp.top + 100;
+    }
+
+    start.x =  wintemp.left-5;
+    start.y =  90;
+
+    stop.x = wintemp.right + 5 - start.x;
+    stop.y = 100;
+    GFX_draw_box(&t7screen, start, stop,1, CLUT_Font020);
+
+    if(stateUsed->chargeStatus != CHARGER_off)
+    {
+    	GFX_graph_print(&t7screen, &wintemp, 1,1,0, 10, getChargeLog(), 60, CLUT_Font030, NULL);
+    }
+    else
+    {
+        	GFX_graph_print(&t7screen, &wintemp, 1,1,0, 10, getChargeLog(), 60, CLUT_Font031, NULL);
+    }
+
 }

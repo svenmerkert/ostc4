@@ -130,14 +130,14 @@ uint32_t tMPlanner_refresh(uint8_t line, char *text, uint16_t *tab, char *subtex
         text[textPointer++] = '\t';
         textPointer += snprintf(&text[textPointer],30,
             "%u"
-            "\016\016 l\\min\017",
+            "\016\016 l/min\017",
             tMplan_gasConsumTravel);
         text[textPointer++] = ' ';
         text[textPointer++] = ' ';
         textPointer += snprintf(&text[textPointer],30,
             "\016\016deco\017"
             " %u"
-            "\016\016 l\\min\017",
+            "\016\016 l/min\017",
             tMplan_gasConsumDeco);
     }
     strcpy(&text[textPointer],"\n\r");

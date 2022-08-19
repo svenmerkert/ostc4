@@ -31,6 +31,12 @@
 
 #include <stdint.h>
 
+#define BATTERY_DEFAULT_VOLTAGE					(6.0f)
+#define BATTERY_ENDOF_CHARGE_VOLTAGE			(4.05f)
+#define BATTERY_CHARGER_CONNECTED_VOLTAGE		(4.2f)
+
+#define BATTERY_CHARGE_UNKNOWN					(-1.0f)
+
 void init_battery_gas_gauge(void);
 
 float get_voltage(void);
@@ -40,6 +46,10 @@ void battery_gas_gauge_get_data(void);
 void battery_gas_gauge_set_charge_full(void);
 void battery_gas_gauge_set(float percentage);
 uint8_t battery_gas_gauge_CheckConfigOK(void);
+
+uint8_t battery_gas_gauge_isChargeValueValid(void);
+void battery_gas_gauge_setChargeValueValid(void);
+
 
 #ifdef __cplusplus
 }

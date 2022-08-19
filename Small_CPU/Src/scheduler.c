@@ -42,6 +42,7 @@
 #include "decom.h"
 #include "tm_stm32f4_otp.h"
 #include "externalInterface.h"
+#include "uart.h"
 
 /* uncomment to enable restoting of last known date in case of a power loss (RTC looses timing data) */
 /* #define RESTORE_LAST_KNOWN_DATE */
@@ -90,6 +91,7 @@ void copyVpmCrushingData(void);
 void copyDeviceData(void);
 void copyPICdata(void);
 void copyExtADCdata();
+void copyExtCO2data();
 static void schedule_update_timer_helper(int8_t thisSeconds);
 uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow);
 
@@ -125,6 +127,8 @@ void initGlobals(void)
 
 	global.I2C_SystemStatus = HAL_ERROR; // 0x00 would be everything working
 	
+	global.lifeData.battery_voltage = BATTERY_DEFAULT_VOLTAGE;
+
 	global.lifeData.pressure_ambient_bar = INVALID_PREASURE_VALUE;
 	global.lifeData.pressure_surface_bar = INVALID_PREASURE_VALUE;
 	decom_reset_with_1000mbar(&global.lifeData);
@@ -300,6 +304,26 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 	deviceDataFlashValid = 0;
 	memcpy(&DeviceDataFlash, &global.dataSendToSlave.data.DeviceData, sizeof(SDevice));
 	deviceDataFlashValid = 1;
+
+
+	/* handle external interface requests */
+
+	if((global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_33V_ON) != externalInterface_isEnabledPower33())
+	{
+		externalInterface_SwitchPower33(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_33V_ON);
+	}
+
+	if(((global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_ADC_ON) != 0) != externalInterface_isEnabledADC())
+	{
+		externalInterface_SwitchADC(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_ADC_ON);
+	}
+
+
+	if(global.dataSendToSlave.data.externalInterface_Cmd & 0x00FF)	/* lowest nibble for commands */
+	{
+		externalInterface_ExecuteCmd(global.dataSendToSlave.data.externalInterface_Cmd);
+	}
+
 
 #if 0
 	//TODO: Temporary placed here. Duration ~210 ms.
@@ -487,6 +511,20 @@ void scheduleDiveMode(void)
 		lasttick = HAL_GetTick();
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
+#ifdef ENABLE_CO2_SUPPORT
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTCO2Data();
+		}
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTSentinelData();
+		}
+#endif
+
+
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
 			if(SPI_Evaluate_RX_Data()!=0) /* did we receive something ? */
@@ -495,12 +533,16 @@ void scheduleDiveMode(void)
 			}
 			schedule_check_resync();
 
-			extAdcChannel = externalInterface_ReadAndSwitch();
-			if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+			if(externalInterface_isEnabledADC())
 			{
-				externalInterface_CalculateADCValue(extAdcChannel);
-				copyExtADCdata();
+				extAdcChannel = externalInterface_ReadAndSwitch();
+				if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+				{
+					externalInterface_CalculateADCValue(extAdcChannel);
+				}
 			}
+			copyExtADCdata();
+			copyExtCO2data();
 		}
 
 		//Evaluate pressure at 20 ms, 120 ms, 220 ms,....
@@ -761,10 +803,11 @@ void scheduleTestMode(void)
 
 void scheduleSurfaceMode(void)
 {
-
 	uint32_t ticksdiff = 0; 
 	uint32_t lasttick = 0;
 	uint8_t extAdcChannel = 0;
+	uint8_t batteryToggle = 0;		/* ADC is operating in automatic 2 second cycles => consider for battery charge function call */
+
 	Scheduler.tickstart = HAL_GetTick();
 	Scheduler.counterSPIdata100msec = 0;
 	Scheduler.counterCompass100msec = 0;
@@ -786,7 +829,20 @@ void scheduleSurfaceMode(void)
 			if(scheduleSetButtonResponsiveness())
 				setButtonsNow = 0;
 		}
-		
+
+#ifdef ENABLE_CO2_SUPPORT
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTCO2Data();
+		}
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		{
+			HandleUARTSentinelData();
+		}
+#endif
+
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
@@ -795,12 +851,17 @@ void scheduleSurfaceMode(void)
 				Scheduler.counterSPIdata100msec++;
 			}
 			schedule_check_resync();
-			extAdcChannel = externalInterface_ReadAndSwitch();
-			if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+			if(externalInterface_isEnabledADC())
 			{
-				externalInterface_CalculateADCValue(extAdcChannel);
-				copyExtADCdata();
+				extAdcChannel = externalInterface_ReadAndSwitch();
+				if(extAdcChannel != EXTERNAL_ADC_NO_DATA)
+				{
+					externalInterface_CalculateADCValue(extAdcChannel);
+
+				}
 			}
+			copyExtADCdata();
+			copyExtCO2data();
 		}
 
 		/* Evaluate pressure at 20 ms, 120 ms, 220 ms,... duration ~22ms] */
@@ -886,13 +947,23 @@ void scheduleSurfaceMode(void)
 			{
 				global.lifeData.desaturation_time_minutes = 0;
 			}
-			battery_gas_gauge_get_data();
-			battery_charger_get_status_and_contral_battery_gas_gauge(1);
+
+			if(!batteryToggle)
+			{
+				battery_gas_gauge_get_data();
+				battery_charger_get_status_and_contral_battery_gas_gauge(2);
+				batteryToggle = 1;
+			}
+			else
+			{
+				batteryToggle = 0;
+			}
 
 			copyCnsAndOtuData();
 			copyTimeData();
 			copyBatteryData();
 			copyDeviceData();
+
 
 /* check if I2C is not up an running and try to reactivate if necessary. Also do initialization if problem occured during startup */
 			if(global.I2C_SystemStatus != HAL_OK)
@@ -1034,6 +1105,7 @@ void scheduleSleepMode(void)
 {
 	global.dataSendToMaster.mode = 0;
 	global.deviceDataSendToMaster.mode = 0;
+	secondsCount = 0;
 	
 	/* prevent button wake up problem while in sleep_prepare
 	 * sleep prepare does I2C_DeInit()
@@ -1056,6 +1128,7 @@ void scheduleSleepMode(void)
 		if(global.mode == MODE_SLEEP)
 			secondsCount += 2;
 
+		externalInterface_InitPower33();
 		MX_I2C1_Init();
 		pressure_sensor_get_pressure_raw();
 
@@ -1069,19 +1142,18 @@ void scheduleSleepMode(void)
 			MX_I2C1_Init();
 			HAL_Delay(100);
 
-
 			if((global.I2C_SystemStatus == HAL_OK) && (!is_init_pressure_done()))
 			{
 				init_pressure();
 			}
 		}
 
-		if(secondsCount >= 30)
+		if((secondsCount >= 30) || (global.mode != MODE_SLEEP)) /* Service battery charge state in case sleep is left */
 		{
 			pressure_sensor_get_temperature_raw();
 			battery_gas_gauge_get_data();
-//			ReInit_battery_charger_status_pins();
-			battery_charger_get_status_and_contral_battery_gas_gauge(30);
+			ReInit_battery_charger_status_pins();
+			battery_charger_get_status_and_contral_battery_gas_gauge(secondsCount);
 //			DeInit_battery_charger_status_pins();
 			secondsCount = 0;
 		}
@@ -1120,6 +1192,7 @@ void scheduleSleepMode(void)
 	clearDecoNow = 0;
 	setButtonsNow = 0;
 	reinitGlobals();
+	ReInit_battery_charger_status_pins();
 }
 
 
@@ -1363,7 +1436,7 @@ void scheduleUpdateDeviceData(void)
 			}
 			break;
 
-		case	MODE_SLEEP:
+		case MODE_SLEEP:
 		case MODE_SHUTDOWN:
 			break;
 	}
@@ -1549,8 +1622,17 @@ void copyCompassDataDuringCalibration(int16_t dx, int16_t dy, int16_t dz)
 void copyBatteryData(void)
 {
 	uint8_t boolBatteryData = !global.dataSendToMaster.boolBatteryData;
+	global.lifeData.battery_charge = get_charge();
 	global.dataSendToMaster.data[boolBatteryData].battery_voltage = get_voltage();
-	global.dataSendToMaster.data[boolBatteryData].battery_charge= get_charge();
+
+	if(battery_gas_gauge_isChargeValueValid())
+	{
+		global.dataSendToMaster.data[boolBatteryData].battery_charge= global.lifeData.battery_charge;
+	}
+	else
+	{
+		global.dataSendToMaster.data[boolBatteryData].battery_charge = global.lifeData.battery_charge * -1.0;	/* negate value to show that this is just an assumption */
+	}
 	global.dataSendToMaster.boolBatteryData = boolBatteryData;
 }
 
@@ -1629,13 +1711,44 @@ void copyExtADCdata()
 
 	uint8_t channel = 0;
 
+	uint8_t boolADCBuffer =  ~(global.dataSendToMaster.boolADCO2Data & DATA_BUFFER_ADC);
+
+	boolADCBuffer &= DATA_BUFFER_ADC;
+	global.dataSendToMaster.boolADCO2Data &= ~DATA_BUFFER_ADC;
+
 	for(channel = 0; channel < MAX_ADC_CHANNEL; channel++)
 	{
 		value = getExternalInterfaceChannel(channel);
-		global.dataSendToMaster.data[0].extADC_voltage[channel] = value;
+		global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].extADC_voltage[channel] = value;
 	}
+	global.dataSendToMaster.boolADCO2Data |= boolADCBuffer;
 }
 
+void copyExtCO2data()
+{
+	uint16_t value;
+	uint8_t boolCO2Buffer =  ~(global.dataSendToMaster.boolADCO2Data & DATA_BUFFER_CO2);
+
+	global.dataSendToMaster.boolADCO2Data &= ~DATA_BUFFER_CO2;
+	boolCO2Buffer &= DATA_BUFFER_CO2;
+
+	if(externalInterface_GetCO2State())
+	{
+		value = externalInterface_GetCO2Value();
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_ppm = value;
+		value = externalInterface_GetCO2SignalStrength();
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_signalStrength = value;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].externalInterface_CmdAnswer = externalInterface_GetCO2State();
+		externalInterface_SetCO2State(EXT_INTERFACE_33V_ON); 	/* clear command responses */
+	}
+	else
+	{
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_ppm = 0;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].CO2_signalStrength = 0;
+		global.dataSendToMaster.data[(boolCO2Buffer && DATA_BUFFER_CO2)].externalInterface_CmdAnswer = 0;
+	}
+	global.dataSendToMaster.boolADCO2Data |= boolCO2Buffer;
+}
 
 typedef enum 
 {

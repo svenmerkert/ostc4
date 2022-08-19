@@ -35,6 +35,7 @@
 #include "unit.h"
 #include "configuration.h"
 #include "logbook_miniLive.h"
+#include "text_multilanguage.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -515,16 +516,19 @@ static void show_logbook_logbook_show_log_page1(GFX_DrawCfgScreen *hgfx,uint8_t 
     switch(logbookHeader.diveMode)
     {
     case DIVEMODE_OC:
-            snprintf(text,20,"open circuit");
+            snprintf(text,20,"%c",TXT_OpenCircuit);
             break;
     case DIVEMODE_CCR:
-            snprintf(text,20,"closed circuit");
+            snprintf(text,20,"%c",TXT_ClosedCircuit);
             break;
     case DIVEMODE_Gauge:
-            snprintf(text,20,"Gauge");
+            snprintf(text,20,"%c",TXT_Gauge);
             break;
     case DIVEMODE_Apnea:
-            snprintf(text,20,"Apnea");
+            snprintf(text,20,"%c",TXT_Apnoe);
+            break;
+    case DIVEMODE_PSCR:
+            snprintf(text,20,"%c",TXT_PSClosedCircuit);
             break;
     }
     Gfx_write_label_var(hgfx, 30, 250,60, &FontT42,CLUT_GasSensor4,text);
@@ -886,6 +890,10 @@ static void show_logbook_logbook_show_log_page3(GFX_DrawCfgScreen *hgfx, uint8_t
 {
     SWindowGimpStyle wintemp;
     SWindowGimpStyle winsmal;
+    uint8_t gasWasUsed[NUM_GASES * 2];
+    int16_t index = 0;
+    uint8_t loopMode = 0;
+
     wintemp.left = 50;
     wintemp.right = 799 - wintemp.left;
     wintemp.top = 50;
@@ -899,6 +907,40 @@ static void show_logbook_logbook_show_log_page3(GFX_DrawCfgScreen *hgfx, uint8_t
     uint8_t  gasdata[1000];
     dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
+    char msg[15];
+    char gas_name[15];
+    int j = 0;
+
+    loopMode = isLoopMode(logbookHeader.diveMode);
+
+    /* check if gas was used, independent from its active state */
+    for(index = 0; index < NUM_GASES * 2; index++)
+    {
+    	gasWasUsed[index] = 0;
+    }
+    for(index = 0; index < dataLength; index++)
+    {
+    	if(loopMode)
+    	{
+    		if(gasdata[index] < NUM_GASES)	/* the log entry starts with a ID in range 1..4 independend if diluent is used at start */
+			{
+				gasdata[index] += NUM_GASES;
+			}
+    		else
+    		{
+    			loopMode = 0;				/* after the first gas change, no matter if diluent or bailout, the correct ID will be stored */
+    		}
+    	}
+    	if(gasdata[index] > 0)
+    	{
+    		gasWasUsed[gasdata[index]-1] = 1;		/* The ID stored in the samples is starting with 1 (array[0] = gasID1) */
+    	}
+    	else
+    	{
+    		gasWasUsed[0] = 1;
+    	}
+    }
+
     //--- print coordinate system & depth graph with gaschanges ---
     show_logbook_draw_depth_graph(hgfx, StepBackwards, &wintemp, 1, dataLength, depthdata, gasdata, NULL);
 
@@ -906,21 +948,38 @@ static void show_logbook_logbook_show_log_page3(GFX_DrawCfgScreen *hgfx, uint8_t
     winsmal.left = wintemp.right - 190;
     winsmal.right =  winsmal.left + 150;
 
-    char msg[15];
-    char gas_name[15];
-    int j = 0;
-    for(int i = 4;i >= 0;i--)
+    loopMode = isLoopMode(logbookHeader.diveMode);
+    for(index = (2 * NUM_GASES) -1; index >= 0; index--)
     {
-        if(logbookHeader.gasordil[i].note.ub.active > 0)
+    	if(gasWasUsed[index])
         {
             j++;
+            if(j > 5)	/* limit number of gases displayed to 5 */
+            {
+            	break;
+            }
             winsmal.top	= wintemp.bottom - 5 - j * 26 ;
             winsmal.bottom = winsmal.top + 21  ;
-            uint8_t color = get_colour(i);
+            uint8_t color = get_colour(index);
 
-            print_gas_name(gas_name,15,logbookHeader.gasordil[i].oxygen_percentage,logbookHeader.gasordil[i].helium_percentage);
-            snprintf(msg,15,"G%i: %s",i + 1, gas_name);
-            //msg[10] = 0;
+            if(loopMode)
+            {
+            	if(index < NUM_GASES)		/* Switch to Bailout is not covered by log gas list */
+            	{
+            		snprintf(gas_name,15,"Bailout");
+            		snprintf(msg,15,"G%d: %s",index +1, gas_name);
+            	}
+            	else
+            	{
+            		print_gas_name(gas_name,15,logbookHeader.gasordil[index-NUM_GASES].oxygen_percentage,logbookHeader.gasordil[index-NUM_GASES].helium_percentage);
+            		snprintf(msg,15,"D%d: %s",index +1 - NUM_GASES, gas_name);
+            	}
+            }
+            else
+            {
+            	print_gas_name(gas_name,15,logbookHeader.gasordil[index].oxygen_percentage,logbookHeader.gasordil[index].helium_percentage);
+            	snprintf(msg,15,"G%d: %s",index +1, gas_name);
+            }
             Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,msg);
         }
     }
@@ -931,6 +990,26 @@ static void show_logbook_logbook_show_log_page3(GFX_DrawCfgScreen *hgfx, uint8_t
     else
         button_start_single_action(surf1_menu_logbook_current_page, surf1_menu_logbook_show_log_page1, surf1_menu_logbook_show_log_next);
         */
+}
+
+static uint8_t check_data_array_empty(uint16_t* pdata)
+{
+	uint8_t ret = 0;
+	uint8_t index = 0;
+	uint8_t emptyCnt = 0;
+
+	for (index=0; index < 10; index++)	/* read the first 10 data points. If all are 0 then the array is rated as empty */
+	{
+		if(*(pdata+index) == 0)
+		{
+			emptyCnt++;
+		}
+	}
+	if(emptyCnt == 10)
+	{
+		ret = 1;
+	}
+	return ret;
 }
 
 static void show_logbook_logbook_show_log_page4(GFX_DrawCfgScreen *hgfx, uint8_t StepBackwards)
@@ -950,18 +1029,55 @@ static void show_logbook_logbook_show_log_page4(GFX_DrawCfgScreen *hgfx, uint8_t
     uint16_t ppO2data[1000];
     uint16_t sensor2[1000];
     uint16_t sensor3[1000];
-        uint16_t *setpoint = ppO2data;
-        uint16_t *sensor1 = ppO2data;
+    uint16_t *setpoint = ppO2data;
+    uint16_t *sensor1 = ppO2data;
+    uint8_t  sensorDataAvailable[] = {0,0,0};
 
 
-        if(logbookHeader.diveMode != DIVEMODE_CCR)
+        if(!isLoopMode(logbookHeader.diveMode))
             dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, ppO2data, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
         else
         {
-            if(logbookHeader.CCRmode == CCRMODE_FixedSetpoint)
-                dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata, gasdata, NULL, NULL, setpoint, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-            else
-                dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata, gasdata, NULL, NULL, NULL, sensor1, sensor2, sensor3, NULL, NULL, NULL, NULL, NULL);
+        	switch(logbookHeader.CCRmode)
+        	{
+        		case CCRMODE_FixedSetpoint:
+        		default:				dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata, gasdata, NULL, NULL, setpoint, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        				break;
+        		case CCRMODE_Sensors:	dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata, gasdata, NULL, NULL, NULL, sensor1, sensor2, sensor3, NULL, NULL, NULL, NULL, NULL);
+        								if(!check_data_array_empty(sensor1))
+        								{
+        									sensorDataAvailable[0] = 1;
+        								}
+        								if(!check_data_array_empty(sensor2))
+        								{
+        								    sensorDataAvailable[1] = 1;
+        								}
+        								if(!check_data_array_empty(sensor3))
+        								{
+        								    sensorDataAvailable[2] = 1;
+        								}
+        								if((logbookHeader.diveMode == DIVEMODE_PSCR) && (sensorDataAvailable[0] + sensorDataAvailable[1] + sensorDataAvailable[2] != 3)) /*insert sim data if not all three sensors are in use*/
+        								{
+        									if(sensorDataAvailable[0] == 0)
+        									{
+        										logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, sensor1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        										sensorDataAvailable[0] = 1;
+        									}
+        									else if(sensorDataAvailable[1] == 0)
+        									{
+        										logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, sensor2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        										sensorDataAvailable[1] = 1;
+        									}
+        									else if(sensorDataAvailable[2] == 0)
+        									{
+        										logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, sensor3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        										sensorDataAvailable[2] = 1;
+        									}
+        								}
+        		    	break;
+        		case CCRMODE_Simulation: dataLength = logbook_readSampleData(StepBackwards, 1000, depthdata,gasdata, NULL, ppO2data, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        				break;
+        	}
         }
 
 
@@ -999,14 +1115,25 @@ static void show_logbook_logbook_show_log_page4(GFX_DrawCfgScreen *hgfx, uint8_t
     winsmal.left = 799 - 67;//wintemp.right -67;
     winsmal.right = winsmal.left;// + 45;
 
-    color = CLUT_LogbookTemperature;//LOGBOOK_GRAPH_DEPTH;
-    if(logbookHeader.diveMode != DIVEMODE_CCR)
+    color = CLUT_LogbookTemperature;
+
+    if(!isLoopMode(logbookHeader.diveMode))
+    {
     	Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002PP O2");
+    }
     else
-    if(logbookHeader.CCRmode != CCRMODE_Sensors)
-    	Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002SETPOINT");
-    else
-    	Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002SENSORS");
+    {
+    	switch(logbookHeader.CCRmode)
+    	{
+    		case CCRMODE_FixedSetpoint:
+    		default:				Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002SETPOINT");
+    				break;
+    		case CCRMODE_Sensors:	Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002SENSORS");
+    		    	break;
+    		case CCRMODE_Simulation: Gfx_write_label_var(hgfx, winsmal.left, winsmal.right,winsmal.top, &FontT24,color,"\002SIM PPO2");
+    				break;
+    	}
+    }
 
     //*** PP O2 ****************************************************
     //calc lines and labels
@@ -1019,7 +1146,7 @@ static void show_logbook_logbook_show_log_page4(GFX_DrawCfgScreen *hgfx, uint8_t
         if(ppO2data[i]<datamin)
             datamin = ppO2data[i];
     }
-    if((logbookHeader.diveMode == DIVEMODE_CCR) && (logbookHeader.CCRmode == CCRMODE_Sensors))
+    if(isLoopMode(logbookHeader.diveMode) && (logbookHeader.CCRmode == CCRMODE_Sensors))
     {
         for(int i=1;i<dataLength;i++)
         {
@@ -1077,11 +1204,20 @@ static void show_logbook_logbook_show_log_page4(GFX_DrawCfgScreen *hgfx, uint8_t
     wintemp.top = MaxU32LOG(wintemp.top ,0);
     if(wintemp.top < wintemp.bottom)
     {
-        if((logbookHeader.diveMode == DIVEMODE_CCR) && (logbookHeader.CCRmode == CCRMODE_Sensors))
+    	if(isLoopMode(logbookHeader.diveMode) && (logbookHeader.CCRmode == CCRMODE_Sensors))
         {
-            GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, ppO2data,dataLength,CLUT_LogbookTemperature, NULL);
-            GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, sensor2,dataLength,CLUT_LogbookTemperature, NULL);
-            GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, sensor3,dataLength,CLUT_LogbookTemperature, NULL);
+            if(sensorDataAvailable[0])
+            {
+            	GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, ppO2data,dataLength,CLUT_GasSensor2, NULL);
+            }
+            if(sensorDataAvailable[1])
+            {
+            	GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, sensor2,dataLength,CLUT_GasSensor3, NULL);
+            }
+            if(sensorDataAvailable[2])
+            {
+            	GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, sensor3,dataLength,CLUT_GasSensor4, NULL);
+            }
         }
         else
             GFX_graph_print(hgfx,&wintemp,0,1,datamax,datamin, ppO2data,dataLength,CLUT_LogbookTemperature, NULL);

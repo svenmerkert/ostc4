@@ -58,6 +58,9 @@ extern SPI_HandleTypeDef hspi1;
 extern RTC_HandleTypeDef RTCHandle;
 extern ADC_HandleTypeDef    AdcHandle;
 
+extern UART_HandleTypeDef huart1;
+extern DMA_HandleTypeDef  hdma_usart1_rx;
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -233,6 +236,11 @@ void DMA2_Stream0_IRQHandler(void)
   * @retval None
   */
 
+void DMA2_Stream5_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
+}
+
 
 /******************************************************************************/
 /*                 STM32F4xx Peripherals Interrupt Handlers                   */
@@ -293,6 +301,12 @@ void EXTI3_IRQHandler(void)
 void ADC_IRQHandler(void)
 {
   HAL_ADC_IRQHandler(&AdcHandle);
+}
+
+
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
 }
 
 /**

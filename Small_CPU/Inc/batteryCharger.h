@@ -31,9 +31,30 @@
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 
-uint8_t get_charge_status(void);
+#define CHARGE_IN_PIN				GPIO_PIN_2
+#define CHARGE_IN_GPIO_PORT			GPIOC
+#define CHARGE_IN_GPIO_ENABLE()		__GPIOC_CLK_ENABLE()
 
+#define CHARGE_OUT_PIN				GPIO_PIN_1
+#define CHARGE_OUT_GPIO_PORT		GPIOC
+#define CHARGE_OUT_GPIO_ENABLE()	__GPIOC_CLK_ENABLE()
+
+ typedef enum
+ {
+ 	Charger_NotConnected = 0,		/* This is identified reading CHARGE_IN_PIN == HIGH */
+ 	Charger_WarmUp,					/* Charging started but counter did not yet reach a certain limit (used to debounce connect / disconnect events to avoid multiple increases of statistic charging cycle counter) */
+ 	Charger_Active,					/* Charging identified by  CHARGE_IN_PIN == LOW for a certain time */
+ 	Charger_Finished,
+ 	Charger_LostConnection,			/* Intermediate state to debounce disconnecting events (including charging error state like over temperature) */
+ 	Charger_ColdStart,				/* Cold start condition => check if an loaded battery has been inserted */
+ 	Charger_END
+ } chargerState_t;
+
+
+uint8_t get_charge_status(void);
 void init_battery_charger_status(void);
+void set_charge_state(chargerState_t newState);
+uint8_t get_charge_state(void);
 void ReInit_battery_charger_status_pins(void);
 void DeInit_battery_charger_status_pins(void);
 void battery_charger_get_status_and_contral_battery_gas_gauge(uint8_t cycleTimeBase);

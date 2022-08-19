@@ -2754,7 +2754,14 @@ static uint32_t GFX_write_char(GFX_DrawCfgWindow* hgfx, GFX_CfgWriteString* cfg,
 	}
 // -----------------------------
 	char_truncated_Height = 0;
-	height_left = hgfx->Image->ImageHeight - (hgfx->WindowY0 + cfg->Ydelta);
+	if(!pSettings->FlipDisplay)
+	{
+		height_left = hgfx->Image->ImageHeight - (hgfx->WindowY0 + cfg->Ydelta);
+	}
+	else
+	{
+		height_left = (hgfx->WindowY1 - cfg->Ydelta);
+	}
 	if(height_left < height)
 	{
 		char_truncated_Height = height - height_left;

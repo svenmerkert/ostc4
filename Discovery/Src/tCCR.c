@@ -65,6 +65,13 @@ typedef enum
 #define BOTTLE_SENSOR_TIMEOUT		(6000u)     /* signal pressure budget as not received after 10 minutes (6000 * 100ms) */
 
 #define MAX_SENSOR_COMPARE_DEVIATION (0.15f)	/* max deviation between two sensors allowed before their results are rated as suspect */
+#define MAX_SENSOR_VOLTAGE_MV		(250u)		/* max allowed voltage value for a sensor measurement */
+
+#ifdef ENABLE_ALTERNATIVE_SENSORTYP
+#define MIN_SENSOR_VOLTAGE_MV		(3u)		/* min allowed voltage value for a sensor measurement (Inspiration, Submatix, Sentinel Typ) */
+#else
+#define MIN_SENSOR_VOLTAGE_MV		(8u)		/* min allowed voltage value for a sensor measurement (legacy OSTC TYP)  */
+#endif
 
 /* Private variables ---------------------------------------------------------*/
 static SIrLink receiveHUD[2];
@@ -173,8 +180,8 @@ void test_O2_sensor_values_outOfBounds(int8_t * outOfBouds1, int8_t * outOfBouds
 
         if(sensorActive[i])
         {
-            if(	(stateUsed->lifeData.sensorVoltage_mV[i] < 8) ||
-                    (stateUsed->lifeData.sensorVoltage_mV[i] > 250))
+            if(	(stateUsed->lifeData.sensorVoltage_mV[i] < MIN_SENSOR_VOLTAGE_MV) ||
+                    (stateUsed->lifeData.sensorVoltage_mV[i] > MAX_SENSOR_VOLTAGE_MV))
             {
                 sensorActive[i] = 0;
                 switch(i)
@@ -330,7 +337,7 @@ void tCCR_tick(void)
 	}
 
 	/* decrease scrubber timer only in real dive mode */
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (pSettings->dive_mode == DIVEMODE_CCR) && (stateUsed->mode == MODE_DIVE) && (stateUsed == stateRealGetPointer()))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)) && (stateUsed->mode == MODE_DIVE) && (stateUsed == stateRealGetPointer()))
     {
     	ScrubberTimeoutCount++;
     	if(ScrubberTimeoutCount >= 600)		/* resolution is minutes */
@@ -444,18 +451,25 @@ void tCCR_control(void)
 static uint8_t tCCR_fallbackToFixedSetpoint(void)
 {
 	uint8_t retVal = 0;
-    if((stateUsed->mode == MODE_DIVE) && (stateUsed->diveSettings.diveMode == DIVEMODE_CCR) && (stateUsed->diveSettings.CCR_Mode == CCRMODE_Sensors) && (stateUsed->diveSettings.fallbackOption))
+	uint8_t setpointCbar, actualGasID;
+
+    if((stateUsed->mode == MODE_DIVE) && (stateUsed->diveSettings.CCR_Mode == CCRMODE_Sensors) && (stateUsed->diveSettings.fallbackOption))
     {
-        uint8_t setpointCbar, actualGasID;
+    	if(stateUsed->diveSettings.diveMode == DIVEMODE_CCR)
+    	{
+			setpointCbar = stateUsed->diveSettings.setpoint[1].setpoint_cbar;
+			stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_FixedSetpoint;
+    	}
+    	else
+    	{
+    		setpointCbar = stateUsed->lifeData.ppo2Simulated_bar * 100;
+    		stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Simulation;
+    	}
+    	actualGasID = stateUsed->lifeData.actualGas.GasIdInSettings;
+    	setActualGas_DM(&stateUsedWrite->lifeData,actualGasID,setpointCbar);
 
-        setpointCbar = stateUsed->diveSettings.setpoint[1].setpoint_cbar;
-        stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_FixedSetpoint;
-
-        actualGasID = stateUsed->lifeData.actualGas.GasIdInSettings;
-        setActualGas_DM(&stateUsedWrite->lifeData,actualGasID,setpointCbar);
-
-        set_warning_fallback();
-        retVal = stateUsed->diveSettings.setpoint[1].setpoint_cbar;
+    	set_warning_fallback();
+    	retVal = setpointCbar;
     }
     return retVal;
 }

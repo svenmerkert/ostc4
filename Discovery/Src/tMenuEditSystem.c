@@ -1081,7 +1081,7 @@ void openEdit_ResetConfirmation(uint32_t editIdOfCaller)
 #endif
 
 
-        if(stateRealGetPointer()->lifeData.battery_charge == 0)
+        if(stateRealGetPointer()->lifeData.battery_charge <= 0)
         {
             text[0] = TXT_2BYTE;
             text[1] = TXT2BYTE_SetBatteryCharge;

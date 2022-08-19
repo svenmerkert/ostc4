@@ -453,11 +453,17 @@ static uint8_t text_FR_ClosedCircuit[] = "Recycleur";
 static uint8_t text_IT_ClosedCircuit[] = "Ciurcuito chiuso";
 static uint8_t text_ES_ClosedCircuit[] = "Circuito cerrado";
 
-static uint8_t text_EN_Time[] = "Time";
-static uint8_t text_DE_Time[] = "Uhrzeit";
-static uint8_t text_FR_Time[] = "Heure";
-static uint8_t text_IT_Time[] = "Ora";
-static uint8_t text_ES_Time[] = "Hora";
+static uint8_t text_EN_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_DE_PSClosedCircuit[] = "PSC Kreislauf";
+static uint8_t text_FR_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_IT_PSClosedCircuit[] = "PSC circuit";
+static uint8_t text_ES_PSClosedCircuit[] = "PSC circuit";
+
+static uint8_t text_EN_ChargeHour[] = "Hour(s) till 100%";
+static uint8_t text_DE_ChargeHour[] = "Stunde(n) bis 100%";
+static uint8_t text_FR_ChargeHour[] = "";
+static uint8_t text_IT_ChargeHour[] = "";
+static uint8_t text_ES_ChargeHour[] = "";
 
 static uint8_t text_EN_Date[] = "Date";
 static uint8_t text_DE_Date[] = "Datum";
@@ -1134,6 +1140,13 @@ static uint8_t text_FR_Warning[] = "Alerte";
 static uint8_t text_IT_Warning[] = "Pericolo";
 static uint8_t text_ES_Warning[] = "Peligro";
 
+// Customview Header
+static uint8_t text_EN_Charging[] = "Charging";
+static uint8_t text_DE_Charging[] = "Ladezyklus";
+static uint8_t text_FR_Charging[] = "";
+static uint8_t text_IT_Charging[] = "";
+static uint8_t text_ES_Charging[] = "";
+
 // Menu SYS2 sub Information
 static uint8_t text_EN_Usage_Battery[] = "Battery life";
 static uint8_t text_DE_Usage_Battery[] = "Batterie-Nutzung";
@@ -1704,6 +1717,37 @@ static uint8_t text_FR_Percent[] = "Percent";
 static uint8_t text_IT_Percent[] = "Percent";
 static uint8_t text_ES_Percent[] = "Percent";
 
+static uint8_t text_EN_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_DE_PSCRO2Drop[] = "PSCR O2 Abfall";
+static uint8_t text_FR_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_IT_PSCRO2Drop[] = "PSCR O2 drop";
+static uint8_t text_ES_PSCRO2Drop[] = "PSCR O2 drop";
+
+static uint8_t text_EN_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_DE_LungRatio[] = "PSCR Lungen Faktor";
+static uint8_t text_FR_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_IT_LungRatio[] = "PSCR lung ratio";
+static uint8_t text_ES_LungRatio[] = "PSCR lung ratio";
+
+static uint8_t text_EN_CheckSettings[] = "Check settings";
+static uint8_t text_DE_CheckSettings[] = "Prüfe Optionen";
+static uint8_t text_FR_CheckSettings[] = "Check settings";
+static uint8_t text_IT_CheckSettings[] = "Check settings";
+static uint8_t text_ES_CheckSettings[] = "Check settings";
+
+static uint8_t text_EN_SimPpo2[] = "Sim ppO2";
+static uint8_t text_DE_SimPpo2[] = "Sim ppO2";
+static uint8_t text_FR_SimPpo2[] = "Sim ppO2";
+static uint8_t text_IT_SimPpo2[] = "Sim ppO2";
+static uint8_t text_ES_SimPpo2[] = "Sim ppO2";
+
+static uint8_t text_EN_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_DE_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_FR_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_IT_CO2Sensor[] = "CO2 Sensor";
+static uint8_t text_ES_CO2Sensor[] = "CO2 Sensor";
+
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -1725,10 +1769,11 @@ const tText text_array[] =
     {(uint8_t)TXT_ActualGradient,   {text_EN_ActualGradient, text_DE_ActualGradient, text_FR_ActualGradient, text_IT_ActualGradient, text_ES_ActualGradient}},
     {(uint8_t)TXT_Stopwatch, 		{text_EN_Stopwatch, text_DE_Stopwatch, text_FR_Stopwatch, text_IT_Stopwatch, text_ES_Stopwatch}},
     {(uint8_t)TXT_Gas, 				{text_EN_Gas, text_DE_Gas, text_FR_Gas, text_IT_Gas, text_ES_Gas}},
-    {(uint8_t)TXT_Time, 			{text_EN_Time, text_DE_Time, text_FR_Time, text_IT_Time, text_ES_Time}},
+    {(uint8_t)TXT_ChargeHour,		{text_EN_ChargeHour, text_DE_ChargeHour, text_FR_ChargeHour, text_IT_ChargeHour, text_ES_ChargeHour}},
     {(uint8_t)TXT_Date, 			{text_EN_Date, text_DE_Date, text_FR_Date, text_IT_Date, text_ES_Date}},
     {(uint8_t)TXT_Format, 			{text_EN_Format, text_DE_Format, text_FR_Format, text_IT_Format, text_ES_Format}},
     {(uint8_t)TXT_Warning, 			{text_EN_Warning, text_DE_Warning, text_FR_Warning, text_IT_Warning, text_ES_Warning}},
+    {(uint8_t)TXT_Charging, 		{text_EN_Charging, text_DE_Charging, text_FR_Charging, text_IT_Charging, text_ES_Charging}},
     {(uint8_t)TXT_o2Sensors, 		{text_EN_o2Sensors, text_DE_o2Sensors, text_FR_o2Sensors, text_IT_o2Sensors, text_ES_o2Sensors}},
     {(uint8_t)TXT_Brightness, 		{text_EN_Brightness, text_DE_Brightness, text_FR_Brightness, text_IT_Brightness, text_ES_Brightness}},
     {(uint8_t)TXT_Cave, 			{text_EN_Cave, text_DE_Cave, text_FR_Cave, text_IT_Cave, text_ES_Cave}},
@@ -1770,7 +1815,8 @@ const tText text_array[] =
     {(uint8_t)TXT_ClosedCircuit,	{text_EN_ClosedCircuit, text_DE_ClosedCircuit, text_FR_ClosedCircuit, text_IT_ClosedCircuit, text_ES_ClosedCircuit}},
     {(uint8_t)TXT_Apnoe,	 		{text_EN_Apnoe, text_DE_Apnoe, text_FR_Apnoe, text_IT_Apnoe, text_ES_Apnoe}},
     {(uint8_t)TXT_Gauge,	 		{text_EN_Gauge, text_DE_Gauge, text_FR_Gauge, text_IT_Gauge, text_ES_Gauge}},
-    {(uint8_t)TXT_Sensor,			{text_EN_Sensor, text_DE_Sensor, text_FR_Sensor, text_IT_Sensor, text_ES_Sensor}},
+    {(uint8_t)TXT_PSClosedCircuit,  {text_EN_PSClosedCircuit, text_DE_PSClosedCircuit, text_FR_PSClosedCircuit, text_IT_PSClosedCircuit, text_ES_PSClosedCircuit}},
+	{(uint8_t)TXT_Sensor,			{text_EN_Sensor, text_DE_Sensor, text_FR_Sensor, text_IT_Sensor, text_ES_Sensor}},
     {(uint8_t)TXT_FixedSP,			{text_EN_FixedSP, text_DE_FixedSP, text_FR_FixedSP, text_IT_FixedSP, text_ES_FixedSP}},
     {(uint8_t)TXT_Decoparameters,	{text_EN_Decoparameters, text_DE_Decoparameters, text_FR_Decoparameters, text_IT_Decoparameters, text_ES_Decoparameters}},
     {(uint8_t)TXT_LastDecostop,		{text_EN_LastDecostop, text_DE_LastDecostop, text_FR_LastDecostop, text_IT_LastDecostop, text_ES_LastDecostop}},
@@ -1787,7 +1833,10 @@ const tText text_array[] =
 	{(uint8_t)TXT_ScrubTimeReset,	{text_EN_ScrubTimeReset, text_DE_ScrubTimeReset, text_FR_ScrubTimeReset, text_IT_ScrubTimeReset, text_ES_ScrubTimeReset}},
 	{(uint8_t)TXT_ScrubTimeMode,	{text_EN_ScrubTimeMode, text_DE_ScrubTimeMode, text_FR_ScrubTimeMode, text_IT_ScrubTimeMode, text_ES_ScrubTimeMode}},
 	{(uint8_t)TXT_Percent,	    	{text_EN_Percent, text_DE_Percent, text_FR_Percent, text_IT_Percent, text_ES_Percent}},
-
+	{(uint8_t)TXT_PSCRO2Drop,	    {text_EN_PSCRO2Drop, text_DE_PSCRO2Drop, text_FR_PSCRO2Drop, text_IT_PSCRO2Drop, text_ES_PSCRO2Drop}},
+	{(uint8_t)TXT_PSCRLungRatio,	{text_EN_LungRatio, text_DE_LungRatio, text_FR_LungRatio, text_IT_LungRatio, text_ES_LungRatio}},
+	{(uint8_t)TXT_SimPpo2,			{text_EN_SimPpo2, text_DE_SimPpo2, text_FR_SimPpo2, text_IT_SimPpo2, text_ES_SimPpo2}},
+	{(uint8_t)TXT_CO2Sensor,		{text_EN_CO2Sensor, text_DE_CO2Sensor, text_FR_CO2Sensor, text_IT_CO2Sensor, text_ES_CO2Sensor}},
 };
 
 const tText text_array2[] =
@@ -1955,4 +2004,8 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_Minimum, 		{text_EN_Minimum, text_DE_Minimum, text_FR_Minimum, text_IT_Minimum, text_ES_Minimum}},
 	{(uint8_t)TXT2BYTE_Normal, 			{text_EN_Normal, text_DE_Normal, text_FR_Normal, text_IT_Normal, text_ES_Normal}},
 	{(uint8_t)TXT2BYTE_Maximum, 		{text_EN_Maximum, text_DE_Maximum, text_FR_Maximum, text_IT_Maximum, text_ES_Maximum}},
+
+	{(uint8_t)TXT2BYTE_CheckSettings, 	{text_EN_CheckSettings, text_DE_CheckSettings, text_FR_CheckSettings, text_IT_CheckSettings, text_ES_CheckSettings}},
+
+
 };

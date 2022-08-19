@@ -35,6 +35,7 @@
 #include "tMenuEdit.h"
 #include "data_exchange_main.h"
 #include "motion.h"
+#include "configuration.h"
 
 
 /* Private function prototypes -----------------------------------------------*/
@@ -47,10 +48,26 @@ void openEdit_CalibViewport(void);
 static void openEdit_ScrubberTimer(uint8_t line);
 static void openEdit_ScrubberReset(void);
 static void openEdit_ScrubberTimerMode(void);
+#ifdef ENABLE_PSCR_MODE
+static void openEdit_PSCRO2Drop(uint8_t line);
+static void openEdit_PSCRLungRatio(uint8_t line);
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+static void openEdit_CO2Sensor(void);
+#endif
 
 /* Announced function prototypes -----------------------------------------------*/
 uint8_t OnAction_CompassHeading	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_ScrubberTimer(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+#ifdef ENABLE_PSCR_MODE
+static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+static uint8_t OnAction_PSCRLungRation(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+#endif
+
+#ifdef ENABLE_CO2_SUPPORT
+static uint8_t OnAction_CO2OnOff(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+static uint8_t OnAction_CO2Calib(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+#endif
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -91,6 +108,11 @@ void openEdit_Xtra(uint8_t line)
     }
     else /* surface mode */
     {
+    	if((settingsGetPointer()->dive_mode != DIVEMODE_PSCR) && (line > 3))		/* PSCR items are only optional */
+		{
+			line = 6;
+		}
+
 		switch(line)
 		{
 			case 1:	openEdit_ScrubberTimer(line);
@@ -99,6 +121,16 @@ void openEdit_Xtra(uint8_t line)
 				break;
 			case 3:	openEdit_ScrubberTimerMode();
 				break;
+#ifdef ENABLE_PSCR_MODE
+			case 4: openEdit_PSCRO2Drop(line);
+				break;
+			case 5: openEdit_PSCRLungRatio(line);
+							break;
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+			case 6: openEdit_CO2Sensor();
+				break;
+#endif
 			default:
 				break;
 		}
@@ -191,6 +223,103 @@ static void openEdit_ScrubberTimerMode(void)
      exitMenuEdit_to_Menu_with_Menu_Update();
 }
 
+#ifdef ENABLE_PSCR_MODE
+static void openEdit_PSCRO2Drop(uint8_t line)
+{
+    uint8_t localO2Drop;
+    uint16_t y_line;
+
+    char text[32];
+    SSettings *pSettings = settingsGetPointer();
+    localO2Drop = pSettings->pscr_o2_drop;
+
+    y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
+
+    text[0] = '\001';
+    text[1] = TXT_PSCRO2Drop;
+    text[2] = 0;
+    write_topline(text);
+
+    text[0] = '\002';
+    text[1] = '\016';
+    text[2] = '\016';
+    text[3] = '%';
+    text[4] = 0;
+    write_label_fix(   20, 800, y_line, &FontT48, TXT_PSCRO2Drop);
+    write_label_var(  435, 780, y_line, &FontT48, text);
+    write_field_udigit(StMXTRA_PSCR_O2_Drop, 710, 779, y_line, &FontT48, "##", (uint32_t)localO2Drop, 0, 0, 0);
+
+    write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
+
+    setEvent(StMXTRA_PSCR_O2_Drop,	(uint32_t)OnAction_PSCRO2Drop);
+    startEdit();
+}
+
+static void openEdit_PSCRLungRatio(uint8_t line)
+{
+    uint8_t localLungRatio;
+    uint16_t y_line;
+
+    char text[32];
+    SSettings *pSettings = settingsGetPointer();
+    localLungRatio = pSettings->pscr_lung_ratio;
+
+    y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
+
+    text[0] = '\001';
+    text[1] = TXT_PSCRO2Drop;
+    text[2] = 0;
+    write_topline(text);
+
+    text[0] = '\002';
+    text[1] = '1';
+    text[2] = '/';
+    text[3] = 0;
+
+    write_label_fix(   20, 800, y_line, &FontT48, TXT_PSCRLungRatio);
+    write_label_var(  435, 710, y_line, &FontT48, text);
+    write_field_udigit(StMXTRA_PSCR_LUNG_RATIO, 710, 779, y_line, &FontT48, "##", (uint32_t)localLungRatio, 0, 0, 0);
+
+    write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
+
+    setEvent(StMXTRA_PSCR_LUNG_RATIO,	(uint32_t)OnAction_PSCRLungRation);
+    startEdit();
+}
+#endif
+
+#ifdef ENABLE_CO2_SUPPORT
+static void openEdit_CO2Sensor()
+{
+    char text[32];
+    snprintf(text,32,"\001%c",TXT_CO2Sensor);
+    write_topline(text);
+
+    refresh_CO2Data();
+    if(settingsGetPointer()->co2_sensor_active)
+    {
+    	text[0] = '\005';
+    }
+    else
+    {
+        text[0] = '\006';
+    }
+    text[0] = TXT_CO2Sensor;
+    text[1] = 0;
+
+    write_field_on_off(StMXTRA_CO2_Sensor,	 30, 95, ME_Y_LINE3,  &FontT48, text, settingsGetPointer()->co2_sensor_active);
+
+   	text[0] = TXT_2BYTE;
+    text[1] = TXT2BYTE_O2Calib;
+    text[2] = 0;
+    write_field_button(StMXTRA_CO2_Sensor_Calib,30, 800, ME_Y_LINE4,  &FontT48, text);
+
+    setEvent(StMXTRA_CO2_Sensor,	(uint32_t)OnAction_CO2OnOff);
+    setEvent(StMXTRA_CO2_Sensor_Calib,	(uint32_t)OnAction_CO2Calib);
+
+    write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
+}
+#endif
+
 void refresh_CompassHeading(void)
 {
     uint16_t heading;
@@ -207,6 +336,23 @@ void refresh_CompassHeading(void)
     write_label_var(   0, 800, ME_Y_LINE1, &FontT54, text);
 
     tMenuEdit_refresh_field(StMXTRA_CompassHeading);
+}
+
+void refresh_CO2Data(void)
+{
+    char text[32];
+
+    snprintf(text,32,"\001%c",TXT_CO2Sensor);
+    write_topline(text);
+
+    snprintf(text,32,"CO2: %d ppm",stateUsed->lifeData.CO2_data.CO2_ppm);
+    write_label_var(   30, 800, ME_Y_LINE1, &FontT48, text);
+
+    snprintf(text,32,"Signal: %d",stateUsed->lifeData.CO2_data.signalStrength);
+    write_label_var(   30, 800, ME_Y_LINE2, &FontT48, text);
+
+    tMenuEdit_refresh_field(StMXTRA_CO2_Sensor);
+    tMenuEdit_refresh_field(StMXTRA_CO2_Sensor_Calib);
 }
 
 void openEdit_CompassHeading(void)
@@ -267,4 +413,107 @@ static uint8_t OnAction_ScrubberTimer(uint32_t editId, uint8_t blockNumber, uint
     }
     return digitContentNew;
 }
+#ifdef ENABLE_PSCR_MODE
+static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    SSettings *pSettings;
+    uint8_t digitContentNew = EXIT_TO_MENU;
+    uint32_t newO2Drop;
 
+    if(action == ACTION_BUTTON_ENTER)
+    {
+        return digitContent;
+    }
+    if(action == ACTION_BUTTON_ENTER_FINAL)
+    {
+        evaluateNewString(editId, &newO2Drop, 0, 0, 0);
+
+        if(newO2Drop > PSCR_MAX_O2_DROP)
+        	newO2Drop = PSCR_MAX_O2_DROP;
+
+        pSettings = settingsGetPointer();
+        pSettings->pscr_o2_drop = newO2Drop;
+
+        tMenuEdit_newInput(editId, newO2Drop, 0, 0, 0);
+        digitContentNew = UPDATE_AND_EXIT_TO_MENU;
+    }
+    if(action == ACTION_BUTTON_NEXT)
+    {
+        digitContentNew = digitContent + 1;
+        if(digitContentNew > '9')
+            digitContentNew = '0';
+    }
+    if(action == ACTION_BUTTON_BACK)
+    {
+        digitContentNew = digitContent - 1;
+        if(digitContentNew < '0')
+            digitContentNew = '9';
+    }
+    return digitContentNew;
+}
+
+static uint8_t OnAction_PSCRLungRation(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    SSettings *pSettings;
+    uint8_t digitContentNew = EXIT_TO_MENU;
+    uint32_t newLungRatio;
+
+    if(action == ACTION_BUTTON_ENTER)
+    {
+        return digitContent;
+    }
+    if(action == ACTION_BUTTON_ENTER_FINAL)
+    {
+        evaluateNewString(editId, &newLungRatio, 0, 0, 0);
+
+        if(newLungRatio > PSCR_MAX_LUNG_RATIO)
+        	newLungRatio = PSCR_MAX_LUNG_RATIO;
+
+        if(newLungRatio < PSCR_MIN_LUNG_RATIO)
+        	newLungRatio = PSCR_MIN_LUNG_RATIO;
+
+        pSettings = settingsGetPointer();
+        pSettings->pscr_lung_ratio = newLungRatio;
+
+        tMenuEdit_newInput(editId, newLungRatio, 0, 0, 0);
+        digitContentNew = UPDATE_AND_EXIT_TO_MENU;
+    }
+    if(action == ACTION_BUTTON_NEXT)
+    {
+        digitContentNew = digitContent + 1;
+        if(digitContentNew > '9')
+            digitContentNew = '0';
+    }
+    if(action == ACTION_BUTTON_BACK)
+    {
+        digitContentNew = digitContent - 1;
+        if(digitContentNew < '0')
+            digitContentNew = '9';
+    }
+    return digitContentNew;
+}
+#endif
+
+#ifdef ENABLE_CO2_SUPPORT
+static uint8_t OnAction_CO2OnOff(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	SSettings *pSettings = settingsGetPointer();
+	if(pSettings->co2_sensor_active)
+	{
+		pSettings->co2_sensor_active = 0;
+		tMenuEdit_set_on_off(StMXTRA_CO2_Sensor,0);
+	}
+	else
+	{
+		pSettings->co2_sensor_active = 1;
+		tMenuEdit_set_on_off(StMXTRA_CO2_Sensor,1);
+	}
+	return UPDATE_DIVESETTINGS;
+}
+
+static uint8_t OnAction_CO2Calib(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	DataEX_setExtInterface_Cmd(EXT_INTERFACE_CO2_CALIB);
+	return UPDATE_DIVESETTINGS;
+}
+#endif

@@ -46,6 +46,8 @@ void decom_tissues_desaturation_time(const SLifeData* pLifeData, SLifeData2* pOu
 void test_decom_CreateGasChangeList(void);
 
 float decom_calc_ppO2(const float ambiant_pressure_bar, const SGas* pGas);
+float decom_calc_SimppO2(float ambiant_pressure_bar, const SGas* pGas);
+float decom_calc_SimppO2_O2based(float ambiant_pressure_bar, uint8_t O2PerCent, float factor);
 void decom_oxygen_calculate_otu(float* oxygen_otu, float pressure_oxygen_real);
 void decom_oxygen_calculate_otu_degrade(float* oxygen_otu, long seconds_since_last_dive);
 void decom_oxygen_calculate_cns_degrade(float* oxygen_cns, long seconds_since_last_dive);

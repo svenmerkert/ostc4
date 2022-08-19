@@ -58,6 +58,8 @@
 #define MENU_WDW_HIGH	390
 #define KEY_LABEL_HIGH	25	/* Height of the label used for the the user keys */
 
+#define SLOW_UPDATE_CNT	10	/* Some content shall not be update in short intervals => add prescalar */
+
 typedef struct
 {
     uint32_t	StartAddressForPage[MAXPAGES+1];
@@ -530,7 +532,7 @@ void tM_build_pages(void)
         tM_add(StMDECOP);
 //	}
 
-    if((pSettings->dive_mode == DIVEMODE_CCR) || (stateUsed->diveSettings.ccrOption == 1))
+    if((isLoopMode(pSettings->dive_mode)) || (stateUsed->diveSettings.ccrOption == 1))
     {
         tM_add(StMCG);
         tM_add(StMSP);
@@ -586,23 +588,45 @@ void tM_build_pages(void)
 
 void tM_refresh_live_content(void)
 {
+	static uint8_t slowUpdate = SLOW_UPDATE_CNT;
     uint8_t page = 0;
     char text[MAX_PAGE_TEXTSIZE];
     char subtext[MAX_PAGE_TEXTSIZE];
     uint16_t tabPosition;
 
-    if((get_globalState() == StMSYS) && (actual_menu_content == MENU_SURFACE))
+    uint32_t globalState = get_globalState();
+
+    slowUpdate--;
+    page = menu.pageMemoryForNavigation;
+    switch(globalState)
     {
-        page = menu.pageMemoryForNavigation;
-        tMSystem_refresh(0, text, &tabPosition, subtext);
-        update_content_with_new_frame(page, text, tabPosition, subtext);
+    	case StMSYS: 	if(actual_menu_content == MENU_SURFACE)
+    					{
+    						tMSystem_refresh(0, text, &tabPosition, subtext);
+    						update_content_with_new_frame(page, text, tabPosition, subtext);
+    					}
+    		break;
+    	case StMHARD:	tMHardware_refresh(0, text, &tabPosition, subtext);
+        				update_content_with_new_frame(page, text, tabPosition, subtext);
+        	break;
+    	case StMOG:		if((actual_menu_content != MENU_SURFACE) && (slowUpdate == 0))
+    					{
+    						tMOG_refresh(0, text, &tabPosition, subtext);
+    						update_content_with_new_frame(page, text, tabPosition, subtext);
+    					}
+    		break;
+        case StMCG:		if((actual_menu_content != MENU_SURFACE) && (slowUpdate == 0))
+        				{
+        					tMCG_refresh(0, text, &tabPosition, subtext);
+        					update_content_with_new_frame(page, text, tabPosition, subtext);
+        				}
+    		break;
+    	default:
+    		break;
     }
-    else
-    if(get_globalState() == StMHARD)
+    if(slowUpdate == 0)
     {
-        page = menu.pageMemoryForNavigation;
-        tMHardware_refresh(0, text, &tabPosition, subtext);
-        update_content_with_new_frame(page, text, tabPosition, subtext);
+    	slowUpdate = SLOW_UPDATE_CNT;
     }
 
     tMscreen.FBStartAdress = menu.StartAddressForPage[page];

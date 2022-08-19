@@ -507,6 +507,7 @@ int main(void)
         {
 	        DoDisplayRefresh = 0;
 
+	        updateSetpointStateUsed();
             if(stateUsed == stateSimGetPointer())
             {
                 simulation_UpdateLifeData(1);
@@ -588,8 +589,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     case BaseHome:
     case BaseMenu:
     case BaseInfo:
-        updateSetpointStateUsed();
-
         DateEx_copy_to_dataOut();
         DataEX_copy_to_LifeData(&modeChange);
 //foto session :-)  stateRealGetPointerWrite()->lifeData.battery_charge = 99;
@@ -769,17 +768,20 @@ static void TriggerButtonAction()
 					}
 				} else if ((status.page == PageDive) && (status.line != 0))
 				{
-					if (pSettings->extraDisplay == EXTRADISPLAY_BIGFONT)
+					if(get_globalState() == StDMENU)
 					{
-						pSettings->design = 3;
-						if(pSettings->MotionDetection == MOTION_DETECT_SECTOR)
+						if (pSettings->extraDisplay == EXTRADISPLAY_BIGFONT)
 						{
-							DefineSectorCount(CUSTOMER_DEFINED_VIEWS);
-							MapCVToSector();
+							pSettings->design = 3;
+							if(pSettings->MotionDetection == MOTION_DETECT_SECTOR)
+							{
+								DefineSectorCount(CUSTOMER_DEFINED_VIEWS);
+								MapCVToSector();
+							}
 						}
+						else if (pSettings->extraDisplay	== EXTRADISPLAY_DECOGAME)
+							pSettings->design = 4;
 					}
-					else if (pSettings->extraDisplay	== EXTRADISPLAY_DECOGAME)
-						pSettings->design = 4;
 					set_globalState(StD);
 				}
 				else
@@ -1151,6 +1153,13 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
         /* important levelAmbient 300 - 1200 */
         levelAmbient = 10 * pStateReal->lifeData.ambient_light_level;
 
+        if((pStateReal->chargeStatus == CHARGER_running) || (pStateReal->chargeStatus == CHARGER_lostConnection))
+        {
+        	levelMax = 1000;
+        	levelMin = 500;
+        }
+        else
+        {
         switch(	pSettings->brightness + blBoost)
         {
         case 0: /* Cave */
@@ -1192,6 +1201,7 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
 //			wasLostConnection = 0;
         }
 //	}
+        }
 
     if(levelAmbient > levelActual)
         levelActual += levelUpStep_100ms;
@@ -1203,8 +1213,9 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
         levelActual = levelMax;
     else
     if(levelActual < levelMin)
+    {
         levelActual = levelMin;
-
+    }
 //	sConfig.Pulse = levelActual / 20;
     sConfig.Pulse = (levelMin + ((levelMax - levelMin)/2)) / 20; // added 170306
 
@@ -1212,8 +1223,8 @@ static uint32_t TIM_BACKLIGHT_adjust(void)
     if(sConfig.Pulse > 600)
         sConfig.Pulse = 600;
     else
-    if(sConfig.Pulse < 100)
-        sConfig.Pulse = 100;
+    if(sConfig.Pulse < 25)
+        sConfig.Pulse = 25;
 
     HAL_TIM_PWM_ConfigChannel(&TimBacklightHandle, &sConfig, TIM_BACKLIGHT_CHANNEL);
     HAL_TIM_PWM_Start(&TimBacklightHandle, TIM_BACKLIGHT_CHANNEL);
@@ -1716,24 +1727,37 @@ static void TimeoutControl(void)
 			switch(status.base)
 			{
 			case BaseHome:
-				// added hw 161027
-				if(!(stateRealGetPointer()->warnings.lowBattery) && (stateRealGetPointer()->lifeData.battery_charge > 9))
+				/* The RTE will mark a charge value as suspect after startup. Main know the update condition and may confirm that the value is most likely valid */
+	//			if(!(stateRealGetPointer()->warnings.lowBattery) && ((stateRealGetPointer()->lifeData.battery_charge > 9) || (wasFirmwareUpdateCheckBattery)))
 				{
-					stateRealGetPointerWrite()->lastKnownBatteryPercentage = stateRealGetPointer()->lifeData.battery_charge;
+					if(stateRealGetPointer()->lifeData.battery_charge < 0.0)
+					{
+						if(fabs(stateRealGetPointerWrite()->lastKnownBatteryPercentage - fabs(stateRealGetPointer()->lifeData.battery_charge)) < 1.0)
+						{
+							setBatteryPercentage(settingsGetPointer()->lastKnownBatteryPercentage);	/* confirm that value provided by RTE is valid (maybe reset happened) */
+						}
+					}
+					else
+					{
+						if(!(stateRealGetPointer()->warnings.lowBattery) && (stateRealGetPointer()->lifeData.battery_charge > 9))
+						{
+							stateRealGetPointerWrite()->lastKnownBatteryPercentage = stateRealGetPointer()->lifeData.battery_charge;
+						}
+					}
 				}
-				else if((wasFirmwareUpdateCheckBattery) && (timeout_in_seconds > 3))
+				if((wasFirmwareUpdateCheckBattery) && (timeout_in_seconds > 3))
 				{
 					wasFirmwareUpdateCheckBattery = 0;
 					setButtonResponsiveness(settingsGetPointer()->ButtonResponsiveness); // added 170306
 					if(	(settingsGetPointer()->lastKnownBatteryPercentage > 0)
-					&& 	(settingsGetPointer()->lastKnownBatteryPercentage <= 100)
+					&& 	(settingsGetPointer()->lastKnownBatteryPercentage <= 101.0)
 					&& 	(stateRealGetPointer()->warnings.lowBattery))
 					{
 						setBatteryPercentage(settingsGetPointer()->lastKnownBatteryPercentage);
 					}
 				}
 				// stuff before and new @161121 CCR-sensor limit 10 minutes
-				if((settingsGetPointer()->dive_mode == DIVEMODE_CCR) && (settingsGetPointer()->CCR_Mode == CCRMODE_Sensors))
+				if(isLoopMode(settingsGetPointer()->dive_mode) && (settingsGetPointer()->CCR_Mode == CCRMODE_Sensors))
 				{
 					timeout_limit_Surface_in_seconds = settingsGetPointer()->timeoutSurfacemodeWithSensors;
 				}

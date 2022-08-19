@@ -49,6 +49,9 @@ typedef enum
 #ifdef ENABLE_BOTTLE_SENSOR
 		LCC_BottleBar,
 #endif
+#ifdef ENABLE_PSCR_MODE
+		LCC_SimPpo2,
+#endif
 		LLC_END
 
 } customview_llc_t;
@@ -70,6 +73,7 @@ void t7_set_customview_to_primary(void);
 void init_t7_compass(void);
 
 uint8_t t7_GetEnabled_customviews();
+uint8_t t7_customview_disabled(uint8_t view);
 
 /*
 	 void t7c_refresh(uint32_t FramebufferStartAddress);

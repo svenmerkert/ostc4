@@ -53,76 +53,79 @@ uint32_t tMSP_refresh(uint8_t line,
     *tab = 130;
     *subtext = 0;
 
-    for(int spId=1;spId<=NUM_GASES;spId++)
+    if((actual_menu_content == MENU_SURFACE) || (stateUsed->diveSettings.diveMode != DIVEMODE_PSCR))	/* do not show setpoints in PSCR mode */
     {
-        if(line && (line != spId))
-        {
-                first = pSetpointLine[spId].note.ub.first;
-                if(first == 0)
-                {
-                    strcpy(&text[textPointer],
-                        "\t"
-                        "\177"
-                        "*"
-                        "\n\r"
-                    );
-                    textPointer += 5;
-                }
-                else
-                {
-                    strcpy(&text[textPointer],"\n\r");
-                    textPointer += 2;
-                }
-        }
-        else
-        {
-            setpoint_cbar = pSetpointLine[spId].setpoint_cbar;
-            depthUp = pSetpointLine[spId].depth_meter;
-            //active = pSetpointLine[spId].note.ub.active;
-            first = pSetpointLine[spId].note.ub.first;
+		for(int spId=1;spId<=NUM_GASES;spId++)
+		{
+			if(line && (line != spId))
+			{
+					first = pSetpointLine[spId].note.ub.first;
+					if(first == 0)
+					{
+						strcpy(&text[textPointer],
+							"\t"
+							"\177"
+							"*"
+							"\n\r"
+						);
+						textPointer += 5;
+					}
+					else
+					{
+						strcpy(&text[textPointer],"\n\r");
+						textPointer += 2;
+					}
+			}
+			else
+			{
+				setpoint_cbar = pSetpointLine[spId].setpoint_cbar;
+				depthUp = pSetpointLine[spId].depth_meter;
+				//active = pSetpointLine[spId].note.ub.active;
+				first = pSetpointLine[spId].note.ub.first;
 
-            strcpy(&text[textPointer],"\020"); // if(active) always active
-            textPointer += 1;
+				strcpy(&text[textPointer],"\020"); // if(active) always active
+				textPointer += 1;
 
-            sp_high = setpoint_cbar / 100;
+				sp_high = setpoint_cbar / 100;
 
-            text[textPointer++] = 'S';
-            text[textPointer++] = 'P';
-            text[textPointer++] = '0' + spId;
-            text[textPointer++] = '\t';
+				text[textPointer++] = 'S';
+				text[textPointer++] = 'P';
+				text[textPointer++] = '0' + spId;
+				text[textPointer++] = '\t';
 
-            if((first == 0) || (actual_menu_content != MENU_SURFACE))
-                strcpy(&text[textPointer++],"\177");
+				if((first == 0) || (actual_menu_content != MENU_SURFACE))
+					strcpy(&text[textPointer++],"\177");
 
-            char color = '\031';
-            if(depthUp)
-                color = '\020';
+				char color = '\031';
+				if(depthUp)
+					color = '\020';
 
-            textPointer += snprintf(&text[textPointer], 57,
-                "* "
-                "%u.%02u"
-                "\016\016"
-                " bar"
-                "\017"
-                "\034"
-                "   "
-                "\016\016"
-                " "
-                "\017"
-                "%c"
-                "%3u"
-                "\016\016"
-                " %c%c"
-                "\017"
-                "\035"
-                "\n\r",
-                sp_high, setpoint_cbar - (100 * sp_high),
-                color,
-                unit_depth_integer(depthUp),
-                unit_depth_char1(),
-                unit_depth_char2()
-            );
-        }
+				textPointer += snprintf(&text[textPointer], 57,
+					"* "
+					"%u.%02u"
+					"\016\016"
+					" bar"
+					"\017"
+					"\034"
+					"   "
+					"\016\016"
+					" "
+					"\017"
+					"%c"
+					"%3u"
+					"\016\016"
+					" %c%c"
+					"\017"
+					"\035"
+					"\n\r",
+					sp_high, setpoint_cbar - (100 * sp_high),
+					color,
+					unit_depth_integer(depthUp),
+					unit_depth_char1(),
+					unit_depth_char2()
+				);
+			}
+		}
     }
     if((actual_menu_content != MENU_SURFACE) /*&& (line == 0)*/)
     {
@@ -131,6 +134,12 @@ uint32_t tMSP_refresh(uint8_t line,
         text[textPointer++] = TXT2BYTE_UseSensor;
         text[textPointer++] = '\n';
         text[textPointer++] = '\r';
+
+
+        if(stateUsed->diveSettings.diveMode == DIVEMODE_PSCR)
+        {
+        	textPointer += snprintf(&text[textPointer], 20,"\020%c", TXT_SimPpo2);
+        }
         text[textPointer++] = 0;
     }
     else

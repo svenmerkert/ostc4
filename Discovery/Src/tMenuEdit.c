@@ -213,6 +213,13 @@ void tMenuEdit_refresh_live_content(void)
 	 	 	 break;
 	 	 case (StMXTRA_CompassHeading & MaskFieldDigit):  refreshFct = refresh_CompassHeading;
 	 	 	 break;
+	 	 case (StMXTRA_PSCR_O2_Drop & MaskFieldDigit): if(settingsGetPointer()->dive_mode != DIVEMODE_PSCR)	/* workaround because PSCR mode is set dynamic */
+	 	 	 	 	 	 	 	 	 	 	 	 	 	 {
+	 		 	 	 	 	 	 	 	 	 	 	 	 	 refreshFct = refresh_CO2Data;
+	 	 	 	 	 	 	 	 	 	 	 	 	 	 }
+	 	 	 break;
+	 	 case (StMXTRA_CO2_Sensor & MaskFieldDigit):  refreshFct = refresh_CO2Data;
+	 	 	 break;
 	 	 case (StMSYS4_Info & MaskFieldDigit): refreshFct = &refresh_InformationPage;
 	 	 	 break;
 	 	 case (StMPLAN5_ExitResult & MaskFieldDigit): refreshFct = refresh_PlanResult;
@@ -256,6 +263,7 @@ void tMenuEdit_writeSettingsToFlash(void)
 {
     if(WriteSettings)
     {
+    	reset_SettingWarning();
         GFX_logoAutoOff();
         ext_flash_write_settings(0);
         WriteSettings = 0;
