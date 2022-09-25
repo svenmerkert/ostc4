@@ -271,8 +271,8 @@ TIM_HandleTypeDef   TimDemoHandle; /* used in stm32f4xx_it.c too */
 static uint8_t blBoost = 0;
 static uint8_t RequestModeChange = 0;
 
-static uint8_t LastButtonPressed;
-static uint32_t LastButtonPressedTick;
+static uint8_t LastButtonPressed = INVALID_BUTTON;
+static uint32_t LastButtonPressedTick = 0;
 static uint32_t BaseTick100ms;			/* Tick at last 100ms cycle */
 
 /* SDRAM handler declaration */
@@ -516,7 +516,6 @@ int main(void)
             updateMiniLiveLogbook(1);
 
         	RefreshDisplay();
-        	DoHousekeeping = 0;							/* make sure frames are not cleared before they are transferred */
         	TimeoutControl();							/* exit menus if needed */
 
 #ifdef ENABLE_MOTION_CONTROL
@@ -573,8 +572,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     _Bool modeChange = 0;
 
     BaseTick100ms = HAL_GetTick();	/* store start of 100ms cycle */
-
-    EvaluateButton();
 
     if(returnFromCommCleanUpRequest)
     {
@@ -667,11 +664,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		 else
 		 #endif
 		 */
-		return;
+
 	}
-	
-	LastButtonPressed = GPIO_Pin;
-	LastButtonPressedTick = HAL_GetTick();
+	if((GPIO_Pin == BUTTON_ENTER_PIN) || (GPIO_Pin == BUTTON_NEXT_PIN) || (GPIO_Pin == BUTTON_BACK_PIN))
+	{
+		LastButtonPressed = GPIO_Pin;
+		LastButtonPressedTick = HAL_GetTick();
+	}
+
+	EvaluateButton();
 
 #ifdef DEMOMODE
 	uint8_t demoMachineCall = 0;
@@ -718,7 +719,7 @@ static void TriggerButtonAction()
 	pSettings = settingsGetPointer();
 
 
-	if(ButtonAction != ACTION_END)
+	if(action != ACTION_END)
 	{
 		get_globalStateList(&status);
 
@@ -842,7 +843,7 @@ static void EvaluateButton()
 	if (GFX_logoStatus() != 0)
 		return;
 
-	if ((LastButtonPressed != INVALID_BUTTON) && (time_elapsed_ms(LastButtonPressedTick, HAL_GetTick())) > 50)
+	if ((LastButtonPressed != INVALID_BUTTON) && (time_elapsed_ms(LastButtonPressedTick, HAL_GetTick()) > 40))
 	{
 		if (LastButtonPressed == BUTTON_BACK_PIN) { // links
 			if (HAL_GPIO_ReadPin(BUTTON_BACK_GPIO_PORT, BUTTON_BACK_PIN) == 1) {
