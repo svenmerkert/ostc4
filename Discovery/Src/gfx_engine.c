@@ -36,6 +36,8 @@
 
 /* Private types -------------------------------------------------------------*/
 
+#define RING_BUF_SIZE	(5u)
+
 typedef struct
 {
 	uint32_t Xdelta;
@@ -72,11 +74,13 @@ typedef struct
 typedef struct
 {
 	uint32_t pActualTopBuffer;
-	uint32_t pNextTopBuffer[2];
+	uint32_t pNextTopBuffer[RING_BUF_SIZE];
 	GFX_layerSingle actualBottom;
-	GFX_layerSingle nextBottom[2];
-	uint8_t boolNextTop;
-	uint8_t boolNextBottom;
+	GFX_layerSingle nextBottom[RING_BUF_SIZE];
+	uint8_t NextTopWrite;
+	uint8_t NextBottomWrite;
+	uint8_t NextTopRead;
+	uint8_t NextBottomRead;
 } GFX_layerControl;
 
 typedef struct
@@ -129,11 +133,6 @@ static uint32_t pBackgroundHwFrame = 0;
 static uint8_t backgroundHwStatus;
 
 static SFrameList frame[MAXFRAMES];
-
-#define MAXFRAMECOUNTER (28)
-static uint8_t frameCounter[MAXFRAMECOUNTER] = { 0 };
-
-static _Bool lock_changeLTDC	= 0;
 
 static void GFX_clear_frame_immediately(uint32_t pDestination);
 static void GFX_draw_image_color(GFX_DrawCfgScreen *hgfx, SWindowGimpStyle window, const tImage *image);
@@ -332,11 +331,6 @@ void GFX_init(uint32_t  * pDestinationOut)
 		frame[i].status = CLEAR;
 		frame[i].caller = 0;
 	}
-	
-	for(int i=1;i<MAXFRAMECOUNTER;i++)
-	{
-		frameCounter[i] = 0;
-	}
 
 	pInvisibleFrame = getFrame(2);
 	*pDestinationOut = pInvisibleFrame;
@@ -368,33 +362,39 @@ void GFX_init(uint32_t  * pDestinationOut)
 
 void GFX_SetFrameTop(uint32_t pDestination)
 {
-	lock_changeLTDC	= 1;
-	uint8_t boolNextTop = !FrameHandler.boolNextTop;
+	uint8_t NextTopWork = FrameHandler.NextTopWrite + 1;
+
+	if(NextTopWork == RING_BUF_SIZE)
+	{
+		NextTopWork = 0;
+	}
 
 	if(pDestination == 0)
 		pDestination = pInvisibleFrame;
 
-	FrameHandler.pNextTopBuffer[boolNextTop] = pDestination;
-	FrameHandler.boolNextTop = boolNextTop;
-	lock_changeLTDC	= 0;
+	FrameHandler.pNextTopBuffer[NextTopWork] = pDestination;
+	FrameHandler.NextTopWrite = NextTopWork;
 }
 
 
 void GFX_SetFrameBottom(uint32_t pDestination, uint32_t x0, uint32_t y0, uint32_t width, uint32_t height)
 {
-	lock_changeLTDC	= 1;
-	uint8_t boolNextBottom = !FrameHandler.boolNextBottom;
+	uint8_t NextBottomWork = FrameHandler.NextBottomWrite + 1;
+
+	if(NextBottomWork == RING_BUF_SIZE)
+	{
+		NextBottomWork = 0;
+	}
 
 	if(pDestination == 0)
 		pDestination = pInvisibleFrame;
 
-	FrameHandler.nextBottom[boolNextBottom].pBuffer = pDestination;
-	FrameHandler.nextBottom[boolNextBottom].height = height;
-	FrameHandler.nextBottom[boolNextBottom].width = width;
-	FrameHandler.nextBottom[boolNextBottom].leftStart = x0;
-	FrameHandler.nextBottom[boolNextBottom].bottomStart = y0;
-	FrameHandler.boolNextBottom = boolNextBottom;
-	lock_changeLTDC	= 0;
+	FrameHandler.nextBottom[NextBottomWork].pBuffer = pDestination;
+	FrameHandler.nextBottom[NextBottomWork].height = height;
+	FrameHandler.nextBottom[NextBottomWork].width = width;
+	FrameHandler.nextBottom[NextBottomWork].leftStart = x0;
+	FrameHandler.nextBottom[NextBottomWork].bottomStart = y0;
+	FrameHandler.NextBottomWrite = NextBottomWork;
 }
 
 
@@ -434,9 +434,6 @@ void GFX_start_VSYNC_IRQ(void)
 
 void GFX_change_LTDC(void)
 {
-	if(lock_changeLTDC	== 1)
-		return;
-
 	uint32_t pTop = 0;
 	uint32_t pBot = 0;
 	uint32_t heightBot = 0;
@@ -445,9 +442,19 @@ void GFX_change_LTDC(void)
 	uint32_t bottomStartBot = 0;
 	uint8_t change_position = 0;
 	uint8_t change_size = 0;
+	uint8_t nextBottomBackup = FrameHandler.NextBottomRead;		/* Restore entry value in case off logo handling */
 
 	// Top Frame
-	pTop = FrameHandler.pNextTopBuffer[FrameHandler.boolNextTop];
+	if(FrameHandler.NextTopRead != FrameHandler.NextTopWrite)
+	{
+		FrameHandler.NextTopRead++;
+		if(FrameHandler.NextTopRead == RING_BUF_SIZE)
+		{
+			FrameHandler.NextTopRead = 0;
+		}
+	}
+	pTop = FrameHandler.pNextTopBuffer[FrameHandler.NextTopRead];
+
 	if(FrameHandler.pActualTopBuffer != pTop)
 	{
 		HAL_LTDC_SetAddress(&LtdcHandle, pTop, 1);
@@ -455,6 +462,14 @@ void GFX_change_LTDC(void)
 	}	
 	
 	// Bottom Frame
+	if(FrameHandler.NextBottomRead != FrameHandler.NextBottomWrite)
+	{
+		FrameHandler.NextBottomRead++;
+		if(FrameHandler.NextBottomRead == RING_BUF_SIZE)
+		{
+			FrameHandler.NextBottomRead = 0;
+		}
+	}
 	if(logoStatus != LOGOOFF)
 	{
 		switch(logoStatus)
@@ -467,17 +482,18 @@ void GFX_change_LTDC(void)
 				HAL_LTDC_SetWindowSize(&LtdcHandle, 480, 800, 0);
 				HAL_LTDC_SetWindowPosition(&LtdcHandle, 0, 0, 0);
 				logoStatus = 2;
+				FrameHandler.NextBottomRead = nextBottomBackup;
 				break;
 
 			case LOGOSTOP:
 				HAL_LTDC_SetAlpha(&LtdcHandle, 255, 1);
 				HAL_LTDC_ConfigCLUT(&LtdcHandle, ColorLUT, CLUT_END, 0);
 
-				pBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].pBuffer;
-				heightBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].height;
-				widthBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].width;
-				leftStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].leftStart;
-				bottomStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].bottomStart;
+				pBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].pBuffer;
+				heightBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].height;
+				widthBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].width;
+				leftStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].leftStart;
+				bottomStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].bottomStart;
 				HAL_LTDC_SetWindowSize(&LtdcHandle, heightBot, widthBot, 0);
 				HAL_LTDC_SetWindowPosition(&LtdcHandle, bottomStartBot, leftStartBot, 0);
 				HAL_LTDC_SetAddress(&LtdcHandle, pBot, 0);
@@ -507,6 +523,7 @@ void GFX_change_LTDC(void)
 					HAL_LTDC_SetAlpha(&LtdcHandle, logoStatus-55, 1);
 					HAL_LTDC_SetAlpha(&LtdcHandle, 255+55-logoStatus, 0);
 				}
+				FrameHandler.NextBottomRead = nextBottomBackup;
 				break;
 			}
 		return;
@@ -521,15 +538,16 @@ void GFX_change_LTDC(void)
 				HAL_LTDC_SetWindowSize(&LtdcHandle, 480, 800, 0);
 				HAL_LTDC_SetWindowPosition(&LtdcHandle, 0, 0, 0);
 				backgroundHwStatus = 2;
+				FrameHandler.NextBottomRead = nextBottomBackup;
 				break;
 
 			case LOGOSTOP:
 				HAL_LTDC_ConfigCLUT(&LtdcHandle, ColorLUT, CLUT_END, 0);
-				pBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].pBuffer;
-				heightBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].height;
-				widthBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].width;
-				leftStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].leftStart;
-				bottomStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].bottomStart;
+				pBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].pBuffer;
+				heightBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].height;
+				widthBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].width;
+				leftStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].leftStart;
+				bottomStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].bottomStart;
 				HAL_LTDC_SetWindowSize(&LtdcHandle, heightBot, widthBot, 0);
 				HAL_LTDC_SetWindowPosition(&LtdcHandle, bottomStartBot, leftStartBot, 0);
 				HAL_LTDC_SetAddress(&LtdcHandle, pBot, 0);
@@ -543,17 +561,18 @@ void GFX_change_LTDC(void)
 				break;
 
 			default:
+				FrameHandler.NextBottomRead = nextBottomBackup;
 				break;
 			}
 		return;
 	}
 	else
 	{
-		pBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].pBuffer;
-		heightBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].height;
-		widthBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].width;
-		leftStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].leftStart;
-		bottomStartBot = FrameHandler.nextBottom[FrameHandler.boolNextBottom].bottomStart;
+		pBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].pBuffer;
+		heightBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].height;
+		widthBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].width;
+		leftStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].leftStart;
+		bottomStartBot = FrameHandler.nextBottom[FrameHandler.NextBottomRead].bottomStart;
 
 		if(FrameHandler.actualBottom.pBuffer == pBot)
 			pBot = 0;
@@ -3145,18 +3164,19 @@ static uint32_t GFX_write__Modify_Xdelta__Centered(GFX_CfgWriteString* cfg, GFX_
 			Xsum += 45;
 		}
 		else
-		if((*(char*)pText) & 0x80) /* Identify a UNICODE character other than standard ASCII using the highest bit */
 		{
-			decodeUTF8 = ((*(char*)pText) & 0x1F) << 6; /* use 5bits of first byte for upper part of unicode */
-			pText++;
-			decodeUTF8 |= (*(char*)pText) & 0x3F; /* add lower 6bits as second part of the unicode */
+			if((*(char*)pText) & 0x80) /* Identify a UNICODE character other than standard ASCII using the highest bit */
+			{
+				decodeUTF8 = ((*(char*)pText) & 0x1F) << 6; /* use 5bits of first byte for upper part of unicode */
+				pText++;
+				decodeUTF8 |= (*(char*)pText) & 0x3F; /* add lower 6bits as second part of the unicode */
+			}
+			else
+			{
+				decodeUTF8 = *(char*)pText; /* place ASCII char */
+			}
+			Xsum += GFX_Character_Width(decodeUTF8, ptargetFont);
 		}
-		else
-		{
-			decodeUTF8 = *(char*)pText; /* place ASCII char */
-		}
-
-		Xsum += GFX_Character_Width(decodeUTF8, ptargetFont);
 
 		pText++;
 		j++;
@@ -3502,27 +3522,6 @@ uint8_t housekeepingFrame(void)
 	
 	if(DMA2D_at_work == 255)
 	{
-		/* new for debug hw 151202 */
-		for(i=1;i<MAXFRAMECOUNTER;i++)
-		{
-			frameCounter[i] = 0;
-		}
-		for(int i=1;i<MAXFRAMES;i++)
-		{
-			if(frame[i].status == BLOCKED)
-			{
-				if(frame[i].caller < (MAXFRAMECOUNTER - 2))
-					frameCounter[frame[i].caller]++;
-				else
-					frameCounter[MAXFRAMECOUNTER-3]++;
-			}
-			else
-			if(frame[i].status == RELEASED)
-				frameCounter[MAXFRAMECOUNTER-2]++;
-			else
-				frameCounter[MAXFRAMECOUNTER-1]++;
-		}
-
 		i = 0;
 		/* skip frame cleaning for actual frames which have not yet been replaced by new top/bottom frames */
 		while((i < MAXFRAMES) && ((frame[i].status != RELEASED) || (frame[i].StartAddress == GFX_get_pActualFrameTop()) || (frame[i].StartAddress == GFX_get_pActualFrameBottom())))
