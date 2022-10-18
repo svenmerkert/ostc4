@@ -3053,7 +3053,7 @@ static int8_t GFX_write__Modify_helper(char *cText, const char *pTextInput, uint
 			else
 				pText = 0;
 		}
-		if((*(char*)pText) & 0x80)
+		if(0 != pText && ((*(char*)pText) & 0x80))
 		{
 			backup = pText;
 			
@@ -3159,6 +3159,7 @@ static uint32_t GFX_write__Modify_Xdelta__Centered(GFX_CfgWriteString* cfg, GFX_
 			ptargetFont = (tFont *)cfg->font;
 		}
 
+		decodeUTF8 = *(char*)pText; /* place ASCII char */
 		if((*(char*)pText == '\005') || (*(char*)pText == '\006'))
 		{
 			Xsum += 45;
@@ -3920,15 +3921,15 @@ tFont* GFX_Check_Extra_Font(uint8_t character, tFont *Font)
 	}
 	if (!found && Font == &FontT54)
 	{
-		Font = &FontT54Extra;
+		Font = (tFont *)&FontT54Extra;
 	}
 	else if (!found && (Font == &FontT84 || Font == &FontT84Spaced))
 	{
-		Font = &FontT84Extra;
+		Font = (tFont *)&FontT84Extra;
 	}
 	else if (!found && Font == &FontT105)
 	{
-		Font = &FontT105Extra;
+		Font = (tFont *)&FontT105Extra;
 	}
 
 	return Font;
@@ -3951,17 +3952,17 @@ uint32_t GFX_Character_Width(uint8_t character, tFont *Font)
 	if (Font == &FontT54)
 	{
 		found = 1;
-		Font = &FontT54Extra;
+		Font = (tFont *)&FontT54Extra;
 	}
 	else if (Font == &FontT84 || Font == &FontT84Spaced)
 	{
 		found = 1;
-		Font = &FontT84Extra;
+		Font = (tFont *)&FontT84Extra;
 	}
 	else if (Font == &FontT105)
 	{
 		found = 1;
-		Font = &FontT105Extra;
+		Font = (tFont *)&FontT105Extra;
 	}
 
 	if (found)

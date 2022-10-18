@@ -49,7 +49,7 @@ static uint8_t boot_erase_memory(void);
 static void	Bootloader_send_command(uint8_t command);
 static void Bootloader_spi_single(uint8_t TxByte);
 static void Bootloader_spi(uint16_t lengthData, uint8_t *aTxBuffer, uint8_t *aRxBuffer);
-static void Bootloader_Error_Handler(void);
+//static void Bootloader_Error_Handler(void);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -286,7 +286,9 @@ static void Bootloader_spi(uint16_t lengthData, uint8_t *aTxBuffer, uint8_t *aRx
 }
 
 
+/*
 static void Bootloader_Error_Handler(void)
 {
 	while(1);
 }
+*/

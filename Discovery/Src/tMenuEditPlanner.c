@@ -304,7 +304,7 @@ void openEdit_PlanSettings(void)
     text[2] = 0;
     write_label_var(  20, 800, y_line, &FontT48, text);
 
-    strncpy(text,
+    strcpy(text,
         "  "
         "\016\016"
         "  l/min"
@@ -316,8 +316,7 @@ void openEdit_PlanSettings(void)
         "   "
         "\016\016"
         "   l/min"
-        "\017",
-        40
+        "\017"
     );
     write_label_var(  400, 800, y_line, &FontT48, text);
 

@@ -52,7 +52,7 @@ typedef struct
 {
     char orgText[32];
     char newText[32];
-    char input;
+    uint8_t input;
     char symbolCounter;
     int8_t begin[4], size[4];
     uint16_t coord[3];
@@ -466,7 +466,7 @@ void tI_newButtonText(uint32_t editID, char *text)
 }
 
 
-void tInfo_set_on_off(uint32_t editID, uint32_t int1)
+void tInfo_set_on_off(uint32_t editID, uint8_t int1)
 {
     uint8_t backup_id, temp_id;
 

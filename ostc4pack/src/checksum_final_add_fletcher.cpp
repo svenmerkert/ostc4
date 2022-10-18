@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 	lenTemp = fread(&buf[lenTotal], sizeof(char), sizeof(buf), fp);
 //	lenTemp = fread(buf, sizeof(char), sizeof(buf), fp);
 	lenTotal = lenTemp;
-	printf("%d bytes read (hex: %#x )\n", lenTemp,lenTemp);
+	printf("%d bytes read (hex: %#x )\n", (uint32_t)lenTemp, (uint32_t)lenTemp);
 	fclose(fp);
 
 	if(file2)
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
 		}
 		lenTemp = fread(&buf[lenTotal], sizeof(char), sizeof(buf)-lenTotal, fp);
 		lenTotal += lenTemp;
-		printf("%d bytes read (hex: %#x )\n", lenTemp,lenTemp);
+		printf("%d bytes read (hex: %#x )\n", (uint32_t)lenTemp, (uint32_t)lenTemp);
 		fclose(fp);
 	}
 	if(file3)
@@ -103,12 +103,12 @@ int main(int argc, char** argv) {
 		}
 		lenTemp = fread(&buf[lenTotal], sizeof(char), sizeof(buf)-lenTotal, fp);
 		lenTotal += lenTemp;
-		printf("%d bytes read (hex: %#x )\n", lenTemp,lenTemp);
+		printf("%d bytes read (hex: %#x )\n", (uint32_t)lenTemp, (uint32_t)lenTemp);
 		fclose(fp);
 	}
 
    	printf("\n");
-	printf("%d bytes read (hex: %#x ) total \n", lenTotal,lenTotal);
+	printf("%d bytes read (hex: %#x ) total \n", (uint32_t)lenTotal, (uint32_t)lenTotal);
 
 	time_t rawtime;
 	time (&rawtime);

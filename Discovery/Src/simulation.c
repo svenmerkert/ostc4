@@ -131,7 +131,7 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     static _Bool two_second = 0;
     static float lastPressure_bar = 0;
 
-    float localCalibCoeff[3];
+    float localCalibCoeff[3] = { 0.0, 0.0, 0.0 };
     uint8_t index, index2;
 
     if(checkOncePerSecond)

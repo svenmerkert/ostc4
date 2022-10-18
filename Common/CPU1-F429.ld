@@ -48,8 +48,8 @@ SEARCH_DIR(.)
 /***************************** Memory Definition ****************************/
 MEMORY
 {
-	ROM_BOOT  (rx) : ORIGIN = 0x08000000, LENGTH = 0x00040000 /* 256K */
-    ROM_MAIN  (rx) : ORIGIN = 0x08040000, LENGTH = 0x00090000 /* 576K */
+  ROM_BOOT  (rx) : ORIGIN = 0x08000000, LENGTH = 0x00040000 /* 256K */
+    ROM  (rx) : ORIGIN = 0x08040000, LENGTH = 0x00090000 /* 576K */
     UPPER(rx) : ORIGIN = 0x08132000, LENGTH = 0xAE270 /* 713K */
     RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 192K
   CCRAM (rwx) : ORIGIN = 0x10000000, LENGTH = 64K

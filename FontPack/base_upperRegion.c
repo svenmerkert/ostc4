@@ -115,7 +115,9 @@ const SFirmwareData font_FirmwareData   __attribute__(( section(".font_firmware_
 
 #define ASSERT_RANGE(e, min, max) ASSERT(min <= e); ASSERT( e <= max)
 
+#if DEBUG_STLINK_V2
 extern void initialise_monitor_handles(void);
+#endif
 
 static int errors = 0;
 static uint8_t errorflag = 0;
@@ -149,7 +151,7 @@ int main(void)
 
 		for(const tFont* font = & __font_directory; font < &__font_directory_end; ++font)
 		{
-			printf("Font: %x\n",font);
+			printf("Font: %x\n",(unsigned int)font);
 				// Check END-OF-DIRECTORY magic marker
 				if( font->length == (uint32_t)-1 )
 				{
@@ -183,7 +185,7 @@ int main(void)
 						ASSERT(image->height == font->height);
 						if(errorflag)
 						{
-							printf("image %x: h=%d fonth=%d\n",image,image->height,font->height);
+							printf("image %x: h=%d fonth=%d\n",(unsigned int)image,image->height,font->height);
 							errorflag = 0;
 						}
 						// Uncompress image bytes

@@ -61,7 +61,7 @@ void tInfo_write_buttonTextline(GFX_DrawCfgScreen *screenPtr, uint8_t left2ByteC
 
 void tInfo_setEvent(uint32_t inputEventID, uint32_t inputFunctionCall);
 
-void tInfo_set_on_off(uint32_t editID, uint32_t int1);
+void tInfo_set_on_off(uint32_t editID, uint8_t int1);
 void exitInfo(void);
 
 #endif /* TINFO_H */

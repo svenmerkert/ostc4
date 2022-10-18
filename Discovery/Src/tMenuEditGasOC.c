@@ -181,7 +181,7 @@ void openEdit_DiveGasSelect_Subroutine(uint8_t line, uint8_t ccr)
 {
     uint8_t setpoint;
 
-    editGasPage.pGasLine = stateUsed->diveSettings.gas;
+    editGasPage.pGasLine = (SGasLine *)stateUsed->diveSettings.gas;
 
     if(ccr)
     {
@@ -215,7 +215,7 @@ void openEdit_SpecialDiveGasMenu(uint8_t ccr)
     uint8_t oxygen, helium, gasOffset, textpointer, lineCount, ptrGas;
     //SDiveState * pState;
 
-    editGasPage.pGasLine = stateUsed->diveSettings.gas;
+    editGasPage.pGasLine = (SGasLine *)stateUsed->diveSettings.gas;
     if(ccr)
     {
         editGasPage.setpoint = stateUsed->lifeData.actualGas.setPoint_cbar;

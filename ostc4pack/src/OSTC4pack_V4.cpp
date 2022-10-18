@@ -416,7 +416,7 @@ int main(int argc, char** argv) {
 		return(-1);
 	}
 
-	FILE *fp, * fpout;
+	FILE *fp;
 	size_t len;
 	unsigned char buf[1050000];
 	char *file = argv[2];
@@ -424,7 +424,7 @@ int main(int argc, char** argv) {
 	unsigned int pruefsumme;
 	
 		//write File with length and cheksum
-	char filename[500], filenameout[510] ;
+	char filename[500], filenameout[511];
 	sprintf(filename,"%s",file);
 	int filelength = strlen(filename);
 	filename[filelength -4] = 0;
@@ -435,7 +435,7 @@ int main(int argc, char** argv) {
 	    return -1;
 	}
 	len = fread(buf, sizeof(char), sizeof(buf), fp);
-	printf("%d bytes read (hex: %#x )\n", len,len);
+	printf("%d bytes read (hex: %#x )\n", (uint32_t)len, (uint32_t)len);
 //	unsigned int checksum = crc32c_checksum(buf, len);
 	unsigned int checksum = CRC_CalcBlockCRC((uint32_t *)buf, (uint32_t)(len/4));
 	printf("The checksum of %s is %#x\n", file, checksum);
@@ -455,7 +455,7 @@ int main(int argc, char** argv) {
      buf2[1] = 0xFF & (len >> 16);;
      buf2[2] = 0xFF & (len >> 8);
      buf2[3] = 0xFF & len;
-     fpout = fopen(filenameout, "wb");     
+     fp = fopen(filenameout, "wb");
     fwrite(buf2,sizeof(char),4,fp);
 
 
@@ -505,7 +505,7 @@ int main(int argc, char** argv) {
 
     for(int i = 0;i <len;i++)
     {
-    	if(fwrite(&buf[i],1,1,fpout) != 1)
+    	if(fwrite(&buf[i],1,1,fp) != 1)
      	printf("error writing\n");
 	}
      
@@ -516,5 +516,6 @@ int main(int argc, char** argv) {
      buf2[3] = 0xFF & checksum;
      
     fwrite(buf2,sizeof(char),4,fp);
-     
+
+     fclose(fp);
 }
