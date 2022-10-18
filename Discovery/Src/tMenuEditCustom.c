@@ -719,7 +719,7 @@ uint8_t OnAction_CViewPortCalib(uint32_t editId, uint8_t blockNumber, uint8_t di
 uint8_t OnAction_CViewPortLayout(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
 	SSettings* pSettings = settingsGetPointer();
-	if(((pSettings->viewPortMode >> 4) & 0x10) != 0)
+	if((pSettings->viewPortMode & 0x10) != 0)
 	{
 		pSettings->viewPortMode &= 0xEF;	/* 1110 1111 */
 	}
