@@ -1733,6 +1733,17 @@ void t7_refresh_customview(void)
 	SSettings* pSettings;
 	pSettings = settingsGetPointer();
 
+	uint8_t local_ppo2sensors_deactivated = 0;
+
+	if(stateUsed->mode == MODE_DIVE)	/* show sensors based on current dive settings */
+	{
+		local_ppo2sensors_deactivated = stateUsed->diveSettings.ppo2sensors_deactivated;
+	}
+	else
+	{
+			local_ppo2sensors_deactivated = pSettings->ppo2sensors_deactivated;
+	}
+
 	if(last_customview != selection_customview)		/* check if current selection is disabled and should be skipped */
 	{
 		if(t7_customview_disabled(selection_customview))
@@ -2040,7 +2051,7 @@ void t7_refresh_customview(void)
         text[textpointer++] = '\030'; // main color
         for(int i=0;i<3;i++)
         {
-            if((stateUsed->diveSettings.ppo2sensors_deactivated & (1<<i)) || (stateUsed->lifeData.ppO2Sensor_bar[i] == 0.0))
+            if((local_ppo2sensors_deactivated & (1<<i)) || (stateUsed->lifeData.ppO2Sensor_bar[i] == 0.0))
             {
 #ifdef ENABLE_PSCR_MODE
             	if((stateUsed->diveSettings.diveMode == DIVEMODE_PSCR) && (showSimPPO2) && (stateUsed->mode == MODE_DIVE))	/* display ppo2 sim in blue letters in case a slot is not used in the ppo2 custom view */
@@ -2089,7 +2100,7 @@ void t7_refresh_customview(void)
         text[textpointer++] = '\030';
         for(int i=0;i<3;i++)
         {
-            if(stateUsed->diveSettings.ppo2sensors_deactivated & (1<<i))
+            if(local_ppo2sensors_deactivated & (1<<i))
             {
                 text[textpointer++] = '\031';
                 text[textpointer++] = '\001';
