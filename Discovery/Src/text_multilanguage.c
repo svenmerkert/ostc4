@@ -1291,6 +1291,12 @@ static uint8_t text_FR_O2IFAnalog[] = "";
 static uint8_t text_IT_O2IFAnalog[] = "";
 static uint8_t text_ES_O2IFAnalog[] = "";
 
+static uint8_t text_EN_O2IFDigital[] = "digital";
+static uint8_t text_DE_O2IFDigital[] = "digital";
+static uint8_t text_FR_O2IFDigital[] = "";
+static uint8_t text_IT_O2IFDigital[] = "";
+static uint8_t text_ES_O2IFDigital[] = "";
+
 // Menu SYS1 sub (buttons)
 static uint8_t text_EN_LowerIsLess[] = "Lower is less sensitive";
 static uint8_t text_DE_LowerIsLess[] = "Niedriger ist schwergängiger";
@@ -1954,6 +1960,7 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_O2Interface,		{text_EN_O2Interface, text_DE_O2Interface, text_FR_O2Interface, text_IT_O2Interface, text_ES_O2Interface}},
 	{(uint8_t)TXT2BYTE_O2IFOptic,		{text_EN_O2IFOptic, text_DE_O2IFOptic, text_FR_O2IFOptic, text_IT_O2IFOptic, text_ES_O2IFOptic}},
 	{(uint8_t)TXT2BYTE_O2IFAnalog,		{text_EN_O2IFAnalog, text_DE_O2IFAnalog, text_FR_O2IFAnalog, text_IT_O2IFAnalog, text_ES_O2IFAnalog}},
+	{(uint8_t)TXT2BYTE_O2IFDigital,		{text_EN_O2IFDigital, text_DE_O2IFDigital, text_FR_O2IFDigital, text_IT_O2IFDigital, text_ES_O2IFDigital}},
     {(uint8_t)TXT2BYTE_LowerIsLess,		{text_EN_LowerIsLess, text_DE_LowerIsLess, text_FR_LowerIsLess, text_IT_LowerIsLess, text_ES_LowerIsLess}},
     {(uint8_t)TXT2BYTE_DiveMenuQ,		{text_EN_DiveMenuQ, text_DE_DiveMenuQ, text_FR_DiveMenuQ, text_IT_DiveMenuQ, text_ES_DiveMenuQ}},
     {(uint8_t)TXT2BYTE_DiveQuitQ,		{text_EN_DiveQuitQ, text_DE_DiveQuitQ, text_FR_DiveQuitQ, text_IT_DiveQuitQ, text_ES_DiveQuitQ}},

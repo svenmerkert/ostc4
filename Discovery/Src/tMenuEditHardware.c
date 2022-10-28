@@ -342,6 +342,17 @@ void refresh_O2Sensors(void)
 			case O2_SENSOR_SOURCE_ANALOG: 	text[1] = TXT2BYTE_O2IFAnalog;
 											text[2] = 0;
 				break;
+			case O2_SENSOR_SOURCE_DIGITAL: 	text[1] = TXT2BYTE_O2IFDigital;
+											text[2] = 0;
+				break;
+			case O2_SENSOR_SOURCE_ANADIG: 	text[1] = TXT2BYTE_O2IFAnalog;
+											text[2] = ' ';
+											text[3] = '+';
+											text[4] = ' ';
+											text[5] = TXT_2BYTE;
+											text[6] = TXT2BYTE_O2IFDigital;
+											text[7] = 0;
+				break;
 #ifdef ENABLE_SENTINEL_MODE
 			case O2_SENSOR_SOURCE_SENTINEL: snprintf(text, 10,"Sentinel");
 				break;
@@ -385,7 +396,7 @@ void openEdit_O2Sensors(void)
     write_field_on_off(StMHARD3_O2_Sensor2,	 30, 95, ME_Y_LINE2,  &FontT48, "", sensorActive[1]);
     write_field_on_off(StMHARD3_O2_Sensor3,	 30, 95, ME_Y_LINE3,  &FontT48, "", sensorActive[2]);
 
-    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
 #ifdef ENABLE_SENTINEL_MODE
     		|| (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
 #endif
@@ -410,7 +421,7 @@ void openEdit_O2Sensors(void)
     setEvent(StMHARD3_O2_Sensor1, (uint32_t)OnAction_Sensor1);
     setEvent(StMHARD3_O2_Sensor2, (uint32_t)OnAction_Sensor2);
     setEvent(StMHARD3_O2_Sensor3, (uint32_t)OnAction_Sensor3);
-    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+    if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
 #ifdef ENABLE_SENTINEL_MODE
     		|| (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
 #endif
@@ -562,6 +573,7 @@ uint8_t OnAction_O2_Source	(uint32_t editId, uint8_t blockNumber, uint8_t digitN
 
     resetMenuEdit(CLUT_MenuPageHardware); 	/* rebuild menu structure (Hide HUD <=> Show Calibrate) */
     openEdit_O2Sensors();
+    tMenuEdit_select(StMHARD3_O2_Source);
     return UPDATE_DIVESETTINGS;
 }
 
