@@ -393,9 +393,14 @@ void DateEx_copy_to_dataOut(void)
 
 
 
-	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+	if((settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
 	{
 			externalInterface_Cmd |= EXT_INTERFACE_ADC_ON | EXT_INTERFACE_33V_ON;
+	}
+
+	if((settings->ppo2sensors_source == O2_SENSOR_SOURCE_DIGITAL) || (settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
+	{
+			externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_O2;
 	}
 
 #ifdef ENABLE_SENTINEL_MODE
@@ -947,7 +952,14 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 				}
 				else
 				{
-					pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] * pSettings->ppo2sensors_calibCoeff[idx];
+					if((idx == 0) && ((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_DIGITAL) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)))
+					{
+						pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] / 100.0;
+					}
+					else
+					{
+						pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] * pSettings->ppo2sensors_calibCoeff[idx];
+					}
 				}
 
 			}

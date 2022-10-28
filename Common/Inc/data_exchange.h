@@ -41,7 +41,13 @@
 #define EXT_INTERFACE_UART_MASK 	(0x0700u)   /* Reserve 3 bits for UART protocol selection */
 #define EXT_INTERFACE_UART_CO2  	(0x0100u)	/* Activate protocol for CO2 sensor */
 #define EXT_INTERFACE_UART_SENTINEL (0x0200u)	/* Activate Sentinel Backup monitor protocol */
+#define EXT_INTERFACE_UART_O2		(0x0400u)	/* Activate digital o2 sensor protocol (DiveO2) */
+
+/* Command subset for CO2 sensor */
 #define EXT_INTERFACE_CO2_CALIB 	(0x0001u)	/* Request calibration of CO2Sensor */
+
+/* Command subset for O2 sensor */
+#define EXT_INTERFACE_O2_INDICATE	(0x0001u)	/* Request LED to blink*/
 
 #define DATA_BUFFER_ADC				(0x01u)
 #define DATA_BUFFER_CO2				(0x02u)
