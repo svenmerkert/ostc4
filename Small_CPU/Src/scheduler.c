@@ -318,6 +318,10 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 		externalInterface_SwitchADC(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_ADC_ON);
 	}
 
+	if(((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F) != externalInterface_GetUARTProtocol())
+	{
+		externalInterface_SwitchUART((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F);
+	}
 
 	if(global.dataSendToSlave.data.externalInterface_Cmd & 0x00FF)	/* lowest nibble for commands */
 	{
@@ -523,7 +527,10 @@ void scheduleDiveMode(void)
 			HandleUARTSentinelData();
 		}
 #endif
-
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_O2)
+		{
+			HandleUARTDigitalO2();
+		}
 
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
@@ -842,6 +849,11 @@ void scheduleSurfaceMode(void)
 			HandleUARTSentinelData();
 		}
 #endif
+
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_O2)
+		{
+			HandleUARTDigitalO2();
+		}
 
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)

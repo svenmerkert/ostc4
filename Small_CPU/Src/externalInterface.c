@@ -57,6 +57,7 @@ static uint8_t externalInterfacePresent = 0;
 float externalChannel_mV[MAX_ADC_CHANNEL];
 static uint8_t  externalV33_On = 0;
 static uint8_t  externalADC_On = 0;
+static uint8_t  externalUART_Protocol = 0;
 static uint16_t externalCO2Value;
 static uint16_t externalCO2SignalStrength;
 static uint16_t  externalCO2Status = 0;
@@ -111,7 +112,14 @@ uint8_t externalInterface_ReadAndSwitch()
 				activeChannel++;
 				if(activeChannel == MAX_ADC_CHANNEL)
 				{
-					activeChannel = 0;
+					if(externalUART_Protocol == (EXT_INTERFACE_UART_O2 >> 8))		/* mixed mode digital and analog o2 sensors => channel 0 is reserved for digital sensor */
+					{
+						activeChannel = 1;
+					}
+					else
+					{
+						activeChannel = 0;
+					}
 				}
 				externalInterface_StartConversion(activeChannel);
 				timeoutCnt = 0;
@@ -218,6 +226,11 @@ uint8_t externalInterface_isEnabledADC()
 	return externalADC_On;
 }
 
+uint8_t externalInterface_GetUARTProtocol()
+{
+	return externalUART_Protocol;
+}
+
 void externalInterface_SwitchPower33(uint8_t state)
 {
 	if(state != externalV33_On)
@@ -226,7 +239,6 @@ void externalInterface_SwitchPower33(uint8_t state)
 		{
 			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_RESET);
 			externalV33_On = 1;
-			MX_USART1_UART_Init();
 		}
 		else
 		{
@@ -234,7 +246,6 @@ void externalInterface_SwitchPower33(uint8_t state)
 			externalV33_On = 0;
 			externalInterface_SetCO2Value(0);
 			externalInterface_SetCO2SignalStrength(0);
-			MX_USART1_UART_DeInit();
 		}
 	}
 }
@@ -248,6 +259,19 @@ void externalInterface_SwitchADC(uint8_t state)
 	else
 	{
 		externalADC_On = 0;
+	}
+}
+
+void externalInterface_SwitchUART(uint8_t protocol)
+{
+	if(protocol < 0x08)
+	{
+		externalUART_Protocol = protocol;
+		MX_USART1_UART_DeInit();
+		if( protocol != 0)
+		{
+			MX_USART1_UART_Init();
+		}
 	}
 }
 

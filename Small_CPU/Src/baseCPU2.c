@@ -422,7 +422,7 @@ int main(void) {
 			SPI_synchronize_with_Master();
 			MX_DMA_Init();
 			MX_SPI1_Init();
-			MX_USART1_UART_Init();
+			externalInterface_SwitchUART(externalInterface_GetUARTProtocol());
 			SPI_Start_single_TxRx_with_Master(); /* be prepared for the first data exchange */
 			Scheduler_Request_sync_with_SPI(SPI_SYNC_METHOD_HARD);
 			EXTI_Test_Button_Init();

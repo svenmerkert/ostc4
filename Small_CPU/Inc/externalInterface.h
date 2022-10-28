@@ -43,8 +43,10 @@ float getExternalInterfaceChannel(uint8_t channel);
 uint8_t setExternalInterfaceChannel(uint8_t channel, float value);
 void externalInterface_SwitchPower33(uint8_t state);
 void externalInterface_SwitchADC(uint8_t state);
+void externalInterface_SwitchUART(uint8_t protocol);
 uint8_t externalInterface_isEnabledPower33(void);
 uint8_t externalInterface_isEnabledADC(void);
+uint8_t externalInterface_GetUARTProtocol();
 
 void externalInterface_SetCO2Value(uint16_t CO2_ppm);
 void externalInterface_SetCO2SignalStrength(uint16_t LED_qa);
