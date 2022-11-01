@@ -3445,7 +3445,7 @@ uint32_t getFrame(uint8_t callerId)
 		{
 			i = 0;
 		}
-	}while((i < MAXFRAMES) && (frame[i].status != RELEASED));
+	}while((i != lastFrameProvided) && (frame[i].status != RELEASED));
 
 
 	if((i < MAXFRAMES) && (frame[i].status == RELEASED))
