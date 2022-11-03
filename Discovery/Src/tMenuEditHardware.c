@@ -60,7 +60,6 @@ uint8_t OnAction_InertiaLevel	(uint32_t editId, uint8_t blockNumber, uint8_t dig
 uint8_t OnAction_Sensor1		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Sensor2		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Sensor3		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-uint8_t OnAction_O2_Fallback	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_O2_Calibrate   (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_O2_Source		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Button			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -78,7 +77,6 @@ static uint8_t	O2_calib_gas = 21;
 void openEdit_Hardware(uint8_t line)
 {
     set_globalState_Menu_Line(line);
-    resetMenuEdit(CLUT_MenuPageHardware);
 
     switch(line)
     {
@@ -87,15 +85,18 @@ void openEdit_Hardware(uint8_t line)
         openEdit_Bluetooth();
     break;
     case 2:
+    	resetMenuEdit(CLUT_MenuPageHardware);
         openEdit_Compass();
     break;
     case 3:
+    	resetMenuEdit(CLUT_MenuPageHardware);
         openEdit_O2Sensors();
     break;
     case 4:
         openEdit_Brightness();
     break;
     case 5:
+    	resetMenuEdit(CLUT_MenuPageHardware);
         openEdit_ButtonSens();
     break;
     case 6:
@@ -331,7 +332,7 @@ void refresh_O2Sensors(void)
 		text[0] = TXT_2BYTE;
 		text[1] = TXT2BYTE_O2Interface;
 		text[2] = 0;
-		write_label_var(  30, 340, ME_Y_LINE6, &FontT48, text);
+		write_label_var(  30, 340, ME_Y_LINE5, &FontT48, text);
 		text[0] = TXT_2BYTE;
 		switch(settingsGetPointer()->ppo2sensors_source)
 		{
@@ -359,12 +360,11 @@ void refresh_O2Sensors(void)
 #endif
 		}
 
-		write_label_var(  400, 800, ME_Y_LINE6, &FontT48, text);
+		write_label_var(  400, 800, ME_Y_LINE5, &FontT48, text);
     }
     tMenuEdit_refresh_field(StMHARD3_O2_Sensor1);
     tMenuEdit_refresh_field(StMHARD3_O2_Sensor2);
     tMenuEdit_refresh_field(StMHARD3_O2_Sensor3);
-    tMenuEdit_refresh_field(StMHARD3_O2_Fallback);
 
     if(get_globalState() == StMHARD3_O2_Calibrate)
     {
@@ -379,7 +379,6 @@ void refresh_O2Sensors(void)
 
 void openEdit_O2Sensors(void)
 {
-    char text[2];
     uint8_t sensorActive[3];
 
     sensorActive[0] = 1;
@@ -408,14 +407,9 @@ void openEdit_O2Sensors(void)
         write_field_toggle(StMHARD3_O2_Calibrate,	400, 800, ME_Y_LINE4, &FontT48, "", 21, 98);
     }
 
-    text[0] = TXT_Fallback;
-    text[1] = 1;
-
-    write_field_on_off(StMHARD3_O2_Fallback,	 30, 500, ME_Y_LINE5,  &FontT48, text, settingsGetPointer()->fallbackToFixedSetpoint);
-
     if(DataEX_external_ADC_Present())
     {
-    	write_field_button(StMHARD3_O2_Source,	 30, 800, ME_Y_LINE6,  &FontT48, "");
+    	write_field_button(StMHARD3_O2_Source,	 30, 800, ME_Y_LINE5,  &FontT48, "");
     }
 
     setEvent(StMHARD3_O2_Sensor1, (uint32_t)OnAction_Sensor1);
@@ -429,7 +423,7 @@ void openEdit_O2Sensors(void)
     {
     	setEvent(StMHARD3_O2_Calibrate, (uint32_t)OnAction_O2_Calibrate);
     }
-    setEvent(StMHARD3_O2_Fallback, (uint32_t)OnAction_O2_Fallback);
+
     if(DataEX_external_ADC_Present())
     {
     	setEvent(StMHARD3_O2_Source, (uint32_t)OnAction_O2_Source);
@@ -490,19 +484,6 @@ uint8_t OnAction_Sensor3(uint32_t editId, uint8_t blockNumber, uint8_t digitNumb
 }
 
 
-uint8_t OnAction_O2_Fallback	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
-{
-    uint8_t fallback = settingsGetPointer()->fallbackToFixedSetpoint;
-
-    if(fallback)
-        fallback = 0;
-    else
-        fallback = 1;
-
-    settingsGetPointer()->fallbackToFixedSetpoint = fallback;
-    tMenuEdit_set_on_off(editId, fallback);
-    return UPDATE_DIVESETTINGS;
-}
 uint8_t OnAction_O2_Calibrate (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
 	uint8_t loop;
