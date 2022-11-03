@@ -336,12 +336,11 @@ void refresh_ViewPort(void)
 void openEdit_Custom(uint8_t line)
 {
     set_globalState_Menu_Line(line);
-    resetMenuEdit(CLUT_MenuPageCustomView);
 
     switch(line)
     {
     	case 1:
-    	default:	openEdit_Customview();
+    	default:    openEdit_Customview();
     		break;
     	case 2: 	openEdit_BigScreen();
     		break;
@@ -357,6 +356,7 @@ void openEdit_Custom(uint8_t line)
 /* Private functions ---------------------------------------------------------*/
 void openEdit_Customview(void)
 {
+	resetMenuEdit(CLUT_MenuPageCustomView);
     refresh_Customviews();
 
     write_field_button(StMCustom1_CViewTimeout,		400, 700, ME_Y_LINE1,  &FontT48, "");
@@ -426,6 +426,7 @@ void openEdit_MotionCtrl(void)
 
 void openEdit_ViewPort(void)
 {
+	resetMenuEdit(CLUT_MenuPageCustomView);
     refresh_ViewPort();
 
     write_field_button(StMCustom5_CViewPortCalib,	400, 700, ME_Y_LINE2,  &FontT48, "");
@@ -797,6 +798,7 @@ void openEdit_CustomviewDivemode(const uint8_t* pcv_changelist)
 
     uint8_t i;
 
+    resetMenuEdit(CLUT_MenuPageCustomView);
 	customviewsSubpageMax = (tHome_getNumberOfAvailableCVs(pcv_changelist) / CV_PER_PAGE) + 1;
 
 	if(pcv_curchangelist != pcv_changelist)		/* new selection base? => reset page index */
