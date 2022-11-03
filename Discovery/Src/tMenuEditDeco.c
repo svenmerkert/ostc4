@@ -40,7 +40,6 @@ static uint8_t lineSelected = 0;
 /* Private function prototypes -----------------------------------------------*/
 
 static void openEdit_DiveMode(void);
-static void openEdit_CCRModeSensorOrFixedSP(void);
 static void openEdit_ppO2max(void);
 static void openEdit_SafetyStop(void);
 static void openEdit_FutureTTS(void);
@@ -59,12 +58,7 @@ void openEdit_Deco(uint8_t line)
     set_globalState_Menu_Line(line);
     resetMenuEdit(CLUT_MenuPageDeco);
 
-    SSettings *data = settingsGetPointer();
-
     lineSelected = line;
-
-    if((!isLoopMode(data->dive_mode)) &&  (line > 1))
-        line += 1;
 
     switch(line)
     {
@@ -73,18 +67,15 @@ void openEdit_Deco(uint8_t line)
         openEdit_DiveMode();
         break;
     case 2:
-        openEdit_CCRModeSensorOrFixedSP();
-        break;
-    case 3:
         openEdit_ppO2max();
         break;
-    case 4:
+    case 3:
         openEdit_SafetyStop();
         break;
-    case 5:
+    case 4:
         openEdit_FutureTTS();
         break;
-    case 6:
+    case 5:
         openEdit_Salinity();
         break;
     }
@@ -207,17 +198,7 @@ static uint8_t OnAction_setMode (uint32_t editId, uint8_t blockNumber, uint8_t d
 }
 
 
-static void openEdit_CCRModeSensorOrFixedSP(void)
-{
-    SSettings *pSettings = settingsGetPointer();
 
-    if(pSettings->CCR_Mode == CCRMODE_Sensors)
-        pSettings->CCR_Mode = CCRMODE_FixedSetpoint;
-    else
-        pSettings->CCR_Mode = CCRMODE_Sensors;
-
-    exitEditWithUpdate();
-}
 
 
 static void openEdit_SafetyStop(void)

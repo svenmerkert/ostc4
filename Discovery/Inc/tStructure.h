@@ -195,13 +195,20 @@
 #define StMXTRA_CompassHeading	_MB(2,4,2,1,0)
 
  /* SURFACE MODE */
-#define StMXTRA_ScrubTimer_Max_Minutes	_MB(2,4,1,1,0)
-#define StMXTRA_ScrubTimer_Reset		_MB(2,4,2,1,0)
-#define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,1,0)
+
+#define StMXTRA_CCRmode					_MB(2,4,1,1,0)
+#define StMXTRA_O2_Fallback				_MB(2,4,2,1,0)
+#define StMXTRA_ScrubTimer				_MB(2,4,3,1,0)
+#define StMXTRA_ScrubTimer_Reset		_MB(2,4,3,2,0)
+#define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,3,0)
+
 #define StMXTRA_PSCR_O2_Drop			_MB(2,4,4,1,0)
-#define StMXTRA_PSCR_LUNG_RATIO			_MB(2,4,5,1,0)
-#define StMXTRA_CO2_Sensor				_MB(2,4,6,1,0)
-#define StMXTRA_CO2_Sensor_Calib		_MB(2,4,6,2,0)
+#define StMXTRA_PSCR_LUNG_RATIO			_MB(2,4,4,2,0)
+#define StMXTRA_CO2_Sensor				_MB(2,4,5,1,0)
+#define StMXTRA_CO2_Sensor_Calib		_MB(2,4,5,2,0)
+
+
+
 
 /* PAGE 5 */
 #define StMDECO		_MB(2,5,0,0,0)
@@ -223,11 +230,10 @@
 #define StMDECO1_Gauge					_MB(2,5,1,4,0)
 #define StMDECO1_PSCR					_MB(2,5,1,5,0)
 
-#define StMDECO2_CCRmode			_MB(2,5,2,1,0)
-#define StMDECO3_PPO2Max			_MB(2,5,3,1,0)
-#define StMDECO4_SafetyStop			_MB(2,5,4,1,0)
-#define StMDECO5_FUTURE				_MB(2,5,5,1,0)
-#define StMDECO6_SALINITY			_MB(2,5,6,1,0)
+#define StMDECO3_PPO2Max			_MB(2,5,2,1,0)
+#define StMDECO4_SafetyStop			_MB(2,5,3,1,0)
+#define StMDECO5_FUTURE				_MB(2,5,4,1,0)
+#define StMDECO6_SALINITY			_MB(2,5,5,1,0)
 
 /* PAGE 6 */
 #define StMDECOP	_MB(2,6,0,0,0)
@@ -260,9 +266,8 @@
 #define StMHARD3_O2_Sensor1			_MB(2,7,3,1,0)
 #define StMHARD3_O2_Sensor2			_MB(2,7,3,2,0)
 #define StMHARD3_O2_Sensor3			_MB(2,7,3,3,0)
-#define StMHARD3_O2_Fallback		_MB(2,7,3,4,0)
-#define StMHARD3_O2_Calibrate		_MB(2,7,3,5,0)
-#define StMHARD3_O2_Source			_MB(2,7,3,6,0)
+#define StMHARD3_O2_Calibrate		_MB(2,7,3,4,0)
+#define StMHARD3_O2_Source			_MB(2,7,3,5,0)
 
 #define StMHARD4_BrightnessEco	_MB(2,7,4,1,0)
 #define StMHARD4_BrightnessStd	_MB(2,7,4,2,0)

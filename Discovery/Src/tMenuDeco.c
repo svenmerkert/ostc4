@@ -38,7 +38,7 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     uint8_t textPointer;
     uint8_t	futureTTS;
     double ppO2max_deco, ppO2max_std;
-    char divemode, CcrModusTxtId;
+    char divemode;
     textPointer = 0;
     *tab = 370;
     *subtext = 0;
@@ -84,39 +84,7 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if(isLoopMode(data->dive_mode))
-    {
-        if((line == 0) || (line == 2))
-        {
-        	switch(data->CCR_Mode)
-        	{
-        		case CCRMODE_Sensors: CcrModusTxtId = TXT_Sensor;
-        			break;
-        		case CCRMODE_FixedSetpoint: CcrModusTxtId = TXT_FixedSP;
-        			break;
-        		case CCRMODE_Simulation: CcrModusTxtId = TXT_SimPpo2;
-        			break;
-        		default:	CcrModusTxtId = 'X';
-        			break;
-        	}
-
-
-            textPointer += snprintf(&text[textPointer], 60,\
-                "%c"
-                "\t"
-                "%c"
-                , TXT_CCRmode
-                , CcrModusTxtId
-            );
-        }
-        strcpy(&text[textPointer],"\n\r");
-        textPointer += 2;
-    }
-    else
-        if(line != 0)
-            line++;
-
-    if((line == 0) || (line == 3))
+    if((line == 0) || (line == 2))
     {
         textPointer += snprintf(&text[textPointer], 60,\
             "ppO2"
@@ -139,7 +107,7 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if((line == 0) || (line == 4))
+    if((line == 0) || (line == 3))
     {
         textPointer += snprintf(&text[textPointer], 60,\
             "%c"
@@ -164,7 +132,7 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if((line == 0) || (line == 5))
+    if((line == 0) || (line == 4))
     {
         textPointer += snprintf(&text[textPointer], 60,\
             "%c"
@@ -181,7 +149,7 @@ uint32_t tMDeco_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if((line == 0) || (line == 6))
+    if((line == 0) || (line == 5))
     {
         textPointer += snprintf(&text[textPointer], 60,\
             "%c"

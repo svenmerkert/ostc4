@@ -45,12 +45,12 @@ void openEdit_SimFollowDecostops(void);
 void openEdit_SetManualMarker(void);
 void openEdit_SetEndDive(void);
 void openEdit_CalibViewport(void);
-static void openEdit_ScrubberTimer(uint8_t line);
-static void openEdit_ScrubberReset(void);
-static void openEdit_ScrubberTimerMode(void);
+
+static void openEdit_CCRModeSensorOrFixedSP(void);
+static void openEdit_Fallback(void);
+static void openEdit_Scrubber(void);
 #ifdef ENABLE_PSCR_MODE
-static void openEdit_PSCRO2Drop(uint8_t line);
-static void openEdit_PSCRLungRatio(uint8_t line);
+static void openEdit_PSCR(void);
 #endif
 #ifdef ENABLE_CO2_SUPPORT
 static void openEdit_CO2Sensor(void);
@@ -59,6 +59,8 @@ static void openEdit_CO2Sensor(void);
 /* Announced function prototypes -----------------------------------------------*/
 uint8_t OnAction_CompassHeading	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_ScrubberTimer(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+static uint8_t OnAction_ScrubberReset(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+static uint8_t OnAction_ScrubberMode(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 #ifdef ENABLE_PSCR_MODE
 static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 static uint8_t OnAction_PSCRLungRation(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -74,11 +76,13 @@ static uint8_t OnAction_CO2Calib(uint32_t editId, uint8_t blockNumber, uint8_t d
 void openEdit_Xtra(uint8_t line)
 {
     set_globalState_Menu_Line(line);
-    resetMenuEdit(CLUT_MenuPageXtra);
+
 
     /* DIVE MODE */
     if(actual_menu_content != MENU_SURFACE)
     {
+    	resetMenuEdit(CLUT_MenuPageXtra);
+
 		switch(line)
 		{
 			case 1:
@@ -115,17 +119,15 @@ void openEdit_Xtra(uint8_t line)
 
 		switch(line)
 		{
-			case 1:	openEdit_ScrubberTimer(line);
+			case 1: openEdit_CCRModeSensorOrFixedSP();
 				break;
-			case 2: openEdit_ScrubberReset();
+			case 2: openEdit_Fallback();
 				break;
-			case 3:	openEdit_ScrubberTimerMode();
+			case 3: openEdit_Scrubber();
 				break;
 #ifdef ENABLE_PSCR_MODE
-			case 4: openEdit_PSCRO2Drop(line);
+			case 4: openEdit_PSCR();
 				break;
-			case 5: openEdit_PSCRLungRatio(line);
-							break;
 #endif
 #ifdef ENABLE_CO2_SUPPORT
 			case 6: openEdit_CO2Sensor();
@@ -170,74 +172,103 @@ void openEdit_CalibViewport(void)
 }
 
 
-
-static void openEdit_ScrubberTimer(uint8_t line)
+static void openEdit_CCRModeSensorOrFixedSP(void)
 {
-    uint16_t localScrubTimer;
-    uint16_t y_line;
-
-    char text[32];
     SSettings *pSettings = settingsGetPointer();
-    localScrubTimer = pSettings->scrubTimerMax;
 
-    y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
+    if(pSettings->CCR_Mode == CCRMODE_Sensors)
+        pSettings->CCR_Mode = CCRMODE_FixedSetpoint;
+    else
+        pSettings->CCR_Mode = CCRMODE_Sensors;
 
-    text[0] = '\001';
-    text[1] = TXT_ScrubTime;
-    text[2] = 0;
+    exitEditWithUpdate();
+}
+
+static void openEdit_Fallback(void)
+{
+/* does not work like this	resetEnterPressedToStateBeforeButtonAction(); */
+
+    SSettings *pSettings = settingsGetPointer();
+
+    if(pSettings->fallbackToFixedSetpoint == 0)
+    {
+    	pSettings->fallbackToFixedSetpoint = 1;
+    }
+    else
+    {
+    	pSettings->fallbackToFixedSetpoint = 0;
+    }
+    exitMenuEdit_to_Menu_with_Menu_Update_do_not_write_settings_for_this_only();
+}
+
+
+static void openEdit_Scrubber(void)
+{
+	char text[32];
+	uint8_t textIndex = 0;
+    uint16_t localScrubTimer;
+
+    SSettings *pSettings = settingsGetPointer();
+
+    localScrubTimer =  pSettings->scrubTimerMax;
+
+	resetMenuEdit(CLUT_MenuPageXtra);
+
+
+	snprintf(&text[textIndex], 32,"\001%c",TXT_ScrubTime);
     write_topline(text);
 
-    text[0] = '\002';
-    strcpy(&text[1],"\016\016");
-    text[3] = TXT_Minutes;
-    text[4] = 0;
-    write_label_fix(   20, 800, y_line, &FontT48, TXT_ScrubTime);
-    write_label_var(  435, 780, y_line, &FontT48, text);
-    write_field_udigit(StMXTRA_ScrubTimer_Max_Minutes, 600, 779, y_line, &FontT48, "###", (uint32_t)localScrubTimer, 0, 0, 0);
 
-    write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
+    snprintf(&text[textIndex], 32,\
+        "%c"
+    	"\016\016(%c)\017"
+        ,TXT_ScrubTime
+		,TXT_Maximum);
 
-    setEvent(StMXTRA_ScrubTimer_Max_Minutes,	(uint32_t)OnAction_ScrubberTimer);
-    startEdit();
+    write_label_var(  20, 340, ME_Y_LINE1, &FontT48, text);
+    snprintf(&text[textIndex], 32, "\002###\016\016 %c\017",TXT_Minutes);
+
+    write_field_udigit(StMXTRA_ScrubTimer,	 610, 780, ME_Y_LINE1,  &FontT48, text,localScrubTimer, 0, 0, 0);
+
+    snprintf(&text[0], 32,\
+                     "%c\002%03u\016\016 %c\017"
+                     ,TXT_ScrubTimeReset
+                     ,pSettings->scrubTimerCur
+                     ,TXT_Minutes);
+
+    write_field_button(StMXTRA_ScrubTimer_Reset, 20, 780, ME_Y_LINE2,  &FontT48, text);
+
+   	switch(pSettings->scrubTimerMode)
+    	{
+    		case SCRUB_TIMER_OFF:
+    		default: 	snprintf(&text[0], 32,"%c\002%c%c",TXT_ScrubTimeMode, TXT_2BYTE, TXT2BYTE_MoCtrlNone );
+    			break;
+    		case SCRUB_TIMER_MINUTES: snprintf(&text[0], 32,"%c\002%c",TXT_ScrubTimeMode, TXT_Minutes );
+    			break;
+    		case SCRUB_TIMER_PERCENT: snprintf(&text[0], 32,"%c\002%c",TXT_ScrubTimeMode, TXT_Percent );
+    			break;
+    	}
+    write_field_button(StMXTRA_ScrubTimer_OP_Mode,	 30, 780, ME_Y_LINE3,  &FontT48, text);
+
+    setEvent(StMXTRA_ScrubTimer, (uint32_t)OnAction_ScrubberTimer);
+    setEvent(StMXTRA_ScrubTimer_Reset, (uint32_t)OnAction_ScrubberReset);
+    setEvent(StMXTRA_ScrubTimer_OP_Mode, (uint32_t)OnAction_ScrubberMode);
+
+    write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
+
 }
 
-static void openEdit_ScrubberReset(void)
+static void openEdit_PSCR(void)
 {
-	 SSettings *pSettings;
-     pSettings = settingsGetPointer();
-     pSettings->scrubTimerCur = pSettings->scrubTimerMax;
-     exitMenuEdit_to_Menu_with_Menu_Update();
-}
-
-static void openEdit_ScrubberTimerMode(void)
-{
-	 uint8_t newMode;
-	 SSettings *pSettings;
-     pSettings = settingsGetPointer();
-     newMode = pSettings->scrubTimerMode + 1;
-     if(newMode >= SCRUB_TIMER_END)
-     {
-    	 newMode = SCRUB_TIMER_OFF;
-     }
-     pSettings->scrubTimerMode = newMode;
-     exitMenuEdit_to_Menu_with_Menu_Update();
-}
-
-#ifdef ENABLE_PSCR_MODE
-static void openEdit_PSCRO2Drop(uint8_t line)
-{
-    uint8_t localO2Drop;
-    uint16_t y_line;
-
+	uint8_t localO2Drop,localLungRatio;
     char text[32];
     SSettings *pSettings = settingsGetPointer();
     localO2Drop = pSettings->pscr_o2_drop;
+    localLungRatio = pSettings->pscr_lung_ratio;
 
-    y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
+    resetMenuEdit(CLUT_MenuPageXtra);
 
-    text[0] = '\001';
-    text[1] = TXT_PSCRO2Drop;
-    text[2] = 0;
+    snprintf(text, 32, "\001%c",TXT_PSClosedCircuit);
     write_topline(text);
 
     text[0] = '\002';
@@ -245,47 +276,26 @@ static void openEdit_PSCRO2Drop(uint8_t line)
     text[2] = '\016';
     text[3] = '%';
     text[4] = 0;
-    write_label_fix(   20, 800, y_line, &FontT48, TXT_PSCRO2Drop);
-    write_label_var(  435, 780, y_line, &FontT48, text);
-    write_field_udigit(StMXTRA_PSCR_O2_Drop, 710, 779, y_line, &FontT48, "##", (uint32_t)localO2Drop, 0, 0, 0);
+    write_label_fix(   20, 800, ME_Y_LINE1, &FontT48, TXT_PSCRO2Drop);
+    write_label_var(  435, 780, ME_Y_LINE1, &FontT48, text);
+    write_field_udigit(StMXTRA_PSCR_O2_Drop, 710, 779, ME_Y_LINE1, &FontT48, "##", (uint32_t)localO2Drop, 0, 0, 0);
 
-    write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
-
-    setEvent(StMXTRA_PSCR_O2_Drop,	(uint32_t)OnAction_PSCRO2Drop);
-    startEdit();
-}
-
-static void openEdit_PSCRLungRatio(uint8_t line)
-{
-    uint8_t localLungRatio;
-    uint16_t y_line;
-
-    char text[32];
-    SSettings *pSettings = settingsGetPointer();
-    localLungRatio = pSettings->pscr_lung_ratio;
-
-    y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
-
-    text[0] = '\001';
-    text[1] = TXT_PSCRO2Drop;
-    text[2] = 0;
-    write_topline(text);
 
     text[0] = '\002';
     text[1] = '1';
     text[2] = '/';
     text[3] = 0;
 
-    write_label_fix(   20, 800, y_line, &FontT48, TXT_PSCRLungRatio);
-    write_label_var(  435, 710, y_line, &FontT48, text);
-    write_field_udigit(StMXTRA_PSCR_LUNG_RATIO, 710, 779, y_line, &FontT48, "##", (uint32_t)localLungRatio, 0, 0, 0);
+    write_label_fix(   20, 800, ME_Y_LINE2, &FontT48, TXT_PSCRLungRatio);
+    write_label_var(  435, 710, ME_Y_LINE2, &FontT48, text);
+    write_field_udigit(StMXTRA_PSCR_LUNG_RATIO, 710, 779, ME_Y_LINE2, &FontT48, "##", (uint32_t)localLungRatio, 0, 0, 0);
 
     write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
 
+    setEvent(StMXTRA_PSCR_O2_Drop,	(uint32_t)OnAction_PSCRO2Drop);
     setEvent(StMXTRA_PSCR_LUNG_RATIO,	(uint32_t)OnAction_PSCRLungRation);
-    startEdit();
 }
-#endif
+
 
 #ifdef ENABLE_CO2_SUPPORT
 static void openEdit_CO2Sensor()
@@ -357,11 +367,8 @@ void refresh_CO2Data(void)
 
 void openEdit_CompassHeading(void)
 {
-
     write_field_button(StMXTRA_CompassHeading,20, 800, ME_Y_LINE4, &FontT48, "Set");
-
     setEvent(StMXTRA_CompassHeading,  (uint32_t)OnAction_CompassHeading);
-//	startEdit();
 }
 
 
@@ -397,7 +404,7 @@ static uint8_t OnAction_ScrubberTimer(uint32_t editId, uint8_t blockNumber, uint
         }
 
         tMenuEdit_newInput(editId, newScrubberTime, 0, 0, 0);
-        digitContentNew = UPDATE_AND_EXIT_TO_MENU;
+        digitContentNew = UNSPECIFIC_RETURN;
     }
     if(action == ACTION_BUTTON_NEXT)
     {
@@ -413,6 +420,54 @@ static uint8_t OnAction_ScrubberTimer(uint32_t editId, uint8_t blockNumber, uint
     }
     return digitContentNew;
 }
+
+uint8_t OnAction_ScrubberReset(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	char text[32];
+	SSettings *pSettings;
+    pSettings = settingsGetPointer();
+    pSettings->scrubTimerCur = pSettings->scrubTimerMax;
+
+
+    snprintf(&text[0], 32,\
+                     "%c\002%03u\016\016 %c\017"
+                     ,TXT_ScrubTimeReset
+                     ,pSettings->scrubTimerCur
+                     ,TXT_Minutes);
+
+    tMenuEdit_refresh_field(StMXTRA_ScrubTimer_Reset);
+
+    return UNSPECIFIC_RETURN;
+}
+
+uint8_t OnAction_ScrubberMode(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	char text[32];
+	uint8_t newMode;
+	SSettings *pSettings;
+    pSettings = settingsGetPointer();
+    newMode = pSettings->scrubTimerMode + 1;
+    if(newMode >= SCRUB_TIMER_END)
+    {
+   	 newMode = SCRUB_TIMER_OFF;
+    }
+    pSettings->scrubTimerMode = newMode;
+
+   	switch(pSettings->scrubTimerMode)
+    	{
+    		case SCRUB_TIMER_OFF:
+    		default: 	snprintf(&text[0], 32,"%c\002%c%c",TXT_ScrubTimeMode, TXT_2BYTE, TXT2BYTE_MoCtrlNone );
+    			break;
+    		case SCRUB_TIMER_MINUTES: snprintf(&text[0], 32,"%c\002%c",TXT_ScrubTimeMode, TXT_Minutes );
+    			break;
+    		case SCRUB_TIMER_PERCENT: snprintf(&text[0], 32,"%c\002%c",TXT_ScrubTimeMode, TXT_Percent );
+    			break;
+    	}
+    tMenuEdit_newButtonText(StMXTRA_ScrubTimer_OP_Mode, text);
+
+    return UNSPECIFIC_RETURN;
+}
+
 #ifdef ENABLE_PSCR_MODE
 static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
@@ -435,7 +490,7 @@ static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t
         pSettings->pscr_o2_drop = newO2Drop;
 
         tMenuEdit_newInput(editId, newO2Drop, 0, 0, 0);
-        digitContentNew = UPDATE_AND_EXIT_TO_MENU;
+        digitContentNew = UNSPECIFIC_RETURN;
     }
     if(action == ACTION_BUTTON_NEXT)
     {
@@ -476,7 +531,7 @@ static uint8_t OnAction_PSCRLungRation(uint32_t editId, uint8_t blockNumber, uin
         pSettings->pscr_lung_ratio = newLungRatio;
 
         tMenuEdit_newInput(editId, newLungRatio, 0, 0, 0);
-        digitContentNew = UPDATE_AND_EXIT_TO_MENU;
+        digitContentNew = UNSPECIFIC_RETURN;
     }
     if(action == ACTION_BUTTON_NEXT)
     {
