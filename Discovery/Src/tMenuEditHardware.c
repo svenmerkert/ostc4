@@ -241,7 +241,15 @@ uint8_t OnAction_Compass (uint32_t editId, uint8_t blockNumber, uint8_t digitNum
 
 uint8_t OnAction_Bearing	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
-    settingsGetPointer()->compassBearing = (int16_t)stateUsed->lifeData.compass_heading;
+    if((int16_t)stateUsed->lifeData.compass_heading != -1)
+	{
+		settingsGetPointer()->compassBearing = (int16_t)stateUsed->lifeData.compass_heading;
+	}
+	else
+	{
+		settingsGetPointer()->compassBearing = 0;
+	}
+
     if(settingsGetPointer()->compassBearing == 0)
         settingsGetPointer()->compassBearing = 360;
     return UPDATE_AND_EXIT_TO_MENU;
