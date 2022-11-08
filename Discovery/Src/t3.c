@@ -1301,11 +1301,11 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
             	textpointer = 0;
                 if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
                 {
-                	textpointer += snprintf(&text[textpointer],10,"\020\002%3u'", pSettings->scrubTimerCur);
+                	textpointer += snprintf(&text[textpointer],10,"\020\002%3u'",  pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
                 }
                 else
                 {
-                	textpointer += snprintf(&text[textpointer],20,"\020\002%u\016\016%%\017", (uint16_t)(pSettings->scrubTimerCur * 100 / pSettings->scrubTimerMax));
+                	textpointer += snprintf(&text[textpointer],20,"\020\002%u\016\016%%\017", (uint16_t)(pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / pSettings->scrubberData[pSettings->scubberActiveId].TimerMax));
                 }
                 GFX_write_string(&FontT105,tXc1,text,1);
             }

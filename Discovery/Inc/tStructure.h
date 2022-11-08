@@ -199,8 +199,9 @@
 #define StMXTRA_CCRmode					_MB(2,4,1,1,0)
 #define StMXTRA_O2_Fallback				_MB(2,4,2,1,0)
 #define StMXTRA_ScrubTimer				_MB(2,4,3,1,0)
-#define StMXTRA_ScrubTimer_Reset		_MB(2,4,3,2,0)
-#define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,3,0)
+#define StMXTRA_ScrubTimer_Max			_MB(2,4,3,2,0)
+#define StMXTRA_ScrubTimer_Reset		_MB(2,4,3,3,0)
+#define StMXTRA_ScrubTimer_OP_Mode		_MB(2,4,3,5,0)
 
 #define StMXTRA_PSCR_O2_Drop			_MB(2,4,4,1,0)
 #define StMXTRA_PSCR_LUNG_RATIO			_MB(2,4,4,2,0)

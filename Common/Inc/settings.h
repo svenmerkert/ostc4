@@ -35,6 +35,7 @@
 #include "global_constants.h"
 // From Common/Drivers/
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_rtc.h"
 
 #include "configuration.h"
 
@@ -84,7 +85,7 @@
 
 #define UART_MAX_PROTOCOL		(2u)
 
-#define FUTURE_SPARE_SIZE		(28u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
+#define FUTURE_SPARE_SIZE		(11u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
@@ -159,6 +160,13 @@ typedef struct
 } SSetpointLine;
 
 
+typedef struct
+{
+	uint16_t TimerMax;
+	uint16_t TimerCur;
+	RTC_DateTypeDef lastDive;
+} SScrubberData;
+
 
 /* SSettings
 	 * gas[0] and setpoint[0] are the special ones configurable during the dive
@@ -223,6 +231,10 @@ typedef struct
 	uint8_t pscr_o2_drop;										/* redefined in 0xFFFF0020 */
 	uint8_t co2_sensor_active;									/* redefined in 0xFFFF0021 */
 	uint8_t ext_uart_protocol;									/* redefined in 0xFFFF0022 */
+
+	uint8_t scubberActiveId;									/* redefined in 0xFFFF0023 */
+	SScrubberData scrubberData[2];
+
 	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
 	// new in 0xFFFF0006
 	uint8_t ppo2sensors_deactivated;
@@ -276,8 +288,8 @@ typedef struct
 	uint8_t amPMTime;
 	/* new in 0xFFFF001F */
 	uint8_t autoSetpoint;
-	uint16_t scrubTimerMax;
-	uint16_t scrubTimerCur;
+	uint16_t scrubTimerMax_Obsolete;	/* have been replaced with new scrubber data format */
+	uint16_t scrubTimerCur_Obsolete;	/* have been replaced with new scrubber data format */
 	uint8_t scrubTimerMode;
 } SSettings;
 

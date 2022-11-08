@@ -87,7 +87,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0022,
+    .header = 0xFFFF0023,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -322,8 +322,8 @@ const SSettings SettingsStandard = {
 	.ppo2sensors_calibCoeff[2] = 0.0,
 	.amPMTime = 0,
 	.autoSetpoint = 0,
-	.scrubTimerMax = 0,
-	.scrubTimerCur = 0,
+	.scrubTimerMax_Obsolete = 0,
+	.scrubTimerCur_Obsolete = 0,
 	.scrubTimerMode = SCRUB_TIMER_OFF,
 };
 
@@ -488,8 +488,8 @@ void set_new_settings_missing_in_ext_flash(void)
     	// no break
     case 0xFFFF001E:
     	pSettings->autoSetpoint = 0;
-    	pSettings->scrubTimerMax = 0;
-    	pSettings->scrubTimerCur = 0;
+    	pSettings->scrubTimerMax_Obsolete = 0;
+    	pSettings->scrubTimerCur_Obsolete = 0;
     	pSettings->scrubTimerMode = SCRUB_TIMER_OFF;
     	// no break
     case 0xFFFF001F:
@@ -501,6 +501,22 @@ void set_new_settings_missing_in_ext_flash(void)
     	// no break;
     case 0xFFFF0021:
     	pSettings->ext_uart_protocol = 0;
+    	// no break;
+    case 0xFFFF0022:
+    	pSettings->scubberActiveId = 0;
+    	pSettings->scrubberData[0].TimerCur = pSettings->scrubTimerCur_Obsolete;
+    	pSettings->scrubberData[0].TimerMax = pSettings->scrubTimerMax_Obsolete;
+    	pSettings->scrubberData[0].lastDive.WeekDay = 0;
+    	pSettings->scrubberData[0].lastDive.Month = 0;
+    	pSettings->scrubberData[0].lastDive.Date = 0;
+    	pSettings->scrubberData[0].lastDive.Year = 0;
+
+    	pSettings->scrubberData[1].TimerCur = 0;
+    	pSettings->scrubberData[1].TimerMax = 0;
+    	pSettings->scrubberData[1].lastDive.WeekDay = 0;
+    	pSettings->scrubberData[1].lastDive.Month = 0;
+    	pSettings->scrubberData[1].lastDive.Date = 0;
+    	pSettings->scrubberData[1].lastDive.Year = 0;
     	// no break;
     default:
         pSettings->header = pStandard->header;
@@ -1462,10 +1478,21 @@ uint8_t check_and_correct_settings(void)
     	corrections++;
     }
 
-    if((Settings.scrubTimerMax > MAX_SCRUBBER_TIME) || (Settings.scrubTimerCur > MAX_SCRUBBER_TIME))
+    if(Settings.scubberActiveId > 1)
     {
-    	Settings.scrubTimerMax = 0;
-    	Settings.scrubTimerCur = 0;
+    	Settings.scubberActiveId = 0;
+    	corrections++;
+    }
+    if((Settings.scrubberData[0].TimerMax > MAX_SCRUBBER_TIME) || (Settings.scrubberData[0].TimerCur > MAX_SCRUBBER_TIME))
+    {
+    	Settings.scrubberData[0].TimerMax = 0;
+    	Settings.scrubberData[0].TimerCur = 0;
+    	corrections++;
+    }
+    if((Settings.scrubberData[1].TimerMax > MAX_SCRUBBER_TIME) || (Settings.scrubberData[1].TimerCur > MAX_SCRUBBER_TIME))
+    {
+    	Settings.scrubberData[1].TimerMax = 0;
+    	Settings.scrubberData[1].TimerCur = 0;
     	corrections++;
     }
     if(Settings.scrubTimerMode > SCRUB_TIMER_END)
@@ -1490,7 +1517,7 @@ uint8_t check_and_correct_settings(void)
     	Settings.co2_sensor_active = 0;
     	corrections++;
     }
-    if(Settings.co2_sensor_active > UART_MAX_PROTOCOL)
+    if(Settings.ext_uart_protocol > UART_MAX_PROTOCOL)
     {
     	Settings.ext_uart_protocol = 0;
     	corrections++;

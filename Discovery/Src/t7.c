@@ -2773,6 +2773,7 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     const SDecoinfo * pDecoinfoFuture;
     float fCNS;
     float temperature;
+    SSettings* pSettings = settingsGetPointer();
 
     if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
     {
@@ -2813,7 +2814,7 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     /* Average Depth */
     case LLC_AverageDepth:
         headerText[2] = TXT_AvgDepth;
-        if(settingsGetPointer()->nonMetricalSystem)
+        if(pSettings->nonMetricalSystem)
             snprintf(text,TEXTSIZE,"\020%01.0f",unit_depth_float(fAverageDepthAbsolute));
         else
             snprintf(text,TEXTSIZE,"\020%01.1f",fAverageDepthAbsolute);
@@ -2828,7 +2829,7 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     /* Stop Uhr */
     case LLC_Stopwatch:
         headerText[2] = TXT_Stopwatch;
-        if(settingsGetPointer()->nonMetricalSystem)
+        if(pSettings->nonMetricalSystem)
             snprintf(text,TEXTSIZE,"\020\016\016%u:%02u\n\r%01.0f",Stopwatch.Minutes, Stopwatch.Seconds,unit_depth_float(fAverageDepth));
         else
             snprintf(text,TEXTSIZE,"\020\016\016%u:%02u\n\r%01.1f",Stopwatch.Minutes, Stopwatch.Seconds,fAverageDepth);
@@ -2839,7 +2840,7 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     /* Ceiling */
     case LLC_Ceiling:
         headerText[2] = TXT_Ceiling;
-        if((pDecoinfoStandard->output_ceiling_meter > 99.9f) || (settingsGetPointer()->nonMetricalSystem))
+        if((pDecoinfoStandard->output_ceiling_meter > 99.9f) || (pSettings->nonMetricalSystem))
             snprintf(text,TEXTSIZE,"\020%01.0f",unit_depth_float(pDecoinfoStandard->output_ceiling_meter));
         else
             snprintf(text,TEXTSIZE,"\020%01.1f",pDecoinfoStandard->output_ceiling_meter);
@@ -2849,9 +2850,9 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     case LLC_FutureTTS:
         headerText[2] = TXT_FutureTTS;
         if (pDecoinfoFuture->output_time_to_surface_seconds < 1000 * 60)
-        	snprintf(text,TEXTSIZE,"\020\016\016@+%u'\n\r" "%i' TTS",settingsGetPointer()->future_TTS, (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 60);
+        	snprintf(text,TEXTSIZE,"\020\016\016@+%u'\n\r" "%i' TTS",pSettings->future_TTS, (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 60);
         else
-        	snprintf(text,TEXTSIZE,"\020\016\016@+%u'\n\r" "%ih TTS",settingsGetPointer()->future_TTS, (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 3600);
+        	snprintf(text,TEXTSIZE,"\020\016\016@+%u'\n\r" "%ih TTS",pSettings->future_TTS, (pDecoinfoFuture->output_time_to_surface_seconds + 59) / 3600);
         tinyHeaderFont = 1;
         line = 1;
         break;
@@ -2876,11 +2877,11 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         headerText[2] = TXT_ScrubTime;
         if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
         {
-        	snprintf(text,TEXTSIZE,"\020%3u'",settingsGetPointer()->scrubTimerCur);
+        	snprintf(text,TEXTSIZE,"\020%3u'",pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
         }
         else
         {
-        	snprintf(text,TEXTSIZE,"\020%u\016\016%%\017", (settingsGetPointer()->scrubTimerCur * 100 / settingsGetPointer()->scrubTimerMax));
+        	snprintf(text,TEXTSIZE,"\020%u\016\016%%\017", (pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / settingsGetPointer()->scrubberData[pSettings->scubberActiveId].TimerMax));
         }
 		break;
 #ifdef ENABLE_PSCR_MODE
@@ -3522,11 +3523,11 @@ void t7_SummaryOfLeftCorner(void)
         text[textpointer++] = '\t';
         if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
         {
-        	textpointer += snprintf(&text[textpointer],10,"\020%3u'", pSettings->scrubTimerCur);
+        	textpointer += snprintf(&text[textpointer],10,"\020%3u'", pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
         }
         else
         {
-        	textpointer += snprintf(&text[textpointer],10,"\020%u\016\016%%\017", (pSettings->scrubTimerCur * 100 / pSettings->scrubTimerMax));
+        	textpointer += snprintf(&text[textpointer],10,"\020%u\016\016%%\017", (pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / pSettings->scrubberData[pSettings->scubberActiveId].TimerMax));
         }
     }
     text[textpointer++] = 0;

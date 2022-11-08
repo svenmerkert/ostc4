@@ -337,16 +337,17 @@ void tCCR_tick(void)
 	}
 
 	/* decrease scrubber timer only in real dive mode */
-    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)) && (stateUsed->mode == MODE_DIVE) && (stateUsed == stateRealGetPointer()))
+    if((pSettings->scrubTimerMode != SCRUB_TIMER_OFF) && (isLoopMode(pSettings->dive_mode)) && (stateUsed->mode == MODE_DIVE)) // && (stateUsed == stateRealGetPointer()))
     {
     	ScrubberTimeoutCount++;
     	if(ScrubberTimeoutCount >= 600)		/* resolution is minutes */
     	{
     		ScrubberTimeoutCount = 0;
-    		if(pSettings->scrubTimerCur > 0)
+    		if(pSettings->scrubberData[pSettings->scubberActiveId].TimerCur > 0)
     		{
-    			pSettings->scrubTimerCur--;
+    			pSettings->scrubberData[pSettings->scubberActiveId].TimerCur--;
     		}
+    		translateDate(stateUsed->lifeData.dateBinaryFormat, &pSettings->scrubberData[pSettings->scubberActiveId].lastDive);
     	}
     }
 }
