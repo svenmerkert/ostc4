@@ -85,7 +85,7 @@
 
 #define UART_MAX_PROTOCOL		(2u)
 
-#define FUTURE_SPARE_SIZE		(11u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
+#define FUTURE_SPARE_SIZE		(10u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
