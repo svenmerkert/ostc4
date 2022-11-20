@@ -63,5 +63,6 @@ void tInfo_setEvent(uint32_t inputEventID, uint32_t inputFunctionCall);
 
 void tInfo_set_on_off(uint32_t editID, uint8_t int1);
 void exitInfo(void);
+void exitInfoToBack(void);
 
 #endif /* TINFO_H */

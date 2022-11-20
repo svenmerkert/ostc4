@@ -212,6 +212,7 @@
 #include "tHome.h"
 #include "tInfo.h"
 #include "tInfoLog.h"
+#include "tInfoSensor.h"
 #include "tMenu.h"
 #include "tMenuEdit.h"
 #include "tMenuEditGasOC.h"
@@ -699,9 +700,9 @@ static void RefreshDisplay()
 		tMenuEdit_refresh_live_content();
 		break;
 	case BaseInfo:
-		tInfo_refresh(); ///< only compass at the moment 23.Feb.2015 hw
+		tInfo_refresh();
 		break;
-	case BaseComm: 		/* refresh already done in tim callback */
+	case BaseComm: 		/* refresh already done in time callback */
 		break;
 	default:
 		if(get_globalState() == StStop)
@@ -816,13 +817,17 @@ static void TriggerButtonAction()
 				sendActionToMenuEdit(action);
 			break;
 
-		case BaseInfo:
-			if (status.page == InfoPageLogList)
-				sendActionToInfoLogList(action);
-			else if (status.page == InfoPageLogShow)
-				sendActionToInfoLogShow(action);
-			else
-				sendActionToInfo(action);
+		case BaseInfo:	switch(status.page)
+						{
+							case InfoPageLogList: 	sendActionToInfoLogList(action);
+								break;
+							case InfoPageLogShow: 	sendActionToInfoLogShow(action);
+								break;
+							case InfoPageSensor: 	sendActionToInfoSensor(action);
+								break;
+							default:				sendActionToInfo(action);
+								break;
+						}
 			break;
 
 		default:
@@ -1790,23 +1795,21 @@ static void TimeoutControl(void)
 			case BaseInfo:
 				if((timeout_in_seconds  >= settingsGetPointer()->timeoutInfo) || RequestModeChange)
 				{
-					if(status.page == InfoPageLogList)
+					timeout_in_seconds = 0;
+
+					switch(status.page)
 					{
-						exitLog();
-						timeout_in_seconds = 0;
-					}
-					else
-					if(status.page == InfoPageLogShow)
-					{
-						show_logbook_exit();
-						exitLog();
-						timeout_in_seconds = 0;
-					}
-					else
-					if(status.page != InfoPageCompass)
-					{
-						exitInfo();
-						timeout_in_seconds = 0;
+						case InfoPageLogList:	exitLog();
+							break;
+						case InfoPageLogShow:	show_logbook_exit();
+												exitLog();
+							break;
+						case InfoPageCompass:		/* compass has individual timeout */
+							break;
+						case InfoPageSensor:	exitInfoToBack();
+							break;
+						default:				exitInfo();
+							break;
 					}
 				}
 				break;

@@ -36,7 +36,9 @@
 //#include "tInfoDive.h"
 //#include "tInfoSurface.h"
 #include "tInfoCompass.h"
+#include "tInfoSensor.h"
 #include "tMenu.h"
+#include "tMenuEdit.h"
 
 #include <string.h>
 
@@ -198,25 +200,40 @@ uint8_t OnAction_ILoglist	(uint32_t editId, uint8_t blockNumber, uint8_t digitNu
 
 void tInfo_refresh(void)
 {
-    if(!inDebugMode() && (get_globalState() != StICOMPASS))
-        return;
-
     uint32_t oldIscreen;
-
+    uint32_t globalState = get_globalState();
     oldIscreen = tIscreen.FBStartAdress;
-    tIscreen.FBStartAdress = getFrame(14);
-    infoColor = CLUT_InfoCompass;
-
+    
     if(inDebugMode())
-        tDebug_refresh();
+    {
+	    tIscreen.FBStartAdress = getFrame(14);
+    	infoColor = CLUT_InfoCompass;
+    	tDebug_refresh();
+    }
     else
-        refreshInfo_Compass(tIscreen);
-
-    if(inDebugMode() || (get_globalState() == StICOMPASS)) /* could be timeout and exitInfo */
-        GFX_SetFramesTopBottom(tIscreen.FBStartAdress, 0,480);
-
-    if(oldIscreen)
-        releaseFrame(14,oldIscreen);
+    {
+    	switch(globalState)
+    	{
+    		case StICOMPASS: 	tIscreen.FBStartAdress = getFrame(14);
+    							infoColor = CLUT_InfoCompass;
+    							refreshInfo_Compass(tIscreen);
+    				break;
+    		case StISENINFO: 	tIscreen.FBStartAdress = getFrame(14);
+    							infoColor = CLUT_MenuPageHardware;
+    							refreshInfo_Sensor(tIscreen);
+    				break;
+    		default:
+    				break;
+    	}
+    }
+    if(oldIscreen != tIscreen.FBStartAdress)
+    {
+    	GFX_SetFramesTopBottom(tIscreen.FBStartAdress, 0,480);
+    	if(oldIscreen)
+    	{
+    	 	releaseFrame(14,oldIscreen);
+    	}
+    }
 }
 
 
@@ -225,6 +242,12 @@ void exitInfo(void)
     set_globalState_tHome();
     releaseFrame(14,tIscreen.FBStartAdress);
     exitDebugMode();
+}
+
+void exitInfoToBack(void)
+{
+    releaseFrame(14,tIscreen.FBStartAdress);
+    exitMenuEdit_to_BackMenu();
 }
 
 

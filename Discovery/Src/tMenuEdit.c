@@ -33,6 +33,7 @@
 #include "gfx_fonts.h"
 #include "tHome.h"
 #include "tInfoCompass.h"
+#include "tInfoSensor.h"
 #include "tMenuEditHardware.h"
 #include "tMenuEditPlanner.h"
 #include "tMenuEditSystem.h"
@@ -205,9 +206,10 @@ void tMenuEdit_refresh_live_content(void)
 
 	 switch(globState)
 	 {
+	 	 case (StMHARD3_O2_Sensor1):
 	 	 case (StMHARD3_O2_Sensor1 & MaskFieldDigit):
 	 	 case (StMHARD3_O2_Calibrate):
-	 	 case (StMHARD3_O2_Source):						 refreshFct = refresh_O2Sensors;
+	 	 case (StMHARD3_O2_Source):							refreshFct = refresh_O2Sensors;
 	 	 	 break;
 	 	 case (StMHARD2_Compass_SetCourse & MaskFieldDigit): refreshFct = refresh_CompassEdit;
 	 	 	 break;
@@ -340,6 +342,12 @@ void exitMenuEdit_to_InfoCompassCalibration(void)
 {
     exitMenuEdit(1);
     openInfo_Compass();
+}
+
+void exitMenuEdit_to_InfoSensor(void)
+{
+    exitMenuEdit(1);
+    openInfo_Sensor();
 }
 
 
@@ -598,6 +606,11 @@ void enterMenuEditField(void)
         return;
     }
 
+    if(newContent == EXIT_TO_INFO_SENSOR)
+    {
+        exitMenuEdit_to_InfoSensor();
+        return;
+    }
 
     switch(ident[id].maintype)
     {

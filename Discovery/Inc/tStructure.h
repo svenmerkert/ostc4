@@ -58,20 +58,22 @@
 #define PageDive 2
 
 #define MaskLineFieldDigit 	_MB(7,15,0,0,0)
-#define MaskFieldDigit 			_MB(7,15,255,0,0)
-#define MaskAllButLine 			_MB(0,0,255,0,0)
-#define MaskLineDigit		 		_MB(7,15,0,255,0)
+#define MaskFieldDigit 		_MB(7,15,255,0,0)
+#define MaskAllButLine 		_MB(0,0,255,0,0)
+#define MaskLineDigit		_MB(7,15,0,255,0)
 #define InfoPageLogList 2
 #define InfoPageLogShow 3
 #define InfoPageCompass 6
+#define InfoPageSensor  8
 
-#define StI 				_MB(0,1,0,0,0)
-#define StILOGLIST	_MB(0,2,0,0,0)
-#define StILOGSHOW	_MB(0,3,0,0,0)
+#define StI 			_MB(0,1,0,0,0)
+#define StILOGLIST		_MB(0,2,0,0,0)
+#define StILOGSHOW		_MB(0,3,0,0,0)
 #define StIDIVE 		_MB(0,4,0,0,0)
 #define StISIM			_MB(0,5,0,0,0)
-#define StICOMPASS	_MB(0,6,0,0,0)
+#define StICOMPASS		_MB(0,6,0,0,0)
 #define StIDEBUG		_MB(0,7,0,0,0)
+#define StISENINFO		_MB(0,8,0,0,0)
 
 #define StI_GoToLogbook			_MB(0,1,1,0,0)
 #define StI_GoToPlanner			_MB(0,1,2,0,0)
@@ -264,11 +266,14 @@
 
 //#define StMHARD2_Exit						_MB(2,7,2,2,0)
 
+#define StMHARD3_Sensors			_MB(2,7,3,0,0)
 #define StMHARD3_O2_Sensor1			_MB(2,7,3,1,0)
 #define StMHARD3_O2_Sensor2			_MB(2,7,3,2,0)
 #define StMHARD3_O2_Sensor3			_MB(2,7,3,3,0)
 #define StMHARD3_O2_Calibrate		_MB(2,7,3,4,0)
 #define StMHARD3_O2_Source			_MB(2,7,3,5,0)
+#define StMHARD3_Sensor_Info		_MB(2,7,3,6,0)
+
 
 #define StMHARD4_BrightnessEco	_MB(2,7,4,1,0)
 #define StMHARD4_BrightnessStd	_MB(2,7,4,2,0)

@@ -37,6 +37,7 @@
 #include "tHome.h"
 #include "tInfo.h"
 #include "tInfoLog.h"
+#include "tInfoSensor.h"
 #include "tComm.h"
 #include "data_exchange_main.h"
 
@@ -62,6 +63,7 @@ uint8_t OnAction_Sensor2		(uint32_t editId, uint8_t blockNumber, uint8_t digitNu
 uint8_t OnAction_Sensor3		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_O2_Calibrate   (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_O2_Source		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+uint8_t OnAction_Sensor_Info	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Button			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_ButtonBalance	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 // not required uint8_t OnAction_Bluetooth				(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -73,6 +75,7 @@ uint8_t OnAction_ButtonBalance	(uint32_t editId, uint8_t blockNumber, uint8_t di
 #define O2_CALIB_FRACTION_O2	(0.98F)
 
 static uint8_t	O2_calib_gas = 21;
+static uint8_t haveSensorInfo = 0;
 
 void openEdit_Hardware(uint8_t line)
 {
@@ -89,7 +92,6 @@ void openEdit_Hardware(uint8_t line)
         openEdit_Compass();
     break;
     case 3:
-    	resetMenuEdit(CLUT_MenuPageHardware);
         openEdit_O2Sensors();
     break;
     case 4:
@@ -290,89 +292,123 @@ void refresh_O2Sensors(void)
 
     const SDiveState *pStateReal = stateRealGetPointer();
 
-    text[0] = '\001';
-    text[1] = TXT_o2Sensors;
-    text[2] = 0;
-    write_topline(text);
 
 
-    text[0] = TXT_2BYTE;
-    text[1] = TXT2BYTE_Sensor;
-    text[2] = ' ';
-    text[3] = '1';
-    text[4] = 0;
-    write_label_var(  96, 340, ME_Y_LINE1, &FontT48, text);
-    text[3] = '2';
-    write_label_var(  96, 340, ME_Y_LINE2, &FontT48, text);
-    text[3] = '3';
-    write_label_var(  96, 340, ME_Y_LINE3, &FontT48, text);
-
-    if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
-    {
-		text[0] = TXT_2BYTE;
-		text[1] = TXT2BYTE_HUDbattery;
-		text[2] = 0;
-		write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
-
-
-		snprintf(text, 20,"%01.3fV", get_HUD_battery_voltage_V());
-		write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
-    }
-    else
-    {
-    	text[0] = TXT_2BYTE;
-    	text[1] = TXT2BYTE_O2Calib;
-    	text[2] = 0;
-    	write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
-    	snprintf(text, 20,"%d%%", O2_calib_gas);
-    	write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
-    }
-
-	for(int i=0;i<3;i++)
+	if((pStateReal->lifeData.extIf_sensor_Id != 0) && (haveSensorInfo == 0)) /* the sensor is detected after the interface has been selected => add button if info become available */
 	{
-		snprintf(text, 20,"%01.2f, %01.1fmV",  pStateReal->lifeData.ppO2Sensor_bar[i], pStateReal->lifeData.sensorVoltage_mV[i]);
-		y_line = ME_Y_LINE1 + (i * ME_Y_LINE_STEP);
-		write_label_var(  400, 800, y_line, &FontT48, text);
+			if(get_globalState() == StMHARD3_O2_Source)
+			{
+				y_line = 5;
+			}
+			haveSensorInfo = 1;
+		    openEdit_O2Sensors();
+		    if(y_line == 5)
+		    {
+		    	tMenuEdit_select(StMHARD3_O2_Source);
+		    }
 	}
-
-    if(DataEX_external_ADC_Present())
-    {
-		text[0] = TXT_2BYTE;
-		text[1] = TXT2BYTE_O2Interface;
-		text[2] = 0;
-		write_label_var(  30, 340, ME_Y_LINE5, &FontT48, text);
-		text[0] = TXT_2BYTE;
-		switch(settingsGetPointer()->ppo2sensors_source)
+	else
+	{
+		if(pStateReal->lifeData.extIf_sensor_Id == 0)
 		{
-			default:
-			case O2_SENSOR_SOURCE_OPTIC: 	text[1] = TXT2BYTE_O2IFOptic;
-											text[2] = 0;
-				break;
-			case O2_SENSOR_SOURCE_ANALOG: 	text[1] = TXT2BYTE_O2IFAnalog;
-											text[2] = 0;
-				break;
-			case O2_SENSOR_SOURCE_DIGITAL: 	text[1] = TXT2BYTE_O2IFDigital;
-											text[2] = 0;
-				break;
-			case O2_SENSOR_SOURCE_ANADIG: 	text[1] = TXT2BYTE_O2IFAnalog;
-											text[2] = ' ';
-											text[3] = '+';
-											text[4] = ' ';
-											text[5] = TXT_2BYTE;
-											text[6] = TXT2BYTE_O2IFDigital;
-											text[7] = 0;
-				break;
-#ifdef ENABLE_SENTINEL_MODE
-			case O2_SENSOR_SOURCE_SENTINEL: snprintf(text, 10,"Sentinel");
-				break;
-#endif
+			haveSensorInfo = 0;
 		}
 
-		write_label_var(  400, 800, ME_Y_LINE5, &FontT48, text);
-    }
-    tMenuEdit_refresh_field(StMHARD3_O2_Sensor1);
-    tMenuEdit_refresh_field(StMHARD3_O2_Sensor2);
-    tMenuEdit_refresh_field(StMHARD3_O2_Sensor3);
+		text[0] = '\001';
+		text[1] = TXT_o2Sensors;
+		text[2] = 0;
+		write_topline(text);
+
+
+		text[0] = TXT_2BYTE;
+		text[1] = TXT2BYTE_Sensor;
+		text[2] = ' ';
+		text[3] = '1';
+		text[4] = 0;
+		write_label_var(  96, 340, ME_Y_LINE1, &FontT48, text);
+		text[3] = '2';
+		write_label_var(  96, 340, ME_Y_LINE2, &FontT48, text);
+		text[3] = '3';
+		write_label_var(  96, 340, ME_Y_LINE3, &FontT48, text);
+
+		if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
+		{
+			text[0] = TXT_2BYTE;
+			text[1] = TXT2BYTE_HUDbattery;
+			text[2] = 0;
+			write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
+
+
+			snprintf(text, 20,"%01.3fV", get_HUD_battery_voltage_V());
+			write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
+		}
+		else
+		{
+			if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
+			{
+				text[0] = TXT_2BYTE;
+				text[1] = TXT2BYTE_O2Calib;
+				text[2] = 0;
+				write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
+				snprintf(text, 20,"%d%%", O2_calib_gas);
+				write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
+			}
+		}
+
+		for(int i=0;i<3;i++)
+		{
+			snprintf(text, 20,"%01.2f, %01.1fmV",  pStateReal->lifeData.ppO2Sensor_bar[i], pStateReal->lifeData.sensorVoltage_mV[i]);
+			y_line = ME_Y_LINE1 + (i * ME_Y_LINE_STEP);
+			write_label_var(  400, 800, y_line, &FontT48, text);
+		}
+
+		if(DataEX_external_ADC_Present())
+		{
+			text[0] = TXT_2BYTE;
+			text[1] = TXT2BYTE_O2Interface;
+			text[2] = 0;
+			write_label_var(  30, 340, ME_Y_LINE5, &FontT48, text);
+			text[0] = TXT_2BYTE;
+			switch(settingsGetPointer()->ppo2sensors_source)
+			{
+				default:
+				case O2_SENSOR_SOURCE_OPTIC: 	text[1] = TXT2BYTE_O2IFOptic;
+												text[2] = 0;
+					break;
+				case O2_SENSOR_SOURCE_ANALOG: 	text[1] = TXT2BYTE_O2IFAnalog;
+												text[2] = 0;
+					break;
+				case O2_SENSOR_SOURCE_DIGITAL: 	text[1] = TXT2BYTE_O2IFDigital;
+												text[2] = 0;
+					break;
+				case O2_SENSOR_SOURCE_ANADIG: 	text[1] = TXT2BYTE_O2IFAnalog;
+												text[2] = ' ';
+												text[3] = '+';
+												text[4] = ' ';
+												text[5] = TXT_2BYTE;
+												text[6] = TXT2BYTE_O2IFDigital;
+												text[7] = 0;
+					break;
+	#ifdef ENABLE_SENTINEL_MODE
+				case O2_SENSOR_SOURCE_SENTINEL: snprintf(text, 10,"Sentinel");
+					break;
+	#endif
+			}
+			write_label_var(  400, 800, ME_Y_LINE5, &FontT48, text);
+
+			if(haveSensorInfo == 1)
+			{
+				text[0] = TXT_Sensor;
+				text[1] = ' ';
+				text[2] = TXT_Information;
+				text[3] = 0;
+				write_label_var(  30, 340, ME_Y_LINE6, &FontT48, text);
+			}
+		}
+		tMenuEdit_refresh_field(StMHARD3_O2_Sensor1);
+		tMenuEdit_refresh_field(StMHARD3_O2_Sensor2);
+		tMenuEdit_refresh_field(StMHARD3_O2_Sensor3);
+	}
 
     if(get_globalState() == StMHARD3_O2_Calibrate)
     {
@@ -389,6 +425,9 @@ void openEdit_O2Sensors(void)
 {
     uint8_t sensorActive[3];
 
+    set_globalState(StMHARD3_Sensors);
+	resetMenuEdit(CLUT_MenuPageHardware);
+
     sensorActive[0] = 1;
     sensorActive[1] = 1;
     sensorActive[2] = 1;
@@ -402,6 +441,11 @@ void openEdit_O2Sensors(void)
     write_field_on_off(StMHARD3_O2_Sensor1,	 30, 95, ME_Y_LINE1,  &FontT48, "", sensorActive[0]);
     write_field_on_off(StMHARD3_O2_Sensor2,	 30, 95, ME_Y_LINE2,  &FontT48, "", sensorActive[1]);
     write_field_on_off(StMHARD3_O2_Sensor3,	 30, 95, ME_Y_LINE3,  &FontT48, "", sensorActive[2]);
+
+    if(settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
+    {
+    	haveSensorInfo = 0;		/* as long as we do not move the HUD battery into the information page... */
+    }
 
     if((settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settingsGetPointer()->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
 #ifdef ENABLE_SENTINEL_MODE
@@ -418,6 +462,10 @@ void openEdit_O2Sensors(void)
     if(DataEX_external_ADC_Present())
     {
     	write_field_button(StMHARD3_O2_Source,	 30, 800, ME_Y_LINE5,  &FontT48, "");
+    	if(haveSensorInfo != 0)
+    	{
+    		write_field_button(StMHARD3_Sensor_Info,	 30, 800, ME_Y_LINE6,  &FontT48, "");
+    	}
     }
 
     setEvent(StMHARD3_O2_Sensor1, (uint32_t)OnAction_Sensor1);
@@ -435,6 +483,10 @@ void openEdit_O2Sensors(void)
     if(DataEX_external_ADC_Present())
     {
     	setEvent(StMHARD3_O2_Source, (uint32_t)OnAction_O2_Source);
+    	if(haveSensorInfo != 0)
+    	{
+    		setEvent(StMHARD3_Sensor_Info, (uint32_t)OnAction_Sensor_Info);
+    	}
     }
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
@@ -560,11 +612,16 @@ uint8_t OnAction_O2_Source	(uint32_t editId, uint8_t blockNumber, uint8_t digitN
 
     settingsGetPointer()->ppo2sensors_source = source;
 
-    resetMenuEdit(CLUT_MenuPageHardware); 	/* rebuild menu structure (Hide HUD <=> Show Calibrate) */
-    openEdit_O2Sensors();
+    openEdit_O2Sensors();					/* rebuild menu structure (Hide HUD <=> Show Calibrate) */
     tMenuEdit_select(StMHARD3_O2_Source);
     return UPDATE_DIVESETTINGS;
 }
+
+uint8_t OnAction_Sensor_Info(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	return EXIT_TO_INFO_SENSOR;
+}
+
 
 void openEdit_Brightness(void)
 {

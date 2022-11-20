@@ -32,22 +32,23 @@
 #include "tMenu.h"
 
 #define ME_Y_LINE1					(70)
-#define ME_Y_LINE_STEP			(65)
-#define ME_Y_LINE_BASE			(ME_Y_LINE1 - ME_Y_LINE_STEP)
+#define ME_Y_LINE_STEP				(65)
+#define ME_Y_LINE_BASE				(ME_Y_LINE1 - ME_Y_LINE_STEP)
 #define ME_Y_LINE2					(ME_Y_LINE1 + (1 * ME_Y_LINE_STEP))
 #define ME_Y_LINE3					(ME_Y_LINE1 + (2 * ME_Y_LINE_STEP))
 #define ME_Y_LINE4					(ME_Y_LINE1 + (3 * ME_Y_LINE_STEP))
 #define ME_Y_LINE5					(ME_Y_LINE1 + (4 * ME_Y_LINE_STEP))
 #define ME_Y_LINE6					(ME_Y_LINE1 + (5 * ME_Y_LINE_STEP))
 
+#define EXIT_TO_INFO_SENSOR 		(247)
 #define EXIT_TO_INFO_COMPASS 		(248)
-#define EXIT_TO_MENU_WITH_LOGO	(249)
-#define EXIT_TO_HOME 						(250)
-#define EXIT_TO_MENU 						(251)
+#define EXIT_TO_MENU_WITH_LOGO		(249)
+#define EXIT_TO_HOME 				(250)
+#define EXIT_TO_MENU 				(251)
 #define UPDATE_DIVESETTINGS 		(252)
-#define UPDATE_AND_EXIT_TO_HOME (253)
-#define UPDATE_AND_EXIT_TO_MENU (255)
-#define UNSPECIFIC_RETURN				(254)
+#define UPDATE_AND_EXIT_TO_HOME 	(253)
+#define UPDATE_AND_EXIT_TO_MENU 	(255)
+#define UNSPECIFIC_RETURN			(254)
 
 void sendActionToMenuEdit(uint8_t sendAction);
 
