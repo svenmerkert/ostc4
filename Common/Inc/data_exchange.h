@@ -52,6 +52,8 @@
 #define DATA_BUFFER_ADC				(0x01u)
 #define DATA_BUFFER_CO2				(0x02u)
 
+#define EXTIF_SENSOR_INFO_SIZE		(32u)		/* size of data array reserved for extended sensor data from external interface */
+
 enum MODE
 {
 	MODE_SURFACE	= 0,
@@ -132,6 +134,13 @@ typedef struct
 
 typedef struct
 {
+	int32_t temperature;
+	uint32_t status;
+	uint64_t sensorId;
+} SSensorDataDiveO2;
+
+typedef struct
+{
 		//pressure
 		float temperature;
 		float pressure_mbar;
@@ -174,7 +183,10 @@ typedef struct
 		uint16_t CO2_ppm;
 		uint16_t CO2_signalStrength;
 		uint16_t externalInterface_CmdAnswer;
-		uint8_t SPARE_OldWireless[44]; /* 64 - 12 for extADC - 6 for CO2 */
+		uint8_t	alignmentdummy;
+		uint8_t externalInterface_SensorID;						/* Used to identify how to read the sensor data array */
+		uint8_t sensor_data[EXTIF_SENSOR_INFO_SIZE];			/* sensor specific data array. Content may vary from sensor type to sensor type */
+		uint8_t SPARE_OldWireless[10]; 							/* 64 - 12 for extADC - 6 for CO2 - 34 for sensor (+dummmy)*/
 		// PIC data
 		uint8_t button_setting[4]; /* see dependency to SLiveData->buttonPICdata */
 		uint8_t SPARE1;

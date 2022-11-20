@@ -51,7 +51,7 @@
  	UART_O2_INIT = 0,
  	UART_O2_CHECK,			/* send blink command and check if sensor answers */
  	UART_O2_REQ_INFO,		/* request information about available internal sensors of sensor */
-	UART_O2_REQ_ID,		/* request ID of sensor */
+	UART_O2_REQ_ID,			/* request ID of sensor */
  	UART_O2_IDLE,			/* sensor detected and no communication pending */
  	UART_O2_REQ_O2,			/* O2 value has been requested and is in receiption progress */
  	UART_O2_ERROR			/* Error state which could not be resolved => only exit via de-/activation cycle */

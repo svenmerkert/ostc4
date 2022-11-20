@@ -38,12 +38,12 @@ static uint8_t rxReadIndex;						/* Index at which new data is stared */
 static uint8_t lastCmdIndex;					/* Index of last command which has not been completly received */
 static uint8_t dmaActive;						/* Indicator if DMA receiption needs to be started */
 
+static SSensorDataDiveO2 sensorDataDiveO2;		/* intermediate storage for additional sensor data */
+
 char tmpRxBuf[30];
 uint8_t tmpRxIdx = 0;
 
 static uartO2Status_t Comstatus_O2 = UART_O2_INIT;
-
-static uint32_t DigitalO2ID = 0;
 
 float LED_Level = 0.0;							/* Normalized LED value which may be used as indication for the health status of the sensor */
 float LED_ZeroOffset = 0.0;
@@ -400,7 +400,7 @@ void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
 	}
 }
 
-void StringToInt(char *pstr, uint32_t *pInt)
+void StringToInt(char *pstr, uint32_t *puInt32)
 {
 	uint8_t index = 0;
 	uint32_t result = 0;
@@ -410,7 +410,20 @@ void StringToInt(char *pstr, uint32_t *pInt)
 		result += pstr[index] - '0';
 		index++;
 	}
-	*pInt = result;
+	*puInt32 = result;
+}
+
+void StringToUInt64(char *pstr, uint64_t *puint64)
+{
+	uint8_t index = 0;
+	uint64_t result = 0;
+	while((pstr[index] >= '0') && (pstr[index] <= '9'))
+	{
+		result *=10;
+		result += pstr[index] - '0';
+		index++;
+	}
+	*puint64 = result;
 }
 
 void HandleUARTDigitalO2(void)
@@ -435,6 +448,9 @@ void HandleUARTDigitalO2(void)
 	if(Comstatus_O2 == UART_O2_INIT)
 	{
 		memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
+		memset((char*) &sensorDataDiveO2, 0, sizeof(sensorDataDiveO2));
+		externalInterface_SetSensorData(0,(uint8_t*)&sensorDataDiveO2);
+
 		lastAlive = 0;
 		curAlive = 0;
 
@@ -483,7 +499,8 @@ void HandleUARTDigitalO2(void)
 									memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
 									switch (Comstatus_O2)
 									{
-											case UART_O2_CHECK:	Comstatus_O2 = UART_O2_REQ_INFO;
+											case UART_O2_CHECK:	Comstatus_O2 = UART_O2_REQ_ID;
+																rxState = O2RX_CONFIRM;
 																DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
 																HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
 												break;
@@ -534,7 +551,8 @@ void HandleUARTDigitalO2(void)
 																		setExternalInterfaceChannel(0,(float)(tmpO2 / 10000.0));
 																		rxState = O2RX_GETTEMP;
 													break;
-												case O2RX_GETTEMP:		rxState = O2RX_GETSTATUS;
+												case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.temperature);
+																		rxState = O2RX_GETSTATUS;
 													break;
 												default:
 													break;
@@ -548,7 +566,8 @@ void HandleUARTDigitalO2(void)
 								{
 									switch (rxState)
 									{
-										case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&tmpData);
+										case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&sensorDataDiveO2.status);
+																	externalInterface_SetSensorData(1,(uint8_t*)&sensorDataDiveO2);
 																	Comstatus_O2 = UART_O2_IDLE;
 																	rxState = O2RX_IDLE;
 												break;
@@ -556,7 +575,7 @@ void HandleUARTDigitalO2(void)
 																	Comstatus_O2 = UART_O2_IDLE;
 																	rxState = O2RX_IDLE;
 												break;
-										case  O2RX_GETNR: 			StringToInt((char*)rxBuffer,&DigitalO2ID);
+										case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&sensorDataDiveO2.sensorId);
 											/* no break */
 										default:		Comstatus_O2 = UART_O2_IDLE;
 														rxState = O2RX_IDLE;

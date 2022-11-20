@@ -197,6 +197,9 @@ typedef struct
 	SDataWireless wireless_data[4];
 	uint8_t buttonPICdata[4];
 	SCO2Sensor CO2_data;
+	uint8_t extIf_sensor_Id;
+	uint8_t UINT64ALIGNMENT;					/* If your program crash check if you changed something in the life data structure ! The external sensor may contain a 64 bit ID */
+	uint8_t extIf_sensor_data[32];
 
 
 	/* by create DiveSettings() and by setActualGas()

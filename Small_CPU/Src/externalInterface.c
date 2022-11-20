@@ -24,6 +24,7 @@
 /* Includes ------------------------------------------------------------------*/
 
 #include <math.h>
+#include <string.h>
 #include "i2c.h"
 #include "externalInterface.h"
 #include "scheduler.h"
@@ -61,6 +62,9 @@ static uint8_t  externalUART_Protocol = 0;
 static uint16_t externalCO2Value;
 static uint16_t externalCO2SignalStrength;
 static uint16_t  externalCO2Status = 0;
+
+static uint8_t sensorDataId = 0;
+static SSensorDataDiveO2 sensorDataDiveO2;
 
 
 void externalInterface_Init(void)
@@ -251,6 +255,7 @@ void externalInterface_SwitchPower33(uint8_t state)
 }
 void externalInterface_SwitchADC(uint8_t state)
 {
+	uint8_t loop = 0;
 	if((state) && (externalInterfacePresent))
 	{
 		externalInterface_StartConversion(activeChannel);
@@ -259,6 +264,10 @@ void externalInterface_SwitchADC(uint8_t state)
 	else
 	{
 		externalADC_On = 0;
+		for(loop = 0; loop < MAX_ADC_CHANNEL; loop++)
+		{
+			externalChannel_mV[loop] = 0;
+		}
 	}
 }
 
@@ -266,6 +275,7 @@ void externalInterface_SwitchUART(uint8_t protocol)
 {
 	if(protocol < 0x08)
 	{
+		sensorDataId = 0;
 		externalUART_Protocol = protocol;
 		MX_USART1_UART_DeInit();
 		if( protocol != 0)
@@ -304,6 +314,33 @@ void externalInterface_SetCO2State(uint16_t state)
 uint16_t externalInterface_GetCO2State(void)
 {
 	return externalCO2Status;
+}
+
+
+uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct)
+{
+
+	if((pDataStruct != NULL) && sensorDataId != 0)
+	{
+		memcpy(pDataStruct, &sensorDataDiveO2, sizeof(sensorDataDiveO2));
+	}
+	return sensorDataId;
+}
+
+void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct)
+{
+	if(pDataStruct != NULL)
+	{
+		if(dataId != 0)
+		{
+			memcpy(&sensorDataDiveO2, pDataStruct, sizeof(sensorDataDiveO2));
+		}
+		else
+		{
+			memset(&sensorDataDiveO2,0,sizeof(sensorDataDiveO2));
+		}
+		sensorDataId = dataId;
+	}
 }
 
 void externalInterface_ExecuteCmd(uint16_t Cmd)

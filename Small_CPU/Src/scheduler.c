@@ -1733,6 +1733,7 @@ void copyExtADCdata()
 		value = getExternalInterfaceChannel(channel);
 		global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].extADC_voltage[channel] = value;
 	}
+	global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].externalInterface_SensorID = externalInterface_GetSensorData((uint8_t*)&global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_data);
 	global.dataSendToMaster.boolADCO2Data |= boolADCBuffer;
 }
 

@@ -54,6 +54,8 @@ uint16_t externalInterface_GetCO2Value(void);
 uint16_t externalInterface_GetCO2SignalStrength(void);
 void externalInterface_SetCO2State(uint16_t state);
 uint16_t externalInterface_GetCO2State(void);
+uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct);
+void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct);
 
 void externalInterface_ExecuteCmd(uint16_t Cmd);
 
