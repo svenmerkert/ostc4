@@ -308,7 +308,7 @@ static void openEdit_PSCR(void)
     write_label_var(  435, 710, ME_Y_LINE2, &FontT48, text);
     write_field_udigit(StMXTRA_PSCR_LUNG_RATIO, 710, 779, ME_Y_LINE2, &FontT48, "##", (uint32_t)localLungRatio, 0, 0, 0);
 
-    write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
+    write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 
     setEvent(StMXTRA_PSCR_O2_Drop,	(uint32_t)OnAction_PSCRO2Drop);
     setEvent(StMXTRA_PSCR_LUNG_RATIO,	(uint32_t)OnAction_PSCRLungRation);
