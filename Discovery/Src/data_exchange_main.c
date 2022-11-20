@@ -931,6 +931,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 	/* internal sensor: HUD data	 */
 	if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
 	{
+		pStateReal->lifeData.extIf_sensor_Id = 0;
 		for(int i=0;i<3;i++)
 		{
 			pStateReal->lifeData.ppO2Sensor_bar[i] = get_ppO2Sensor_bar(i);
@@ -961,7 +962,11 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 						pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] * pSettings->ppo2sensors_calibCoeff[idx];
 					}
 				}
-
+			}
+			pStateReal->lifeData.extIf_sensor_Id = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].externalInterface_SensorID;
+			if(pStateReal->lifeData.extIf_sensor_Id != 0)
+			{
+				memcpy(pStateReal->lifeData.extIf_sensor_data, dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_data, 32);
 			}
 		}
 	}
