@@ -153,6 +153,8 @@ void openEdit_DateTime(void)
     uint8_t day,month,year,hour,minute, dateFormat, ddmmyy, mmddyy, yymmdd;
     char text[32];
     SSettings *pSettings;
+    SFirmwareData *pFirmwareInfo;
+    pFirmwareInfo = firmwareDataGetPointer();
     const SDiveState * pStateReal = stateRealGetPointer();
 
     pSettings = settingsGetPointer();
@@ -164,8 +166,8 @@ void openEdit_DateTime(void)
     hour = Stime.Hours;
     minute= Stime.Minutes;
 
-    if(year < 16)
-        year = 16;
+    if(year < pFirmwareInfo->release_year)
+        year = pFirmwareInfo->release_year;
 
     if(month < 1)
         month = 1;
@@ -226,6 +228,8 @@ uint8_t OnAction_Date(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber,
     uint32_t newDay, newMonth, newYear;
     RTC_DateTypeDef sdatestructure;
 
+    SFirmwareData *pFirmwareInfo;
+    pFirmwareInfo = firmwareDataGetPointer();
 
     if(action == ACTION_BUTTON_ENTER)
     {
@@ -261,28 +265,26 @@ uint8_t OnAction_Date(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber,
         tMenuEdit_newInput(editId, newDay, newMonth, newYear, 0);
         return UNSPECIFIC_RETURN;
     }
-    if(action == ACTION_BUTTON_NEXT)
+    if(action == ACTION_BUTTON_NEXT)		/* clip values to a specific range e.g. 12 months */
     {
         digitContentNew = digitContent + 1;
         if((blockNumber == 0) && (digitContentNew > '0' + 31))
             digitContentNew = '1';
         if((blockNumber == 1) && (digitContentNew > '0' + 12))
             digitContentNew = '1';
-        // year range 2017-2018
-        if((blockNumber == 2) && (digitContentNew > '0' + 22))
-            digitContentNew = '0' + 18;
+        if((blockNumber == 2) && (digitContentNew > '0' + pFirmwareInfo->release_year + 10))
+            digitContentNew = '0' + pFirmwareInfo->release_year;
         return digitContentNew;
     }
-    if(action == ACTION_BUTTON_BACK)
+    if(action == ACTION_BUTTON_BACK)		/* clip values to a specific range e.g. 12 months */
     {
         digitContentNew = digitContent - 1;
         if((blockNumber == 0) && (digitContentNew < '1'))
             digitContentNew = '0' + 31;
         if((blockNumber == 1) && (digitContentNew < '1'))
             digitContentNew = '0' + 12;
-        // year range 2016-2018
-        if((blockNumber == 2) && (digitContentNew < '0' + 17))
-            digitContentNew = '0' + 18;
+        if((blockNumber == 2) && (digitContentNew < '0' + pFirmwareInfo->release_year))
+            digitContentNew = '0' + pFirmwareInfo->release_year + 10;
         return digitContentNew;
     }
 /*
