@@ -84,6 +84,8 @@ void refreshInfo_Sensor(GFX_DrawCfgScreen s)
     char text[31];
     uint8_t strIndex = 0;
 
+    float pressure = 0.0;
+
     text[0] = '\001';
 	text[1] = TXT_Sensor;
 	text[2] = ' ';
@@ -102,6 +104,21 @@ void refreshInfo_Sensor(GFX_DrawCfgScreen s)
     tInfo_write_content_simple(  30, 340, ME_Y_LINE1, &FontT48, text, CLUT_Font020);
     snprintf(text,32,"%c: %02.1f",TXT_Temperature , (float)pDiveO2Data->temperature / 1000.0);
     tInfo_write_content_simple(  30, 340, ME_Y_LINE2, &FontT48, text, CLUT_Font020);
+
+#ifdef ENABLE_EXTERNAL_PRESSURE
+    pressure = (float)(stateRealGetPointer()->lifeData.ppO2Sensor_bar[2]);
+#else
+    pressure = (float)pDiveO2Data->pressure / 1000.0;
+#endif
+    snprintf(text,32,"Druck: %02.1f (%02.1f)", (float)pDiveO2Data->pressure / 1000.0, pressure *1000.0);
+
+    tInfo_write_content_simple(  30, 340, ME_Y_LINE3, &FontT48, text, CLUT_Font020);
+    snprintf(text,32,"Feuchtigkeit: %02.1f", (float)pDiveO2Data->humidity / 1000.0);
+    tInfo_write_content_simple(  30, 340, ME_Y_LINE4, &FontT48, text, CLUT_Font020);
+    snprintf(text,32,"Status: 0x%lx", pDiveO2Data->status);
+    tInfo_write_content_simple(  30, 340, ME_Y_LINE5, &FontT48, text, CLUT_Font020);
+    snprintf(text,32,"Norm ppO2: %02.3f (%02.1f)", (float)(stateRealGetPointer()->lifeData.ppO2Sensor_bar[0] / (pressure / 1000.0)),(float)(stateRealGetPointer()->lifeData.ppO2Sensor_bar[0]));
+    tInfo_write_content_simple(  30, 340, ME_Y_LINE6, &FontT48, text, CLUT_Font020);
 }
 
 void sendActionToInfoSensor(uint8_t sendAction)

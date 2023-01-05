@@ -568,6 +568,13 @@ uint8_t OnAction_O2_Calibrate (uint32_t editId, uint8_t blockNumber, uint8_t dig
 				{
 					if(pStateReal->lifeData.sensorVoltage_mV[loop] > 0.0001)		/* sensor connected ?*/
 					{
+#ifdef ENABLE_EXTERNAL_PRESSURE
+						if(loop == 2)
+						{
+							compensatedRef = pStateReal->lifeData.pressure_ambient_bar;
+						}
+#endif
+
 						pSettings->ppo2sensors_calibCoeff[loop] =  compensatedRef / pStateReal->lifeData.sensorVoltage_mV[loop];
 					}
 					else
