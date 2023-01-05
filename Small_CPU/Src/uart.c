@@ -26,8 +26,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-#define CHUNK_SIZE			(20u)		/* the DMA will handle chunk size transfers */
-#define CHUNKS_PER_BUFFER	(3u)
+#define CHUNK_SIZE			(25u)		/* the DMA will handle chunk size transfers */
+#define CHUNKS_PER_BUFFER	(5u)
 UART_HandleTypeDef huart1;
 
 DMA_HandleTypeDef  hdma_usart1_rx;
@@ -389,7 +389,8 @@ void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
 			break;
 		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
 			break;
-
+		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
+			break;
 		default: *cmdLength = 0;
 			break;
 	}
@@ -472,7 +473,7 @@ void HandleUARTDigitalO2(void)
 		lastO2ReqTick = tick;
 		if(Comstatus_O2 == UART_O2_IDLE)				/* cyclic request of o2 value */
 		{
-			Comstatus_O2 = UART_O2_REQ_O2;
+			Comstatus_O2 = UART_O2_REQ_RAW;
 			rxState = O2RX_CONFIRM;
 		}
 		DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
@@ -508,6 +509,7 @@ void HandleUARTDigitalO2(void)
 												break;
 											case UART_O2_REQ_INFO: rxState = O2RX_GETTYPE;
 												break;
+											case UART_O2_REQ_RAW:
 											case UART_O2_REQ_O2:	rxState = O2RX_GETO2;
 												break;
 											default:	Comstatus_O2 = UART_O2_IDLE;
@@ -525,7 +527,13 @@ void HandleUARTDigitalO2(void)
 			case O2RX_GETCHANNEL:
 			case O2RX_GETSUBSENSORS:
 			case O2RX_GETO2:
-			case O2RX_GETNR:	if(rxBuffer[localRX] != 0x0D)
+			case O2RX_GETNR:
+			case O2RX_GETDPHI:
+			case O2RX_INTENSITY:
+			case O2RX_AMBIENTLIGHT:
+			case O2RX_PRESSURE:
+			case O2RX_HUMIDITY:
+								if(rxBuffer[localRX] != 0x0D)
 								{
 									if(rxBuffer[localRX] != ' ')
 									{
@@ -554,6 +562,21 @@ void HandleUARTDigitalO2(void)
 												case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.temperature);
 																		rxState = O2RX_GETSTATUS;
 													break;
+												case O2RX_GETSTATUS:	StringToInt(tmpRxBuf,&sensorDataDiveO2.status);				/* raw data cycle */
+																		rxState = O2RX_GETDPHI;
+													break;
+												case O2RX_GETDPHI:		/* ignored to save memory and most likly irrelevant for diver */
+																		rxState = O2RX_INTENSITY;
+																									break;
+												case O2RX_INTENSITY:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.intensity);				/* raw data cycle */
+																		rxState = O2RX_AMBIENTLIGHT;
+																									break;
+												case O2RX_AMBIENTLIGHT:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.ambient);				/* raw data cycle */
+																		rxState = O2RX_PRESSURE;
+																									break;
+												case O2RX_PRESSURE:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.pressure);					/* raw data cycle */
+																		rxState = O2RX_HUMIDITY;
+																									break;
 												default:
 													break;
 											}
@@ -575,6 +598,11 @@ void HandleUARTDigitalO2(void)
 																	Comstatus_O2 = UART_O2_IDLE;
 																	rxState = O2RX_IDLE;
 												break;
+										case O2RX_HUMIDITY:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.humidity);				/* raw data cycle */
+																	externalInterface_SetSensorData(1,(uint8_t*)&sensorDataDiveO2);
+																	Comstatus_O2 = UART_O2_IDLE;
+																	rxState = O2RX_IDLE;
+																							break;
 										case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&sensorDataDiveO2.sensorId);
 											/* no break */
 										default:		Comstatus_O2 = UART_O2_IDLE;

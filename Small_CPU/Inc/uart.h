@@ -54,6 +54,7 @@
 	UART_O2_REQ_ID,			/* request ID of sensor */
  	UART_O2_IDLE,			/* sensor detected and no communication pending */
  	UART_O2_REQ_O2,			/* O2 value has been requested and is in receiption progress */
+	UART_O2_REQ_RAW,		/* Request O2 and extended raw data */
  	UART_O2_ERROR			/* Error state which could not be resolved => only exit via de-/activation cycle */
  } uartO2Status_t;
 
@@ -69,7 +70,12 @@
 	O2RX_GETTYPE,			/* extract the sensor type (should be 8) */
 	O2RX_GETCHANNEL,		/* extract the number of sensor channels (should be 1) */
 	O2RX_GETVERSION,		/* extract the sensor version */
-	O2RX_GETSUBSENSORS		/* extract the available measures (O2, temperature, humidity etc) */
+	O2RX_GETSUBSENSORS,		/* extract the available measures (O2, temperature, humidity etc) */
+	O2RX_GETDPHI,			/* extract phase shift */
+	O2RX_INTENSITY,			/* extract intensity of signal */
+	O2RX_AMBIENTLIGHT,		/* extract the intensity of the ambient light */
+	O2RX_PRESSURE,			/* extract pressor within the sensor housing */
+	O2RX_HUMIDITY			/* extract humidity within the sensor housing */
   } uartO2RxState_t;
 
 void MX_USART1_UART_Init(void);
