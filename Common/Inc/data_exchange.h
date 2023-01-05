@@ -137,6 +137,10 @@ typedef struct
 	int32_t temperature;
 	uint32_t status;
 	uint64_t sensorId;
+	int32_t intensity;
+	int32_t ambient;
+	int32_t pressure;
+	int32_t humidity;
 } SSensorDataDiveO2;
 
 typedef struct
