@@ -799,7 +799,7 @@ void t3_refresh_customview(float depth)
 
 void t3_basics_refresh_apnoeRight(float depth, uint8_t tX_selection_customview, GFX_DrawCfgScreen *tXscreen, GFX_DrawCfgWindow* tXc1, GFX_DrawCfgWindow* tXc2, uint8_t mode)
 {
-    char text[512];
+    char text[30];
     uint16_t textpointer = 0;
 
     // CVIEW_T3_Temperature
@@ -908,7 +908,7 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
 {
 	static uint8_t last_customview = CVIEW_END;
 
-    char text[512];
+    char text[30];
     uint16_t textpointer = 0;
 
 	SSettings* pSettings;
@@ -1238,14 +1238,25 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
 
         if(tX_selection_customview == CVIEW_T3_DecoTTS)	/* add tts data on right side of screen */
         {
-            snprintf(text,TEXTSIZE,"\002\032\f%c",TXT_TTS);
-            GFX_write_string(&FontT42,tXc1,text,0);
             if(pDecoinfo->output_time_to_surface_seconds)
             {
-                if(pDecoinfo->output_time_to_surface_seconds < 100 * 60)
-                    snprintf(text,TEXTSIZE,"\020\003\002%i'",(pDecoinfo->output_time_to_surface_seconds + 59)/ 60);
-                else
-                    snprintf(text,TEXTSIZE,"\020\003\002%ih",(pDecoinfo->output_time_to_surface_seconds + 59)/ 3600);
+				snprintf(text,TEXTSIZE,"\002\032\f%c",TXT_TTS);
+				GFX_write_string(&FontT42,tXc1,text,0);
+				if(pDecoinfo->output_time_to_surface_seconds)
+				{
+					if(pDecoinfo->output_time_to_surface_seconds < 100 * 60)
+						snprintf(text,TEXTSIZE,"\020\003\002%i'",(pDecoinfo->output_time_to_surface_seconds + 59)/ 60);
+					else
+						snprintf(text,TEXTSIZE,"\020\003\002%ih",(pDecoinfo->output_time_to_surface_seconds + 59)/ 3600);
+					t3_basics_colorscheme_mod(text);
+					GFX_write_string(&FontT105,tXc1,text,0);
+				}
+            }
+            else if(pDecoinfo->super_saturation > 0.1)
+            {
+            	snprintf(text,TEXTSIZE,"\002\032\f%c",TXT_ActualGradient);
+				GFX_write_string(&FontT42,tXc1,text,0);
+                snprintf(text,TEXTSIZE,"\020\003\002%.0f\016\016%%\017",100 * pDecoinfo->super_saturation);
                 t3_basics_colorscheme_mod(text);
                 GFX_write_string(&FontT105,tXc1,text,0);
             }
