@@ -319,6 +319,9 @@ static void openEdit_PSCR(void)
 static void openEdit_CO2Sensor()
 {
     char text[32];
+
+    resetMenuEdit(CLUT_MenuPageXtra);
+
     snprintf(text,32,"\001%c",TXT_CO2Sensor);
     write_topline(text);
 

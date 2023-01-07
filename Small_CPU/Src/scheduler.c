@@ -516,7 +516,7 @@ void scheduleDiveMode(void)
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
 #ifdef ENABLE_CO2_SUPPORT
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_CO2)
 		{
 			HandleUARTCO2Data();
 		}
@@ -838,7 +838,7 @@ void scheduleSurfaceMode(void)
 		}
 
 #ifdef ENABLE_CO2_SUPPORT
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_CO2)
 		{
 			HandleUARTCO2Data();
 		}

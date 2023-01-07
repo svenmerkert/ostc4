@@ -148,7 +148,8 @@ void HandleUARTCO2Data(void)
 	static receiveState_t rxState = RX_Ready;
 	static uint32_t lastReceiveTick = 0;
 
-	while(localRX != rxWriteIndex)
+
+	while((rxBuffer[localRX]!=0))
 	{
 		lastReceiveTick = HAL_GetTick();
 		if(rxState == RX_Ready)		/* identify data content */
@@ -167,12 +168,20 @@ void HandleUARTCO2Data(void)
 					break;
 			}
 		}
-		else if((rxState >= RX_Data0) && (rxState <= RX_Data4))
+		else if((rxBuffer[localRX] >= '0') && (rxBuffer[localRX] <= '9'))
 		{
-			if((rxBuffer[localRX] >= '0') && (rxBuffer[localRX] <= '9'))
+			if((rxState >= RX_Data0) && (rxState <= RX_Data4))
 			{
 				dataValue = dataValue * 10 + (rxBuffer[localRX] - '0');
 				rxState++;
+				if(rxState == RX_Data5)
+				{
+					rxState = RX_DataComplete;
+				}
+			}
+			else	/* protocol error data has max 5 digits */
+			{
+				rxState = RX_Ready;
 			}
 		}
 		if((rxBuffer[localRX] == ' ') || (rxBuffer[localRX] == '\n'))	/* Abort data detection */
