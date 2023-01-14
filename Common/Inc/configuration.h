@@ -64,12 +64,15 @@
 #define ENABLE_PSCR_MODE
 
 /* Enable to have CO2 sensor functionality available */
-/* #define ENABLE_CO2_SUPPORT */
+#define ENABLE_CO2_SUPPORT
 
 /* Enable to have Sentinel rebreather interface available */
 /* #define ENABLE_SENTINEL_MODE */
 
 /* Enable if you are using sensors with a voltage range 8..16 mV at surface / air level */
 #define ENABLE_ALTERNATIVE_SENSORTYP
+
+/* Enable if an external pressure sensor is connected at ADC channel3 (used for sensor verification) */
+/* #define ENABLE_EXTERNAL_PRESSURE */
 
 #endif
