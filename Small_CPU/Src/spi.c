@@ -409,10 +409,13 @@ uint8_t SPI_Evaluate_RX_Data()
 				HAL_SPI_TransmitReceive_DMA(&hspi1,(uint8_t*) &(global.dataSendToMaster),(uint8_t*) &(global.dataSendToSlave), EXCHANGE_BUFFERSIZE);
 		}
 
-		global.dataSendToMaster.power_on_reset = 0;
-		global.deviceDataSendToMaster.power_on_reset = 0;
+		if(global.dataSendToSlaveIsValid)
+		{
+			global.dataSendToMaster.power_on_reset = 0;
+			global.deviceDataSendToMaster.power_on_reset = 0;
 
-		scheduleSpecial_Evaluate_DataSendToSlave();
+			scheduleSpecial_Evaluate_DataSendToSlave();
+		}
 
 		if(resettimeout)
 		{
