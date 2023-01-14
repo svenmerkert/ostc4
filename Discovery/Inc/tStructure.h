@@ -272,7 +272,8 @@
 #define StMHARD3_O2_Sensor3			_MB(2,7,3,3,0)
 #define StMHARD3_O2_Calibrate		_MB(2,7,3,4,0)
 #define StMHARD3_O2_Source			_MB(2,7,3,5,0)
-#define StMHARD3_Sensor_Info		_MB(2,7,3,6,0)
+//#define StMHARD3_Sensor_Info		_MB(2,7,3,6,0)
+#define StMHARD3_Sensor_Detect		_MB(2,7,3,6,0)
 
 
 #define StMHARD4_BrightnessEco	_MB(2,7,4,1,0)

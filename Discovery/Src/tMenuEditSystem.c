@@ -153,7 +153,7 @@ void openEdit_DateTime(void)
     uint8_t day,month,year,hour,minute, dateFormat, ddmmyy, mmddyy, yymmdd;
     char text[32];
     SSettings *pSettings;
-    SFirmwareData *pFirmwareInfo;
+    const SFirmwareData *pFirmwareInfo;
     pFirmwareInfo = firmwareDataGetPointer();
     const SDiveState * pStateReal = stateRealGetPointer();
 
@@ -228,7 +228,7 @@ uint8_t OnAction_Date(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber,
     uint32_t newDay, newMonth, newYear;
     RTC_DateTypeDef sdatestructure;
 
-    SFirmwareData *pFirmwareInfo;
+    const SFirmwareData *pFirmwareInfo;
     pFirmwareInfo = firmwareDataGetPointer();
 
     if(action == ACTION_BUTTON_ENTER)
