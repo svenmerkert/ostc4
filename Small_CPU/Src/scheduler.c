@@ -315,7 +315,7 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 
 	if(((global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_ADC_ON) != 0) != externalInterface_isEnabledADC())
 	{
-		externalInterface_SwitchADC(global.dataSendToSlave.data.externalInterface_Cmd && EXT_INTERFACE_ADC_ON);
+		externalInterface_SwitchADC(1-externalInterface_isEnabledADC());
 	}
 
 	if(((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F) != externalInterface_GetUARTProtocol())
@@ -323,6 +323,7 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 		externalInterface_SwitchUART((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F);
 	}
 
+	externalInface_SetSensorMap(global.dataSendToSlave.data.externalInterface_SensorMap);
 	if(global.dataSendToSlave.data.externalInterface_Cmd & 0x00FF)	/* lowest nibble for commands */
 	{
 		externalInterface_ExecuteCmd(global.dataSendToSlave.data.externalInterface_Cmd);
@@ -518,18 +519,18 @@ void scheduleDiveMode(void)
 #ifdef ENABLE_CO2_SUPPORT
 		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_CO2)
 		{
-			HandleUARTCO2Data();
+			UART_HandleCO2Data();
 		}
 #endif
 #ifdef ENABLE_SENTINEL_MODE
 		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
 		{
-			HandleUARTSentinelData();
+			UART_HandleSentinelData();
 		}
 #endif
 		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_O2)
 		{
-			HandleUARTDigitalO2();
+			UART_HandleDigitalO2();
 		}
 
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
@@ -838,21 +839,21 @@ void scheduleSurfaceMode(void)
 		}
 
 #ifdef ENABLE_CO2_SUPPORT
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_CO2)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_CO2 >> 8))
 		{
-			HandleUARTCO2Data();
+			UART_HandleCO2Data();
 		}
 #endif
 #ifdef ENABLE_SENTINEL_MODE
 		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
 		{
-			HandleUARTSentinelData();
+			UART_HandleSentinelData();
 		}
 #endif
 
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_O2)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_O2 >> 8))
 		{
-			HandleUARTDigitalO2();
+			UART_HandleDigitalO2();
 		}
 
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
@@ -1001,6 +1002,7 @@ void scheduleSurfaceMode(void)
 					}
 				}
 			}
+			externalInterface_AutodetectSensor();
 		}
 
 		if(ticksdiff >= 1000)
@@ -1734,6 +1736,7 @@ void copyExtADCdata()
 		global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].extADC_voltage[channel] = value;
 	}
 	global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].externalInterface_SensorID = externalInterface_GetSensorData((uint8_t*)&global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_data);
+	memcpy(global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_map,externalInterface_GetSensorMapPointer(),EXT_INTERFACE_SENSOR_CNT);
 	global.dataSendToMaster.boolADCO2Data |= boolADCBuffer;
 }
 

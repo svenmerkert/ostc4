@@ -33,10 +33,13 @@ UART_HandleTypeDef huart1;
 DMA_HandleTypeDef  hdma_usart1_rx;
 
 uint8_t rxBuffer[CHUNK_SIZE * CHUNKS_PER_BUFFER];		/* The complete buffer has a X * chunk size to allow fariations in buffer read time */
-static uint8_t rxWriteIndex;					/* Index of the data item which is analysed */
-static uint8_t rxReadIndex;						/* Index at which new data is stared */
-static uint8_t lastCmdIndex;					/* Index of last command which has not been completly received */
-static uint8_t dmaActive;						/* Indicator if DMA receiption needs to be started */
+static uint8_t rxWriteIndex;							/* Index of the data item which is analysed */
+static uint8_t rxReadIndex;								/* Index at which new data is stared */
+static uint8_t lastCmdIndex;							/* Index of last command which has not been completly received */
+static uint8_t dmaActive;								/* Indicator if DMA reception needs to be started */
+static uint8_t digO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
+static uint8_t CO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
+static uint8_t ppO2TargetChannel = 0;					/* The OSTC4 supports three slots for visualization of the ppo2. This one is reserved for the digital sensor */
 
 static SSensorDataDiveO2 sensorDataDiveO2;		/* intermediate storage for additional sensor data */
 
@@ -80,6 +83,8 @@ void MX_USART1_UART_Init(void)
   lastCmdIndex = 0;
   rxWriteIndex = 0;
   dmaActive = 0;
+  digO2Connected = 0;
+  CO2Connected = 0;
   Comstatus_O2 = UART_O2_INIT;
 }
 
@@ -115,6 +120,56 @@ void  MX_USART1_DMA_Init()
   HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);
 }
 
+
+void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
+{
+	switch (O2State)
+	{
+		case UART_O2_CHECK:		*cmdLength = snprintf((char*)cmdString, 10, "#LOGO");
+			break;
+		case UART_O2_REQ_INFO: 	*cmdLength = snprintf((char*)cmdString, 10, "#VERS");
+					break;
+		case UART_O2_REQ_ID: 	*cmdLength = snprintf((char*)cmdString, 10, "#IDNR");
+			break;
+		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
+			break;
+		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
+			break;
+		default: *cmdLength = 0;
+			break;
+	}
+	if(*cmdLength != 0)
+	{
+		cmdString[*cmdLength] = 0x0D;
+		*cmdLength = *cmdLength + 1;
+	}
+}
+
+void StringToInt(char *pstr, uint32_t *puInt32)
+{
+	uint8_t index = 0;
+	uint32_t result = 0;
+	while((pstr[index] >= '0') && (pstr[index] <= '9'))
+	{
+		result *=10;
+		result += pstr[index] - '0';
+		index++;
+	}
+	*puInt32 = result;
+}
+
+void StringToUInt64(char *pstr, uint64_t *puint64)
+{
+	uint8_t index = 0;
+	uint64_t result = 0;
+	while((pstr[index] >= '0') && (pstr[index] <= '9'))
+	{
+		result *=10;
+		result += pstr[index] - '0';
+		index++;
+	}
+	*puint64 = result;
+}
 void ConvertByteToHexString(uint8_t byte, char* str)
 {
 	uint8_t worker = 0;
@@ -140,7 +195,7 @@ void ConvertByteToHexString(uint8_t byte, char* str)
 
 
 #ifdef ENABLE_CO2_SUPPORT
-void HandleUARTCO2Data(void)
+void UART_HandleCO2Data(void)
 {
 	uint8_t localRX = rxReadIndex;
 	uint8_t dataType = 0;
@@ -177,6 +232,7 @@ void HandleUARTCO2Data(void)
 				if(rxState == RX_Data5)
 				{
 					rxState = RX_DataComplete;
+					CO2Connected = 1;
 				}
 			}
 			else	/* protocol error data has max 5 digits */
@@ -221,6 +277,7 @@ void HandleUARTCO2Data(void)
 	if(time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 2000)	/* check for communication timeout */
 	{
 		externalInterface_SetCO2State(0);
+		CO2Connected = 0;
 	}
 
 	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
@@ -234,7 +291,7 @@ void HandleUARTCO2Data(void)
 #endif
 
 #ifdef ENABLE_SENTINEL_MODE
-void HandleUARTSentinelData(void)
+void UART_HandleSentinelData(void)
 {
 	uint8_t localRX = rxReadIndex;
 	static uint8_t dataType = 0;
@@ -386,57 +443,9 @@ void HandleUARTSentinelData(void)
 }
 #endif
 
-void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
-{
-	switch (O2State)
-	{
-		case UART_O2_CHECK:		*cmdLength = snprintf((char*)cmdString, 10, "#LOGO");
-			break;
-		case UART_O2_REQ_INFO: 	*cmdLength = snprintf((char*)cmdString, 10, "#VERS");
-					break;
-		case UART_O2_REQ_ID: 	*cmdLength = snprintf((char*)cmdString, 10, "#IDNR");
-			break;
-		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
-			break;
-		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
-			break;
-		default: *cmdLength = 0;
-			break;
-	}
-	if(*cmdLength != 0)
-	{
-		cmdString[*cmdLength] = 0x0D;
-		*cmdLength = *cmdLength + 1;
-	}
-}
 
-void StringToInt(char *pstr, uint32_t *puInt32)
-{
-	uint8_t index = 0;
-	uint32_t result = 0;
-	while((pstr[index] >= '0') && (pstr[index] <= '9'))
-	{
-		result *=10;
-		result += pstr[index] - '0';
-		index++;
-	}
-	*puInt32 = result;
-}
 
-void StringToUInt64(char *pstr, uint64_t *puint64)
-{
-	uint8_t index = 0;
-	uint64_t result = 0;
-	while((pstr[index] >= '0') && (pstr[index] <= '9'))
-	{
-		result *=10;
-		result += pstr[index] - '0';
-		index++;
-	}
-	*puint64 = result;
-}
-
-void HandleUARTDigitalO2(void)
+void UART_HandleDigitalO2(void)
 {
 	static uint32_t lastO2ReqTick = 0;
 
@@ -505,6 +514,7 @@ void HandleUARTDigitalO2(void)
 								cmdReadIndex++;
 								if(cmdReadIndex == cmdLength - 1)
 								{
+									digO2Connected = 1;
 									tmpRxIdx = 0;
 									memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
 									switch (Comstatus_O2)
@@ -565,7 +575,7 @@ void HandleUARTDigitalO2(void)
 														break;
 
 												case O2RX_GETO2: 		StringToInt(tmpRxBuf,&tmpO2);
-																		setExternalInterfaceChannel(0,(float)(tmpO2 / 10000.0));
+																		setExternalInterfaceChannel(ppO2TargetChannel,(float)(tmpO2 / 10000.0));
 																		rxState = O2RX_GETTEMP;
 													break;
 												case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.temperature);
@@ -624,7 +634,7 @@ void HandleUARTDigitalO2(void)
 				break;
 
 		}
-
+		rxBuffer[localRX] = 0;
 		localRX++;
 		rxReadIndex++;
 		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
@@ -634,13 +644,12 @@ void HandleUARTDigitalO2(void)
 		}
 	}
 
-	if(time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
+	if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
 	{
+		digO2Connected = 0;
 		if(curAlive == lastAlive)
 		{
-			setExternalInterfaceChannel(0,0.0);
-			setExternalInterfaceChannel(1,0.0);
-			setExternalInterfaceChannel(2,0.0);
+			setExternalInterfaceChannel(ppO2TargetChannel,0.0);
 		}
 		lastAlive = curAlive;
 	}
@@ -654,6 +663,20 @@ void HandleUARTDigitalO2(void)
 	}
 }
 
+uint8_t UART_isDigO2Connected()
+{
+	return digO2Connected;
+}
+uint8_t UART_isCO2Connected()
+{
+	return CO2Connected;
+}
+
+
+void UART_setTargetChannel(uint8_t channel)
+{
+		ppO2TargetChannel = channel;
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -678,11 +701,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     	}
     }
 }
-
-
-
-
-
 
 
 

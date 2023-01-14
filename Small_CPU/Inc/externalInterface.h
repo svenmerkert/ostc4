@@ -34,6 +34,22 @@
 
 #define EXT33V_CONTROL_PIN				GPIO_PIN_7	/* PortC */
 
+#define MIN_ADC_VOLTAGE_MV	(5.0f)		/* miminal voltage to rate an ADC channel as active */
+
+
+ typedef enum
+ {
+    DETECTION_OFF = 0,		/* no detection requested */
+	DETECTION_INIT,			/* prepare external interface for operation if not already activated */
+	DETECTION_ANALOG,		/* check ADC channels for connected sensors */
+	DETECTION_DIGO2,		/* check UART channel for connected DigO2 sensor */
+	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
+	DETECTION_DONE
+ } externalInterfaceAutoDetect_t;
+
+
+
+
 void externalInterface_Init(void);
 void externalInterface_InitPower33(void);
 uint8_t externalInterface_StartConversion(uint8_t channel);
@@ -56,7 +72,9 @@ void externalInterface_SetCO2State(uint16_t state);
 uint16_t externalInterface_GetCO2State(void);
 uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct);
 void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct);
-
+void externalInface_SetSensorMap(uint8_t* pMap);
+uint8_t* externalInterface_GetSensorMapPointer(void);
+void externalInterface_AutodetectSensor(void);
 void externalInterface_ExecuteCmd(uint16_t Cmd);
 
 #endif /* EXTERNAL_INTERFACE_H */

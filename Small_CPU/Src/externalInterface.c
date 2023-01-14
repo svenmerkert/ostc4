@@ -65,6 +65,10 @@ static uint16_t  externalCO2Status = 0;
 
 static uint8_t sensorDataId = 0;
 static SSensorDataDiveO2 sensorDataDiveO2;
+static externalInterfaceAutoDetect_t externalAutoDetect = DETECTION_OFF;
+static externalInterfaceSensorType SensorMap[EXT_INTERFACE_SENSOR_CNT] ={ SENSOR_ANALOG, SENSOR_ANALOG, SENSOR_ANALOG, SENSOR_NONE, SENSOR_NONE};
+static externalInterfaceSensorType tmpSensorMap[EXT_INTERFACE_SENSOR_CNT];
+static externalInterfaceSensorType MasterSensorMap[EXT_INTERFACE_SENSOR_CNT];
 
 
 void externalInterface_Init(void)
@@ -84,6 +88,7 @@ void externalInterface_Init(void)
 	externalCO2Value = 0;
 	externalCO2SignalStrength = 0;
 	externalCO2Status = 0;
+	externalAutoDetect = DETECTION_OFF;
 }
 
 
@@ -105,26 +110,35 @@ uint8_t externalInterface_StartConversion(uint8_t channel)
 uint8_t externalInterface_ReadAndSwitch()
 {
 	uint8_t retval = EXTERNAL_ADC_NO_DATA;
+	uint8_t nextChannel;
+	uint8_t* psensorMap = externalInterface_GetSensorMapPointer();
 
-	if(externalInterfacePresent)
+	if(externalADC_On)
 	{
 		if(I2C_Master_Receive(DEVICE_EXTERNAL_ADC, recBuf, ADC_ANSWER_LENGTH) == HAL_OK)
 		{
 			if((recBuf[ANSWER_CONFBYTE_INDEX] & ADC_START_CONVERSION) == 0)		/* !ready set => received data contains new value */
 			{
 				retval = activeChannel;										/* return channel number providing new data */
-				activeChannel++;
-				if(activeChannel == MAX_ADC_CHANNEL)
+				nextChannel = activeChannel + 1;
+				if(nextChannel == MAX_ADC_CHANNEL)
 				{
-					if(externalUART_Protocol == (EXT_INTERFACE_UART_O2 >> 8))		/* mixed mode digital and analog o2 sensors => channel 0 is reserved for digital sensor */
+					nextChannel = 0;
+				}
+
+				while((psensorMap[nextChannel] != SENSOR_ANALOG) && (nextChannel != activeChannel))
+				{
+					if(nextChannel == MAX_ADC_CHANNEL)
 					{
-						activeChannel = 1;
+						nextChannel = 0;
 					}
 					else
 					{
-						activeChannel = 0;
+						nextChannel++;
 					}
 				}
+
+				activeChannel = nextChannel;
 				externalInterface_StartConversion(activeChannel);
 				timeoutCnt = 0;
 			}
@@ -258,30 +272,47 @@ void externalInterface_SwitchADC(uint8_t state)
 	uint8_t loop = 0;
 	if((state) && (externalInterfacePresent))
 	{
-		externalInterface_StartConversion(activeChannel);
-		externalADC_On = 1;
+		if(externalADC_On == 0)
+		{
+			activeChannel = 0;
+			externalInterface_StartConversion(activeChannel);
+			externalADC_On = 1;
+		}
 	}
 	else
 	{
-		externalADC_On = 0;
-		for(loop = 0; loop < MAX_ADC_CHANNEL; loop++)
+		if(externalAutoDetect == DETECTION_OFF)			/* block deactivation requests if auto detection is active */
 		{
-			externalChannel_mV[loop] = 0;
+			externalADC_On = 0;
+			for(loop = 0; loop < MAX_ADC_CHANNEL; loop++)
+			{
+				externalChannel_mV[loop] = 0;
+			}
 		}
 	}
 }
 
 void externalInterface_SwitchUART(uint8_t protocol)
 {
-	if(protocol < 0x08)
+	switch(protocol)
 	{
-		sensorDataId = 0;
-		externalUART_Protocol = protocol;
-		MX_USART1_UART_DeInit();
-		if( protocol != 0)
-		{
-			MX_USART1_UART_Init();
-		}
+		case 0:
+		case (EXT_INTERFACE_UART_CO2 >> 8):
+		case (EXT_INTERFACE_UART_O2 >> 8):
+				if((externalAutoDetect == DETECTION_OFF) || ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
+														 || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2)))
+				{
+					sensorDataId = 0;
+					externalUART_Protocol = protocol;
+					MX_USART1_UART_DeInit();
+					if( protocol != 0)
+					{
+						MX_USART1_UART_Init();
+					}
+				}
+			break;
+		default:
+			break;
 	}
 }
 
@@ -343,14 +374,145 @@ void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct)
 	}
 }
 
+void externalInface_SetSensorMap(uint8_t* pMap)
+{
+	if(pMap != NULL)
+	{
+		memcpy(MasterSensorMap, pMap, 5);		/* the map is not directly copied. Copy is done via cmd request */
+	}
+
+}
+uint8_t* externalInterface_GetSensorMapPointer()
+{
+	uint8_t* pret;
+
+	if(externalAutoDetect != DETECTION_OFF)
+	{
+		pret = tmpSensorMap;
+	}
+	else
+	{
+		pret = SensorMap;
+	}
+	return pret;
+}
+
+void externalInterface_AutodetectSensor()
+{
+	static uint8_t	sensorIndex = 0;
+	uint8_t index = 0;
+
+	if(externalAutoDetect != DETECTION_OFF)
+	{
+		switch(externalAutoDetect)
+		{
+			case DETECTION_INIT:	sensorIndex = 0;
+									tmpSensorMap[0] = SENSOR_ANALOG;
+									tmpSensorMap[1] = SENSOR_ANALOG;
+									tmpSensorMap[2] = SENSOR_ANALOG;
+									tmpSensorMap[3] = SENSOR_NONE;
+									tmpSensorMap[4] = SENSOR_NONE;
+
+									externalInterface_SwitchADC(1);
+									externalAutoDetect = DETECTION_ANALOG;
+				break;
+			case DETECTION_ANALOG:	for(index = 0; index < MAX_ADC_CHANNEL; index++)
+									{
+										if(externalChannel_mV[index] > MIN_ADC_VOLTAGE_MV)
+										{
+											tmpSensorMap[sensorIndex++] = SENSOR_ANALOG;
+										}
+										else
+										{
+											tmpSensorMap[sensorIndex++] = SENSOR_NONE;
+										}
+									}
+									externalAutoDetect = DETECTION_DIGO2;
+									externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+				break;
+			case DETECTION_DIGO2:	if(UART_isDigO2Connected())
+									{
+										for(index = 0; index < 3; index++)	/* lookup a channel which may be used by digO2 */
+										{
+											if(tmpSensorMap[index] == SENSOR_NONE)
+											{
+												break;
+											}
+										}
+										if(index == 3)
+										{
+											tmpSensorMap[2] = SENSOR_DIGO2;  /* digital sensor overwrites ADC */
+										}
+										else
+										{
+											tmpSensorMap[index] = SENSOR_DIGO2;
+										}
+
+										UART_setTargetChannel(index);
+										/* tmpSensorMap[sensorIndex++] = SENSOR_DIGO2; */
+									}
+									externalAutoDetect = DETECTION_CO2;
+									externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+				break;
+			case DETECTION_CO2:		if(UART_isCO2Connected())
+									{
+										for(index = 0; index < 3; index++)	/* lookup a channel which may be used by CO2*/
+										{
+											if(tmpSensorMap[index] == SENSOR_NONE)
+											{
+												break;
+											}
+										}
+										if(index == 3)
+										{
+											tmpSensorMap[sensorIndex++] = SENSOR_CO2;  /* place Co2 sensor behind O2 sensors (not visible) */
+										}
+										else
+										{
+											tmpSensorMap[index] = SENSOR_CO2;
+										}
+
+									}
+									externalAutoDetect = DETECTION_DONE;
+				break;
+			case DETECTION_DONE:	while(sensorIndex < 5)
+									{
+										tmpSensorMap[sensorIndex++] = SENSOR_NONE;
+									}
+									memcpy(SensorMap, tmpSensorMap, sizeof(tmpSensorMap));
+									externalAutoDetect = DETECTION_OFF;
+				break;
+			default:
+				break;
+		}
+	}
+}
+
+
 void externalInterface_ExecuteCmd(uint16_t Cmd)
 {
 	char cmdString[10];
 	uint8_t cmdLength = 0;
+	uint8_t index;
 
 	switch(Cmd & 0x00FF)		/* lower byte is reserved for commands */
 	{
+		case EXT_INTERFACE_AUTODETECT:	externalAutoDetect = DETECTION_INIT;
+			break;
 		case EXT_INTERFACE_CO2_CALIB:	cmdLength = snprintf(cmdString, 10, "G\r\n");
+			break;
+		case EXT_INTERFACE_COPY_SENSORMAP:	if(externalAutoDetect == DETECTION_OFF)
+											{
+												memcpy(SensorMap, MasterSensorMap, 5);
+												for(index = 0; index < 3; index++)
+												{
+													if(SensorMap[index] == SENSOR_DIGO2)
+													{
+														break;
+													}
+												}
+												UART_setTargetChannel(index); /* if no slot for digO2 is found then the function will be called with an invalid parameter causing the overwrite function to fail */
+											}
 			break;
 		default:
 			break;

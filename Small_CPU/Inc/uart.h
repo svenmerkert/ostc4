@@ -61,7 +61,7 @@
 
  typedef enum
   {
-	O2RX_IDLE = 0,			/* no receiption pending */
+	O2RX_IDLE = 0,			/* no reception pending */
 	O2RX_CONFIRM,			/* check the command echo */
 	O2RX_GETNR,				/* extract the sensor number */
 	O2RX_GETO2,				/* extract the ppo2 */
@@ -78,17 +78,25 @@
 	O2RX_HUMIDITY			/* extract humidity within the sensor housing */
   } uartO2RxState_t;
 
+
+
 void MX_USART1_UART_Init(void);
 void MX_USART1_UART_DeInit(void);
 void MX_USART1_DMA_Init(void);
 uint8_t UART_ButtonAdjust(uint8_t *array);
 #ifdef ENABLE_CO2_SUPPORT
-void HandleUARTCO2Data(void);
+void UART_HandleCO2Data(void);
 #endif
 #ifdef ENABLE_SENTINEL_MODE
-void HandleUARTSentinelData(void);
+void UART_HandleSentinelData(void);
 #endif
-void HandleUARTDigitalO2(void);
+void UART_HandleDigitalO2(void);
+
+uint8_t UART_isDigO2Connected();
+uint8_t UART_isCO2Connected();
+void UART_setTargetChannel(uint8_t channel);
+
+
 
 #ifdef __cplusplus
 }
