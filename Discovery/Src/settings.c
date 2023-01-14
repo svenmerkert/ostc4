@@ -40,8 +40,8 @@ static uint8_t settingsWarning = 0;		/* Active if setting values have been corre
 
 SSettings Settings;
 
-const uint8_t RTErequiredHigh = 2;
-const uint8_t RTErequiredLow = 9;
+const uint8_t RTErequiredHigh = 3;
+const uint8_t RTErequiredLow = 0;
 
 const uint8_t FONTrequiredHigh = 1;
 const uint8_t FONTrequiredLow =	0;
@@ -87,7 +87,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0023,
+    .header = 0xFFFF0024,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -325,6 +325,11 @@ const SSettings SettingsStandard = {
 	.scrubTimerMax_Obsolete = 0,
 	.scrubTimerCur_Obsolete = 0,
 	.scrubTimerMode = SCRUB_TIMER_OFF,
+	.ext_sensor_map[0] = SENSOR_ANALOG,
+	.ext_sensor_map[1] = SENSOR_ANALOG,
+	.ext_sensor_map[2] = SENSOR_ANALOG,
+	.ext_sensor_map[3] = SENSOR_NONE,
+	.ext_sensor_map[4] = SENSOR_NONE,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -517,6 +522,12 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->scrubberData[1].lastDive.Month = 0;
     	pSettings->scrubberData[1].lastDive.Date = 0;
     	pSettings->scrubberData[1].lastDive.Year = 0;
+    	// no break;
+    case 0xFFFF0023: pSettings->ext_sensor_map[0] = SENSOR_ANALOG;
+    				 pSettings->ext_sensor_map[1] = SENSOR_ANALOG;
+    				 pSettings->ext_sensor_map[2] = SENSOR_ANALOG;
+    				 pSettings->ext_sensor_map[3] = SENSOR_NONE;
+    				 pSettings->ext_sensor_map[4] = SENSOR_NONE;
     	// no break;
     default:
         pSettings->header = pStandard->header;
@@ -1521,6 +1532,19 @@ uint8_t check_and_correct_settings(void)
     {
     	Settings.ext_uart_protocol = 0;
     	corrections++;
+    }
+    if((Settings.ext_sensor_map[0] >= SENSOR_END)
+    		|| (Settings.ext_sensor_map[1] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[2] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[3] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[4] >= SENSOR_END))
+    {
+    	Settings.ext_sensor_map[0] = SENSOR_ANALOG;
+    	Settings.ext_sensor_map[1] = SENSOR_ANALOG;
+    	Settings.ext_sensor_map[2] = SENSOR_ANALOG;
+    	Settings.ext_sensor_map[3] = SENSOR_NONE;
+    	Settings.ext_sensor_map[4] = SENSOR_NONE;
+       	corrections++;
     }
 
     if(corrections)

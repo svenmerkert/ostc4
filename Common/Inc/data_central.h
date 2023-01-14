@@ -40,6 +40,9 @@
 #define false  0
 #define true 1
 
+#define EXT_INTERFACE_SENSOR_CNT	(5u)		/* 5 sensors may be connected to the external interface */
+
+
 /* Helper structs ------------------------------------------------------------*/
 
 //struct SGas
@@ -200,7 +203,7 @@ typedef struct
 	uint8_t extIf_sensor_Id;
 	uint8_t UINT64ALIGNMENT;					/* If your program crash check if you changed something in the life data structure ! The external sensor may contain a 64 bit ID */
 	uint8_t extIf_sensor_data[32];
-
+	uint8_t extIf_sensor_map[EXT_INTERFACE_SENSOR_CNT];
 
 	/* by create DiveSettings() and by setActualGas()
 	 * is send to Small CPU2 for nitrogen calculation
@@ -417,6 +420,16 @@ enum DECO_LOCK{
 		DECO_CALC_init_as_is_start_of_dive,
 		DECO_CALC_undefined
 };
+
+typedef enum
+{
+	 SENSOR_NONE,
+	 SENSOR_ANALOG,
+	 SENSOR_DIGO2,
+	 SENSOR_CO2,
+	 SENSOR_END
+} externalInterfaceSensorType;
+
 
 uint32_t time_elapsed_ms(uint32_t ticksstart,uint32_t ticksnow);
 

@@ -43,11 +43,11 @@
 #define EXT_INTERFACE_UART_SENTINEL (0x0200u)	/* Activate Sentinel Backup monitor protocol */
 #define EXT_INTERFACE_UART_O2		(0x0400u)	/* Activate digital o2 sensor protocol (DiveO2) */
 
-/* Command subset for CO2 sensor */
-#define EXT_INTERFACE_CO2_CALIB 	(0x0001u)	/* Request calibration of CO2Sensor */
-
-/* Command subset for O2 sensor */
-#define EXT_INTERFACE_O2_INDICATE	(0x0001u)	/* Request LED to blink*/
+/* Command subset */
+#define EXT_INTERFACE_AUTODETECT 	(0x0001u)	/* Start auto detection of connected sensors	*/
+#define EXT_INTERFACE_COPY_SENSORMAP (0x0002u)	/* Use the sensor map provided by master for internal operations */
+#define EXT_INTERFACE_CO2_CALIB 	(0x0010u)	/* Request calibration of CO2Sensor */
+#define EXT_INTERFACE_O2_INDICATE	(0x0020u)	/* Request LED to blink*/
 
 #define DATA_BUFFER_ADC				(0x01u)
 #define DATA_BUFFER_CO2				(0x02u)
@@ -60,18 +60,18 @@ enum MODE
 	MODE_DIVE 		= 1,
 	MODE_CALIB 		= 2,
 	MODE_SLEEP 		= 3,
-	MODE_SHUTDOWN = 4,
+	MODE_SHUTDOWN   = 4,
 	MODE_ENDDIVE	= 5,
-	MODE_BOOT			= 6,
+	MODE_BOOT		= 6,
 	MODE_CHARGESTART = 7,
-	MODE_TEST			= 8,
+	MODE_TEST		= 8,
 	MODE_POWERUP 	= 9,
 };
 
 enum ACCIDENT_BITS
 {
-	ACCIDENT_DECOSTOP = 0x01,
-	ACCIDENT_CNS			= 0x02,
+	ACCIDENT_DECOSTOP 	= 0x01,
+	ACCIDENT_CNS		= 0x02,
 	ACCIDENT_CNSLVL2	= 0x02 + 0x04,
 	ACCIDENT_SPARE2		= 0x08,
 	ACCIDENT_SPARE3		= 0x10,
@@ -79,6 +79,7 @@ enum ACCIDENT_BITS
 	ACCIDENT_SPARE5		= 0x40,
 	ACCIDENT_SPARE6		= 0x80
 };
+
 
 typedef struct{
 uint8_t button:1;
@@ -190,7 +191,8 @@ typedef struct
 		uint8_t	alignmentdummy;
 		uint8_t externalInterface_SensorID;						/* Used to identify how to read the sensor data array */
 		uint8_t sensor_data[EXTIF_SENSOR_INFO_SIZE];			/* sensor specific data array. Content may vary from sensor type to sensor type */
-		uint8_t SPARE_OldWireless[10]; 							/* 64 - 12 for extADC - 6 for CO2 - 34 for sensor (+dummmy)*/
+		uint8_t sensor_map[EXT_INTERFACE_SENSOR_CNT];
+		uint8_t SPARE_OldWireless[5]; 							/* 64 - 12 for extADC - 6 for CO2 - 34 for sensor (+dummmy) - sensor map*/
 		// PIC data
 		uint8_t button_setting[4]; /* see dependency to SLiveData->buttonPICdata */
 		uint8_t SPARE1;
@@ -209,6 +211,8 @@ typedef struct
 		int8_t offsetTemperatureSensor_centiDegree;
 
 		uint16_t externalInterface_Cmd;
+
+		uint8_t externalInterface_SensorMap[EXT_INTERFACE_SENSOR_CNT];
 
 		float UNUSED1[16-1];//VPM_adjusted_critical_radius_he[16];
 		float UNUSED2[16];//VPM_adjusted_critical_radius_n2[16];

@@ -373,6 +373,10 @@ void DateEx_copy_to_dataOut(void)
 	const SDiveState * pStateReal = stateRealGetPointer();
 	SSettings *settings = settingsGetPointer();
 
+	uint8_t SensorActive[SENSOR_END];
+	uint8_t index = 0;
+
+
 	if(get_globalState() == StStop)
 		dataOut.mode = MODE_SHUTDOWN;
 	else
@@ -392,15 +396,35 @@ void DateEx_copy_to_dataOut(void)
 	dataOut.data.offsetTemperatureSensor_centiDegree = settings->offsetTemperature_centigrad;
 
 
+	memcpy(dataOut.data.externalInterface_SensorMap, settings->ext_sensor_map, 5);
 
-	if((settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
+	memset(SensorActive, 0, sizeof(SensorActive));
+	for (index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
 	{
-			externalInterface_Cmd |= EXT_INTERFACE_ADC_ON | EXT_INTERFACE_33V_ON;
+		switch(settings->ext_sensor_map[index])
+		{
+			case SENSOR_ANALOG:	SensorActive[SENSOR_ANALOG] = 1;
+				break;
+			case SENSOR_DIGO2:	SensorActive[SENSOR_DIGO2] = 1;
+				break;
+			case SENSOR_CO2:	SensorActive[SENSOR_CO2] = 1;
+				break;
+			default:
+				break;
+		}
 	}
 
-	if((settings->ppo2sensors_source == O2_SENSOR_SOURCE_DIGITAL) || (settings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
+	if(SensorActive[SENSOR_ANALOG])
 	{
-			externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_O2;
+		externalInterface_Cmd |= EXT_INTERFACE_ADC_ON | EXT_INTERFACE_33V_ON;
+	}
+	if(SensorActive[SENSOR_DIGO2])
+	{
+		externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_O2;
+	}
+	else if(SensorActive[SENSOR_CO2])		/* TODO: at the moment only one serial sensor is supported => else condition. to be changed once multiplexing is available */
+	{
+		externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_CO2;		/* CO2 sensor has to be activated via auto detection */
 	}
 
 #ifdef ENABLE_SENTINEL_MODE
@@ -411,14 +435,6 @@ void DateEx_copy_to_dataOut(void)
 	}
 #endif
 
-	if(settings->ext_uart_protocol)
-	{
-		externalInterface_Cmd |= (settings->ext_uart_protocol << 8);
-	}
-	if(settings->co2_sensor_active)
-	{
-		externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_CO2;
-	}
 	dataOut.data.externalInterface_Cmd = externalInterface_Cmd;
 	externalInterface_Cmd = 0;
 
@@ -452,6 +468,7 @@ void DateEx_copy_to_dataOut(void)
 		
 		settingsHelperButtonSens_keepPercentageValues(settingsGetPointerStandard()->ButtonResponsiveness[3], settings->ButtonResponsiveness);
 		setButtonResponsiveness(settings->ButtonResponsiveness);
+		DataEX_setExtInterface_Cmd(EXT_INTERFACE_COPY_SENSORMAP);
 	}
 }
 
@@ -953,7 +970,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 				}
 				else
 				{
-					if((idx == 0) && ((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_DIGITAL) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)))
+					if(dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_map[idx] == SENSOR_DIGO2)
 					{
 						pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] / 100.0;
 					}
@@ -968,6 +985,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 			{
 				memcpy(pStateReal->lifeData.extIf_sensor_data, dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_data, 32);
 			}
+			memcpy(pStateReal->lifeData.extIf_sensor_map, dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_map, EXT_INTERFACE_SENSOR_CNT);
 		}
 	}
 
