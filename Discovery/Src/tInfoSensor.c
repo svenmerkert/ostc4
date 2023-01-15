@@ -117,8 +117,10 @@ void refreshInfo_Sensor(GFX_DrawCfgScreen s)
     tInfo_write_content_simple(  30, 340, ME_Y_LINE4, &FontT48, text, CLUT_Font020);
     snprintf(text,32,"Status: 0x%lx", pDiveO2Data->status);
     tInfo_write_content_simple(  30, 340, ME_Y_LINE5, &FontT48, text, CLUT_Font020);
+#ifdef ENABLE_EXTERNAL_PRESSURE
     snprintf(text,32,"Norm ppO2: %02.3f (%02.1f)", (float)(stateRealGetPointer()->lifeData.ppO2Sensor_bar[0] / (pressure / 1000.0)),(float)(stateRealGetPointer()->lifeData.ppO2Sensor_bar[0]));
     tInfo_write_content_simple(  30, 340, ME_Y_LINE6, &FontT48, text, CLUT_Font020);
+#endif
 }
 
 void sendActionToInfoSensor(uint8_t sendAction)
