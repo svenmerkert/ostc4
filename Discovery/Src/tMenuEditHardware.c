@@ -62,7 +62,7 @@ uint8_t OnAction_Sensor1		(uint32_t editId, uint8_t blockNumber, uint8_t digitNu
 uint8_t OnAction_Sensor2		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Sensor3		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_O2_Calibrate   (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
-uint8_t OnAction_O2_Source		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+//uint8_t OnAction_O2_Source		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Sensor_Info	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Sensor_Detect	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Button			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -288,70 +288,129 @@ uint8_t OnAction_ExitHardw (uint32_t editId, uint8_t blockNumber, uint8_t digitN
 
 void refresh_O2Sensors(void)
 {
-	static uint8_t stableMapCntDown = 10;
-    char text[32];
+    char strSensorId[20];
+    char strSensorValue[20];
     uint16_t y_line;
     uint8_t index = 0;
 
     const SDiveState *pStateReal = stateRealGetPointer();
     SSettings *pSettings = settingsGetPointer();
 
- //   if((pSettings->ppo2sensors_source != O2_SENSOR_SOURCE_OPTIC))
-    {
-		if(memcmp(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5) != 0)
+	if(memcmp(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5) != 0)
+	{
+		memcpy(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5);
+		pSettings->ppo2sensors_deactivated = 0x0;	/* deactivation will be done by openEditO2Sensor if need */
+
+		pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_OPTIC;
+		for(index = 0; index < 3; index++)
 		{
-			if(stableMapCntDown == 0)
-			{
-				stableMapCntDown = 10;
-				memcpy(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5);
-				pSettings->ppo2sensors_deactivated = 0x0;	/* deactivation will be done by openEditO2Sensor if need */
-				openEdit_O2Sensors();
-			}
-			else
-			{
-				stableMapCntDown--;
-			}
+				switch(pSettings->ext_sensor_map[index])
+				{
+					case SENSOR_OPTIC:	pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_OPTIC;
+									break;
+					case SENSOR_ANALOG:	if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_DIGITAL)
+										{
+											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_ANADIG;
+										}
+										if(pSettings->ppo2sensors_source != O2_SENSOR_SOURCE_ANADIG)
+										{
+											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_ANALOG;
+										}
+									break;
+					case SENSOR_DIGO2:	if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+										{
+											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_ANADIG;
+										}
+										if(pSettings->ppo2sensors_source != O2_SENSOR_SOURCE_ANADIG)
+										{
+											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_DIGITAL;
+										}
+									break;
+					default:
+									break;
+				}
 		}
-    }
-#if 0 /*TODO: reactivate sensor information dialog */
+		openEdit_O2Sensors();
+	}
+
 	if((pStateReal->lifeData.extIf_sensor_Id != 0) && (haveSensorInfo == 0)) /* the sensor is detected after the interface has been selected => add button if info become available */
 	{
+#if 0
 			if(get_globalState() == StMHARD3_O2_Source)
 			{
 				y_line = 5;
 			}
+#endif
 			haveSensorInfo = 1;
 		    openEdit_O2Sensors();
+#if 0
 		    if(y_line == 5)
 		    {
 		    	tMenuEdit_select(StMHARD3_O2_Source);
 		    }
+#endif
 	}
 	else
-#endif
 	{
 		if(pStateReal->lifeData.extIf_sensor_Id == 0)
 		{
 			haveSensorInfo = 0;
 		}
 
-		text[0] = '\001';
-		text[1] = TXT_o2Sensors;
-		text[2] = 0;
-		write_topline(text);
+		strSensorId[0] = '\001';
+		strSensorId[1] = TXT_o2Sensors;
+		strSensorId[2] = 0;
+		write_topline(strSensorId);
 
 
-		text[0] = TXT_2BYTE;
-		text[1] = TXT2BYTE_Sensor;
-		text[2] = ' ';
-		text[3] = '1';
-		text[4] = 0;
-
+		strSensorId[0] = TXT_2BYTE;
+		strSensorId[1] = TXT2BYTE_Sensor;
+		strSensorId[2] = ' ';
+		strSensorId[3] = TXT_2BYTE;
+		strSensorId[4] = 'X';
+		strSensorId[5] = '1';
+		strSensorId[6] = 0;
 
 		for(index = 0; index < 3; index++)
 		{
-			text[3] = '1' + index;
-			if((pSettings->ext_sensor_map[index] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[index] == SENSOR_DIGO2))
+			strSensorId[4] = 'X';
+			strSensorId[5] = '1' + index;
+
+			switch(pSettings->ext_sensor_map[index])
+			{
+				case SENSOR_OPTIC:	strSensorId[4] = TXT2BYTE_O2IFOptic;
+								break;
+				case SENSOR_ANALOG:	strSensorId[4] = TXT2BYTE_O2IFAnalog;
+								break;
+				case SENSOR_DIGO2: strSensorId[4] = TXT2BYTE_O2IFDigital;
+								break;
+				case SENSOR_CO2: strSensorId[3] = 'C';
+								 strSensorId[4] = 'O';
+								break;
+				default:
+					break;
+			}
+			if(strSensorId[4] != 'X')
+			{
+				write_label_var(  96, 340, ME_Y_LINE1 + (index * ME_Y_LINE_STEP), &FontT48, strSensorId);
+			}
+			strSensorValue[0] = 0;
+			if((pSettings->ext_sensor_map[index] >= SENSOR_OPTIC) && (pSettings->ext_sensor_map[index] <= SENSOR_DIGO2))
+			{
+				snprintf(strSensorValue, 20,"%01.2f, %01.1f mV",  pStateReal->lifeData.ppO2Sensor_bar[index], pStateReal->lifeData.sensorVoltage_mV[index]);
+			}
+			else if(pSettings->ext_sensor_map[index] == SENSOR_CO2)
+			{
+				snprintf(strSensorValue, 10,"%d ppm",  pStateReal->lifeData.CO2_data.CO2_ppm);
+			}
+			y_line = ME_Y_LINE1 + (index * ME_Y_LINE_STEP);
+			if(strSensorValue[0] != 0)
+			{
+				write_label_var(  480, 800, y_line, &FontT48, strSensorValue);
+			}
+
+#if 0
+			if(((pSettings->ext_sensor_map[index] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[index] > SENSOR_DIGO2)))
 			{
 				write_label_var(  96, 340, ME_Y_LINE1 + (index * ME_Y_LINE_STEP), &FontT48, text);
 			}
@@ -359,103 +418,94 @@ void refresh_O2Sensors(void)
 			{
 				write_label_var(  96, 340, ME_Y_LINE1 + (index * ME_Y_LINE_STEP), &FontT48, "CO2");
 			}
+#endif
 		}
+
+
+
 
 		if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
 		{
-			text[0] = TXT_2BYTE;
-			text[1] = TXT2BYTE_HUDbattery;
-			text[2] = 0;
-			write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
+			strSensorId[0] = TXT_2BYTE;
+			strSensorId[1] = TXT2BYTE_HUDbattery;
+			strSensorId[2] = 0;
+			write_label_var(  30, 340, ME_Y_LINE4, &FontT48, strSensorId);
 
-			snprintf(text, 20,"%01.3fV", get_HUD_battery_voltage_V());
-			write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
+			snprintf(strSensorId, 20,"%01.3fV", get_HUD_battery_voltage_V());
+			write_label_var(  480, 800, ME_Y_LINE4, &FontT48, strSensorId);
 		}
 		else
 		{
 			if((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG))
 			{
-				text[0] = TXT_2BYTE;
-				text[1] = TXT2BYTE_O2Calib;
-				text[2] = 0;
-				write_label_var(  30, 340, ME_Y_LINE4, &FontT48, text);
-				snprintf(text, 20,"%d%%", O2_calib_gas);
-				write_label_var(  400, 800, ME_Y_LINE4, &FontT48, text);
+				strSensorId[0] = TXT_2BYTE;
+				strSensorId[1] = TXT2BYTE_O2Calib;
+				strSensorId[2] = 0;
+				write_label_var(  30, 340, ME_Y_LINE4, &FontT48, strSensorId);
+				snprintf(strSensorId, 20,"%d%%", O2_calib_gas);
+				write_label_var(  480, 800, ME_Y_LINE4, &FontT48, strSensorId);
 			}
 		}
 
-		for(int i=0;i<3;i++)
-		{
-			text[0] = 0;
-			if((pSettings->ext_sensor_map[i] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[i] == SENSOR_DIGO2))
-			{
-				snprintf(text, 20,"%01.2f, %01.1fmV",  pStateReal->lifeData.ppO2Sensor_bar[i], pStateReal->lifeData.sensorVoltage_mV[i]);
-			}
-			else if(pSettings->ext_sensor_map[i] == SENSOR_CO2)
-			{
-				snprintf(text, 20,"%d ppm",  pStateReal->lifeData.CO2_data.CO2_ppm);
-			}
-			y_line = ME_Y_LINE1 + (i * ME_Y_LINE_STEP);
-			if(text[0] != 0)
-			{
-				write_label_var(  400, 800, y_line, &FontT48, text);
-			}
-		}
+		write_label_var(  30, 340, ME_Y_LINE6, &FontT48, "Autodetect");
 
+#if 0
 		if(DataEX_external_ADC_Present())
 		{
-			text[0] = TXT_2BYTE;
-			text[1] = TXT2BYTE_O2Interface;
-			text[2] = 0;
-			write_label_var(  30, 340, ME_Y_LINE5, &FontT48, text);
-			text[0] = TXT_2BYTE;
+			strSensorId[0] = TXT_2BYTE;
+			strSensorId[1] = TXT2BYTE_O2Interface;
+			strSensorId[2] = 0;
+			write_label_var(  30, 340, ME_Y_LINE5, &FontT48, strSensorId);
+			strSensorId[0] = TXT_2BYTE;
 			switch(pSettings->ppo2sensors_source)
 			{
 				default:
-				case O2_SENSOR_SOURCE_OPTIC: 	text[1] = TXT2BYTE_O2IFOptic;
-												text[2] = 0;
+				case O2_SENSOR_SOURCE_OPTIC: 	strSensorId[1] = TXT2BYTE_O2IFOptic;
+				strSensorId[2] = 0;
 					break;
-				case O2_SENSOR_SOURCE_ANALOG: 	text[1] = TXT2BYTE_O2IFAnalog;
-												text[2] = 0;
+				case O2_SENSOR_SOURCE_ANALOG: 	strSensorId[1] = TXT2BYTE_O2IFAnalog;
+				strSensorId[2] = 0;
 					break;
-				case O2_SENSOR_SOURCE_DIGITAL: 	text[1] = TXT2BYTE_O2IFDigital;
-												text[2] = 0;
+				case O2_SENSOR_SOURCE_DIGITAL: 	strSensorId[1] = TXT2BYTE_O2IFDigital;
+				strSensorId[2] = 0;
 					break;
-				case O2_SENSOR_SOURCE_ANADIG: 	write_label_var(  30, 340, ME_Y_LINE6, &FontT48, "Autodetect");
-												text[1] = TXT2BYTE_O2IFAnalog;
-												text[2] = ' ';
-												text[3] = '+';
-												text[4] = ' ';
-												text[5] = TXT_2BYTE;
-												text[6] = TXT2BYTE_O2IFDigital;
-												text[7] = 0;
+				case O2_SENSOR_SOURCE_ANADIG: 	//write_label_var(  30, 340, ME_Y_LINE6, &FontT48, "Autodetect");
+				strSensorId[1] = TXT2BYTE_O2IFAnalog;
+				strSensorId[2] = ' ';
+				strSensorId[3] = '+';
+				strSensorId[4] = ' ';
+				strSensorId[5] = TXT_2BYTE;
+				strSensorId[6] = TXT2BYTE_O2IFDigital;
+				strSensorId[7] = 0;
 					break;
 	#ifdef ENABLE_SENTINEL_MODE
 				case O2_SENSOR_SOURCE_SENTINEL: snprintf(text, 10,"Sentinel");
 					break;
 	#endif
 			}
-			write_label_var(  400, 800, ME_Y_LINE5, &FontT48, text);
-#if 0
-			if(haveSensorInfo == 1)
-			{
-				text[0] = TXT_Sensor;
-				text[1] = ' ';
-				text[2] = TXT_Information;
-				text[3] = 0;
-				write_label_var(  30, 340, ME_Y_LINE6, &FontT48, text);
-			}
-#endif
+			write_label_var(  480, 800, ME_Y_LINE5, &FontT48, strSensorId);
+
+
 		}
-		if((pSettings->ext_sensor_map[0] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[0] == SENSOR_DIGO2))
+#endif
+		if(haveSensorInfo == 1)
+		{
+			strSensorId[0] = TXT_Sensor;
+			strSensorId[1] = ' ';
+			strSensorId[2] = TXT_Information;
+			strSensorId[3] = 0;
+			write_label_var(  30, 340, ME_Y_LINE5, &FontT48, strSensorId);
+		}
+
+		if((pSettings->ext_sensor_map[0] >= SENSOR_OPTIC) && (pSettings->ext_sensor_map[0] <= SENSOR_DIGO2))
 		{
 			tMenuEdit_refresh_field(StMHARD3_O2_Sensor1);
 		}
-		if((pSettings->ext_sensor_map[1] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[1] == SENSOR_DIGO2))
+		if((pSettings->ext_sensor_map[1] >= SENSOR_OPTIC) && (pSettings->ext_sensor_map[1] <= SENSOR_DIGO2))
 		{
 			tMenuEdit_refresh_field(StMHARD3_O2_Sensor2);
 		}
-		if((pSettings->ext_sensor_map[2] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[2] == SENSOR_DIGO2))
+		if((pSettings->ext_sensor_map[2] >= SENSOR_OPTIC) && (pSettings->ext_sensor_map[2] <= SENSOR_DIGO2))
 		{
 			tMenuEdit_refresh_field(StMHARD3_O2_Sensor3);
 		}
@@ -484,8 +534,7 @@ void openEdit_O2Sensors(void)
     sensorActive[1] = 1;
     sensorActive[2] = 1;
 
-
-	if(((pSettings->ext_sensor_map[0] != SENSOR_ANALOG) && (pSettings->ext_sensor_map[0] != SENSOR_DIGO2)))
+	if(((pSettings->ext_sensor_map[0] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[0] > SENSOR_DIGO2)))
 	{
 		pSettings->ppo2sensors_deactivated |= 1;
 	}
@@ -493,7 +542,7 @@ void openEdit_O2Sensors(void)
 	{
 		write_field_on_off(StMHARD3_O2_Sensor1,	 30, 95, ME_Y_LINE1,  &FontT48, "", sensorActive[0]);
 	}
-	if(((pSettings->ext_sensor_map[1] != SENSOR_ANALOG) && (pSettings->ext_sensor_map[1] != SENSOR_DIGO2)))
+	if(((pSettings->ext_sensor_map[1] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[1] > SENSOR_DIGO2)))
 	{
 		pSettings->ppo2sensors_deactivated |= 2;
 	}
@@ -501,7 +550,7 @@ void openEdit_O2Sensors(void)
 	{
 		 write_field_on_off(StMHARD3_O2_Sensor2,	 30, 95, ME_Y_LINE2,  &FontT48, "", sensorActive[1]);
 	}
-	if(((pSettings->ext_sensor_map[2] != SENSOR_ANALOG) && (pSettings->ext_sensor_map[2] != SENSOR_DIGO2)))
+	if(((pSettings->ext_sensor_map[2] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[2] > SENSOR_DIGO2)))
 	{
 		pSettings->ppo2sensors_deactivated |= 4;
 	}
@@ -533,33 +582,22 @@ void openEdit_O2Sensors(void)
         write_field_toggle(StMHARD3_O2_Calibrate,	400, 800, ME_Y_LINE4, &FontT48, "", 21, 98);
     }
 
+   	if(haveSensorInfo != 0)
+   	{
+   		write_field_button(StMHARD3_Sensor_Info,	 30, 800, ME_Y_LINE5,  &FontT48, "");
+   	}
 
-    if(DataEX_external_ADC_Present())
-    {
-    	write_field_button(StMHARD3_O2_Source,	 30, 800, ME_Y_LINE5,  &FontT48, "");
-#if 0
-    	if(haveSensorInfo != 0)
-    	{
-    		write_field_button(StMHARD3_Sensor_Info,	 30, 800, ME_Y_LINE6,  &FontT48, "");
-    	}
-#endif
-    }
+   	write_field_button(StMHARD3_Sensor_Detect,	 30, 800, ME_Y_LINE6,  &FontT48, "Autodetect");
 
-
-    if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
-    {
-    	write_field_button(StMHARD3_Sensor_Detect,	 30, 800, ME_Y_LINE6,  &FontT48, "Autodetect");
-    }
-
-    if((pSettings->ext_sensor_map[0] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[0] == SENSOR_DIGO2))
+    if((pSettings->ext_sensor_map[0] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[0] > SENSOR_DIGO2))
 	{
 			setEvent(StMHARD3_O2_Sensor1, (uint32_t)OnAction_Sensor1);
 	}
-    if((pSettings->ext_sensor_map[1] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[1] == SENSOR_DIGO2))
+    if((pSettings->ext_sensor_map[1] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[1] > SENSOR_DIGO2))
 	{
 			setEvent(StMHARD3_O2_Sensor2, (uint32_t)OnAction_Sensor2);
 	}
-    if((pSettings->ext_sensor_map[2] == SENSOR_ANALOG) || (pSettings->ext_sensor_map[2] == SENSOR_DIGO2))
+    if((pSettings->ext_sensor_map[2] < SENSOR_OPTIC) || (pSettings->ext_sensor_map[2] > SENSOR_DIGO2))
 	{
 			setEvent(StMHARD3_O2_Sensor3, (uint32_t)OnAction_Sensor3);
 	}
@@ -573,23 +611,12 @@ void openEdit_O2Sensors(void)
     	setEvent(StMHARD3_O2_Calibrate, (uint32_t)OnAction_O2_Calibrate);
     }
 
-    if(DataEX_external_ADC_Present())
-    {
-    	setEvent(StMHARD3_O2_Source, (uint32_t)OnAction_O2_Source);
-#if 0
-    	if(haveSensorInfo != 0)
-    	{
-    		setEvent(StMHARD3_Sensor_Info, (uint32_t)OnAction_Sensor_Info);
-    	}
-#endif
-    }
+  	if(haveSensorInfo != 0)
+   	{
+   		setEvent(StMHARD3_Sensor_Info, (uint32_t)OnAction_Sensor_Info);
+   	}
 
-    if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
-    {
-    	setEvent(StMHARD3_Sensor_Detect, (uint32_t)OnAction_Sensor_Detect);
-    }
-
-
+    setEvent(StMHARD3_Sensor_Detect, (uint32_t)OnAction_Sensor_Detect);
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
 
@@ -708,6 +735,7 @@ uint8_t OnAction_O2_Calibrate (uint32_t editId, uint8_t blockNumber, uint8_t dig
 
 	return retVal;
 }
+#if 0
 uint8_t OnAction_O2_Source	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
     uint8_t source = settingsGetPointer()->ppo2sensors_source;
@@ -744,10 +772,10 @@ uint8_t OnAction_O2_Source	(uint32_t editId, uint8_t blockNumber, uint8_t digitN
     DataEX_setExtInterface_Cmd(EXT_INTERFACE_COPY_SENSORMAP);
 
     openEdit_O2Sensors();					/* rebuild menu structure (Hide HUD <=> Show Calibrate) */
-    tMenuEdit_select(StMHARD3_O2_Source);
+  //  tMenuEdit_select(StMHARD3_O2_Source);
     return UPDATE_DIVESETTINGS;
 }
-
+#endif
 uint8_t OnAction_Sensor_Info(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
 	return EXIT_TO_INFO_SENSOR;

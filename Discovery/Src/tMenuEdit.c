@@ -209,7 +209,8 @@ void tMenuEdit_refresh_live_content(void)
 	 	 case (StMHARD3_O2_Sensor1):
 	 	 case (StMHARD3_O2_Sensor1 & MaskFieldDigit):
 	 	 case (StMHARD3_O2_Calibrate):
-	 	 case (StMHARD3_O2_Source):							refreshFct = refresh_O2Sensors;
+	 	 case (StMHARD3_Sensor_Detect):
+	 	 case (StMHARD3_Sensor_Info):							refreshFct = refresh_O2Sensors;
 	 	 	 break;
 	 	 case (StMHARD2_Compass_SetCourse & MaskFieldDigit): refreshFct = refresh_CompassEdit;
 	 	 	 break;
