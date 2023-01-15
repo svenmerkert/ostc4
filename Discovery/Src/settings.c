@@ -325,9 +325,9 @@ const SSettings SettingsStandard = {
 	.scrubTimerMax_Obsolete = 0,
 	.scrubTimerCur_Obsolete = 0,
 	.scrubTimerMode = SCRUB_TIMER_OFF,
-	.ext_sensor_map[0] = SENSOR_ANALOG,
-	.ext_sensor_map[1] = SENSOR_ANALOG,
-	.ext_sensor_map[2] = SENSOR_ANALOG,
+	.ext_sensor_map[0] = SENSOR_OPTIC,
+	.ext_sensor_map[1] = SENSOR_OPTIC,
+	.ext_sensor_map[2] = SENSOR_OPTIC,
 	.ext_sensor_map[3] = SENSOR_NONE,
 	.ext_sensor_map[4] = SENSOR_NONE,
 };
@@ -523,9 +523,9 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->scrubberData[1].lastDive.Date = 0;
     	pSettings->scrubberData[1].lastDive.Year = 0;
     	// no break;
-    case 0xFFFF0023: pSettings->ext_sensor_map[0] = SENSOR_ANALOG;
-    				 pSettings->ext_sensor_map[1] = SENSOR_ANALOG;
-    				 pSettings->ext_sensor_map[2] = SENSOR_ANALOG;
+    case 0xFFFF0023: pSettings->ext_sensor_map[0] = SENSOR_OPTIC;
+    				 pSettings->ext_sensor_map[1] = SENSOR_OPTIC;
+    				 pSettings->ext_sensor_map[2] = SENSOR_OPTIC;
     				 pSettings->ext_sensor_map[3] = SENSOR_NONE;
     				 pSettings->ext_sensor_map[4] = SENSOR_NONE;
     	// no break;
@@ -1539,9 +1539,9 @@ uint8_t check_and_correct_settings(void)
 			|| (Settings.ext_sensor_map[3] >= SENSOR_END)
 			|| (Settings.ext_sensor_map[4] >= SENSOR_END))
     {
-    	Settings.ext_sensor_map[0] = SENSOR_ANALOG;
-    	Settings.ext_sensor_map[1] = SENSOR_ANALOG;
-    	Settings.ext_sensor_map[2] = SENSOR_ANALOG;
+    	Settings.ext_sensor_map[0] = SENSOR_OPTIC;
+    	Settings.ext_sensor_map[1] = SENSOR_OPTIC;
+    	Settings.ext_sensor_map[2] = SENSOR_OPTIC;
     	Settings.ext_sensor_map[3] = SENSOR_NONE;
     	Settings.ext_sensor_map[4] = SENSOR_NONE;
        	corrections++;
