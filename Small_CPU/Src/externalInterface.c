@@ -111,7 +111,7 @@ uint8_t externalInterface_ReadAndSwitch()
 {
 	uint8_t retval = EXTERNAL_ADC_NO_DATA;
 	uint8_t nextChannel;
-	uint8_t* psensorMap = externalInterface_GetSensorMapPointer();
+	uint8_t* psensorMap = externalInterface_GetSensorMapPointer(0);
 
 	if(externalADC_On)
 	{
@@ -260,10 +260,13 @@ void externalInterface_SwitchPower33(uint8_t state)
 		}
 		else
 		{
-			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
-			externalV33_On = 0;
-			externalInterface_SetCO2Value(0);
-			externalInterface_SetCO2SignalStrength(0);
+			if(externalAutoDetect == DETECTION_OFF)
+			{
+				HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
+				externalV33_On = 0;
+				externalInterface_SetCO2Value(0);
+				externalInterface_SetCO2SignalStrength(0);
+			}
 		}
 	}
 }
@@ -299,8 +302,8 @@ void externalInterface_SwitchUART(uint8_t protocol)
 		case 0:
 		case (EXT_INTERFACE_UART_CO2 >> 8):
 		case (EXT_INTERFACE_UART_O2 >> 8):
-				if((externalAutoDetect == DETECTION_OFF) || ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
-														 || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2)))
+				if((externalAutoDetect <= DETECTION_START) || ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
+														   || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2)))
 				{
 					sensorDataId = 0;
 					externalUART_Protocol = protocol;
@@ -382,11 +385,11 @@ void externalInface_SetSensorMap(uint8_t* pMap)
 	}
 
 }
-uint8_t* externalInterface_GetSensorMapPointer()
+uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap)
 {
 	uint8_t* pret;
 
-	if(externalAutoDetect != DETECTION_OFF)
+	if((externalAutoDetect != DETECTION_OFF) && (!finalMap))
 	{
 		pret = tmpSensorMap;
 	}
@@ -407,16 +410,37 @@ void externalInterface_AutodetectSensor()
 		switch(externalAutoDetect)
 		{
 			case DETECTION_INIT:	sensorIndex = 0;
-									tmpSensorMap[0] = SENSOR_ANALOG;
-									tmpSensorMap[1] = SENSOR_ANALOG;
-									tmpSensorMap[2] = SENSOR_ANALOG;
+									tmpSensorMap[0] = SENSOR_OPTIC;
+									tmpSensorMap[1] = SENSOR_OPTIC;
+									tmpSensorMap[2] = SENSOR_OPTIC;
 									tmpSensorMap[3] = SENSOR_NONE;
 									tmpSensorMap[4] = SENSOR_NONE;
 
-									externalInterface_SwitchADC(1);
-									externalAutoDetect = DETECTION_ANALOG;
+									if(externalInterfacePresent)
+									{
+										externalInterface_SwitchPower33(0);
+										externalInterface_SwitchUART(0);
+										for(index = 0; index < MAX_ADC_CHANNEL; index++)
+										{
+											externalChannel_mV[index] = 0;
+										}
+										externalAutoDetect = DETECTION_START;
+									}
+									else
+									{
+										externalAutoDetect = DETECTION_DONE;	/* without external interface O2 values may only be received via optical port => return default sensor map */
+									}
 				break;
-			case DETECTION_ANALOG:	for(index = 0; index < MAX_ADC_CHANNEL; index++)
+			case DETECTION_START:		tmpSensorMap[0] = SENSOR_ANALOG;
+										tmpSensorMap[1] = SENSOR_ANALOG;
+										tmpSensorMap[2] = SENSOR_ANALOG;
+										externalInterface_SwitchPower33(1);
+										externalInterface_SwitchADC(1);
+										externalAutoDetect = DETECTION_ANALOG1;
+				break;
+			case DETECTION_ANALOG1:	externalAutoDetect = DETECTION_ANALOG2;		/* do a second loop to make sure all adc channels could be processed */
+				break;
+			case DETECTION_ANALOG2:	for(index = 0; index < MAX_ADC_CHANNEL; index++)
 									{
 										if(externalChannel_mV[index] > MIN_ADC_VOLTAGE_MV)
 										{
@@ -475,9 +499,26 @@ void externalInterface_AutodetectSensor()
 									}
 									externalAutoDetect = DETECTION_DONE;
 				break;
-			case DETECTION_DONE:	while(sensorIndex < 5)
+			case DETECTION_DONE:	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
 									{
-										tmpSensorMap[sensorIndex++] = SENSOR_NONE;
+										if(tmpSensorMap[index] != SENSOR_NONE)
+										{
+											break;
+										}
+									}
+
+									if(index != EXT_INTERFACE_SENSOR_CNT)		/* return default sensor map if no sensor at all has been detected */
+									{
+										while(sensorIndex < EXT_INTERFACE_SENSOR_CNT)
+										{
+											tmpSensorMap[sensorIndex++] = SENSOR_NONE;
+										}
+									}
+									else
+									{
+										tmpSensorMap[0] = SENSOR_OPTIC;
+										tmpSensorMap[1] = SENSOR_OPTIC;
+										tmpSensorMap[2] = SENSOR_OPTIC;
 									}
 									memcpy(SensorMap, tmpSensorMap, sizeof(tmpSensorMap));
 									externalAutoDetect = DETECTION_OFF;

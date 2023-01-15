@@ -41,7 +41,9 @@
  {
     DETECTION_OFF = 0,		/* no detection requested */
 	DETECTION_INIT,			/* prepare external interface for operation if not already activated */
-	DETECTION_ANALOG,		/* check ADC channels for connected sensors */
+	DETECTION_START,
+	DETECTION_ANALOG1,		/* check ADC channels for connected sensors */
+	DETECTION_ANALOG2,
 	DETECTION_DIGO2,		/* check UART channel for connected DigO2 sensor */
 	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
 	DETECTION_DONE
@@ -73,7 +75,7 @@ uint16_t externalInterface_GetCO2State(void);
 uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct);
 void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct);
 void externalInface_SetSensorMap(uint8_t* pMap);
-uint8_t* externalInterface_GetSensorMapPointer(void);
+uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap);
 void externalInterface_AutodetectSensor(void);
 void externalInterface_ExecuteCmd(uint16_t Cmd);
 

@@ -1736,7 +1736,7 @@ void copyExtADCdata()
 		global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].extADC_voltage[channel] = value;
 	}
 	global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].externalInterface_SensorID = externalInterface_GetSensorData((uint8_t*)&global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_data);
-	memcpy(global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_map,externalInterface_GetSensorMapPointer(),EXT_INTERFACE_SENSOR_CNT);
+	memcpy(global.dataSendToMaster.data[boolADCBuffer && DATA_BUFFER_ADC].sensor_map,externalInterface_GetSensorMapPointer(1),EXT_INTERFACE_SENSOR_CNT);
 	global.dataSendToMaster.boolADCO2Data |= boolADCBuffer;
 }
 

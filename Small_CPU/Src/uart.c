@@ -79,6 +79,7 @@ void MX_USART1_UART_Init(void)
 
   MX_USART1_DMA_Init();
 
+  memset(rxBuffer,0,sizeof(rxBuffer));
   rxReadIndex = 0;
   lastCmdIndex = 0;
   rxWriteIndex = 0;
