@@ -390,10 +390,7 @@ void openEdit_BigScreen(void)
     SSettings *pSettings = settingsGetPointer();
 
     newValue = pSettings->extraDisplay + 1;
-    if(newValue == EXTRADISPLAY_DECOGAME)  /* Decogame not yet implemented */
-    {
-    	newValue++;
-    }
+
     if(newValue >= EXTRADISPLAY_END)
     {
     	newValue = EXTRADISPLAY_none;
@@ -960,10 +957,7 @@ uint8_t OnAction_ExtraDisplay	 (uint32_t editId, uint8_t blockNumber, uint8_t di
     uint8_t newValue;
 
     newValue = settingsGetPointer()->extraDisplay + 1;
-    if(newValue == EXTRADISPLAY_DECOGAME)  /* Decogame not yet implemented */
-    {
-    	newValue++;
-    }
+
     if(newValue >= EXTRADISPLAY_END)
     {
     	newValue = EXTRADISPLAY_none;

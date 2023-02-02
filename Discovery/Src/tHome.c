@@ -77,7 +77,13 @@ const uint8_t cv_changelist_BS[] = {CVIEW_T3_Decostop, CVIEW_sensors, CVIEW_Comp
 void set_globalState_tHome(void)
 {
     if(stateUsed->mode == MODE_DIVE)
+    {
+    	if(settingsGetPointer()->extraDisplay == EXTRADISPLAY_BFACTIVE)
+    	{
+    		settingsGetPointer()->design = 3;
+    	}
         set_globalState(StD);
+    }
     else
         set_globalState(StS);
 }
@@ -205,6 +211,7 @@ void tHomeDiveMenuControl(uint8_t sendAction)
 #endif
             			break;
             		default:
+            			set_globalState(StDMENU);
             			break;
             	}
             	break;

@@ -669,6 +669,9 @@ float t3_basics_lines_depth_and_divetime(GFX_DrawCfgScreen *tXscreen, GFX_DrawCf
     {
     	switch(get_globalState())
     	{
+    		case StDMENU:   snprintf(text,TEXTSIZE,"\a\003\001%c%c", TXT_2BYTE, TXT2BYTE_DiveMenuQ);
+    						GFX_write_string_color(&FontT42,tXr1,text,1,CLUT_WarningYellow);
+    			break;
     		case StDBEAR:   snprintf(text,TEXTSIZE,"\a\003\001%c%c", TXT_2BYTE, TXT2BYTE_DiveBearingQ);
             				GFX_write_string_color(&FontT42,tXr1,text,1,CLUT_WarningYellow);
             	break;

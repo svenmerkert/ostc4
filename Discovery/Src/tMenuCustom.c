@@ -74,9 +74,9 @@ uint32_t tMCustom_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
 		   case EXTRADISPLAY_BIGFONT:
 			   text[textPointer++] = TXT2BYTE_ExtraBigFont;
 			   break;
-		   /* DecoGame */
-		   case EXTRADISPLAY_DECOGAME:
-			   text[textPointer++] = TXT2BYTE_ExtraDecoGame;
+		   /* Start screen */
+		   case EXTRADISPLAY_BFACTIVE:
+			   text[textPointer++] = TXT2BYTE_ExtraActive;
 			   break;
 		   /* none */
 		   case EXTRADISPLAY_none:
