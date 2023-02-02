@@ -44,6 +44,7 @@
 #include "unit.h"
 #include "motion.h"
 #include "configuration.h"
+#include "base.h"
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -697,6 +698,7 @@ void t7_refresh_surface(void)
     uint8_t date[3], year,month,day;
     uint32_t color;
     uint8_t  customview_warnings = 0;
+    SButtonLock ButtonLockState;
 
     RTC_DateTypeDef Sdate;
     RTC_TimeTypeDef Stime;
@@ -721,23 +723,41 @@ void t7_refresh_surface(void)
         updateNecessary = 0;
 
     /* buttons */
-    text[0] = TXT_2BYTE;
-    text[1] = TXT2BYTE_ButtonLogbook;
-    text[2] = 0;
-    write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
+    ButtonLockState = get_ButtonLock();
+    if(ButtonLockState == LOCK_OFF)
+    {
+		text[0] = TXT_2BYTE;
+		text[1] = TXT2BYTE_ButtonLogbook;
+		text[2] = 0;
+		write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
 
-    text[0] = '\001';
-    text[1] = TXT_2BYTE;
-    text[2] = TXT2BYTE_ButtonView;
-    text[3] = 0;
-    write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
+		text[0] = '\001';
+		text[1] = TXT_2BYTE;
+		text[2] = TXT2BYTE_ButtonView;
+		text[3] = 0;
+		write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
 
-    text[0] = '\002';
-    text[1] = TXT_2BYTE;
-    text[2] = TXT2BYTE_ButtonMenu;
-    text[3] = 0;
-    write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
-
+		text[0] = '\002';
+		text[1] = TXT_2BYTE;
+		text[2] = TXT2BYTE_ButtonMenu;
+		text[3] = 0;
+		write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
+    }
+    else
+    {
+    	switch(ButtonLockState)
+    	{
+    		default:
+    		case LOCK_1:  	snprintf(text,255,"\a\001          ");
+    			break;
+    		case LOCK_2:  	snprintf(text,255,"\a\002          ");
+    			break;
+    		case LOCK_3:  	snprintf(text,255,"\a          ");
+    			break;
+    	}
+    	write_content_simple(&t7screen, 0, 799, 479-TOP_LINE_HIGHT, &FontT24,text,CLUT_ButtonSurfaceScreen);
+    	      //  GFX_write_string_color(&FontT48,&t7c2,TextR1,0,CLUT_WarningYellow);
+    }
     /* was power on reset */
 //.....
 /* removed hw 160802 in V1.1.1

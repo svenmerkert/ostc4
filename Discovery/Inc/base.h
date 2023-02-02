@@ -91,6 +91,16 @@ typedef enum
 	ACTION_END
 } SAction;
 
+typedef enum
+{
+	LOCK_OFF = 0,
+	LOCK_FIRST_PRESS,
+	LOCK_1,
+	LOCK_2,
+	LOCK_3,
+	LOCK_UNLOCKED
+} SButtonLock;
+
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
@@ -110,6 +120,7 @@ void set_returnFromComm(void);
 uint8_t font_update_required(void);
 void set_Backlight_Boost(uint8_t level);
 void StoreButtonAction(uint8_t action);
+SButtonLock get_ButtonLock(void);
 
 #endif /* BASE_H */
 

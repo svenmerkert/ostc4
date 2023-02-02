@@ -293,8 +293,10 @@ uint8_t bootToBootloader = 0;	///< set  in tComm.c to install firmware updates, 
 static uint8_t returnFromCommCleanUpRequest = 0; ///< use this to exit bluetooth mode and call tComm_exit()
 uint32_t base_tempLightLevel = 0;
 static uint8_t	wasFirmwareUpdateCheckBattery = 0;
-static uint8_t DoDisplayRefresh = 0;	/* trigger to refresh display data */
-static uint8_t DoHousekeeping = 0;		/* trigger to cleanup the frame buffers */
+static uint8_t DoDisplayRefresh = 0;			/* trigger to refresh display data */
+static uint8_t DoHousekeeping = 0;				/* trigger to cleanup the frame buffers */
+static SButtonLock ButtonLockState = LOCK_OFF;  /* Used for button unlock sequence */
+
 
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
@@ -309,6 +311,7 @@ static void gotoSleep(void);
 static void deco_loop(void);
 static void resetToFirmwareUpdate(void);
 static void TriggerButtonAction(void);
+static void TriggerButtonUnlock(void);
 static void EvaluateButton(void);
 static void RefreshDisplay(void);
 static void TimeoutControlRequestModechange(void);
@@ -468,6 +471,11 @@ int main(void)
 
     TIM_init();		/* start cylic 100ms task */
 
+    if( settingsGetPointer()->buttonLockActive )
+    {
+    	ButtonLockState = LOCK_FIRST_PRESS;
+    }
+
     /* @brief main LOOP
      *
      * this is executed while no IRQ interrupts it
@@ -499,7 +507,14 @@ int main(void)
         DataEX_merge_devicedata(); 	/* data is exchanged at startup and every 10 minutes => check if something changed */
 
         deco_loop();
-        TriggerButtonAction();
+        if((ButtonLockState) && (stateUsed->mode == MODE_SURFACE))
+        {
+        	TriggerButtonUnlock();
+        }
+        else
+        {
+        	TriggerButtonAction();
+        }
         if(DoHousekeeping)
         {
            	DoHousekeeping = housekeepingFrame();
@@ -711,6 +726,61 @@ static void RefreshDisplay()
 	}
 }
 
+static void TriggerButtonUnlock()
+{
+	static uint32_t lastInput = 0;
+	uint8_t action = ButtonAction;
+	SStateList status;
+	SSettings* pSettings;
+	pSettings = settingsGetPointer();
+
+	if(action != ACTION_END)
+	{
+		if(((time_elapsed_ms(lastInput, HAL_GetTick()) < 2000)) || (ButtonLockState == LOCK_FIRST_PRESS))
+		{
+			switch(ButtonLockState)
+			{
+				case LOCK_FIRST_PRESS:
+				case LOCK_1:	if(action == ACTION_BUTTON_ENTER)
+								{
+									ButtonLockState = LOCK_2;
+								}
+								else
+								{
+									ButtonLockState = LOCK_1;
+								}
+					break;
+				case LOCK_2:	if(action == ACTION_BUTTON_NEXT)
+								{
+									ButtonLockState = LOCK_3;
+								}
+								else
+								{
+									ButtonLockState = LOCK_1;
+								}
+					break;
+				case LOCK_3:	if(action == ACTION_BUTTON_BACK)
+								{
+									ButtonLockState = LOCK_OFF;
+								}
+								else
+								{
+									ButtonLockState = LOCK_1;
+								}
+					break;
+
+				default:	ButtonLockState = LOCK_OFF;
+					break;
+			}
+		}
+		else
+		{
+			ButtonLockState = LOCK_1;
+		}
+		lastInput = LastButtonPressedTick;
+		ButtonAction = ACTION_END;
+	}
+}
 
 static void TriggerButtonAction()
 {
@@ -772,7 +842,7 @@ static void TriggerButtonAction()
 				{
 					if(get_globalState() == StDMENU)
 					{
-						if (pSettings->extraDisplay == EXTRADISPLAY_BIGFONT)
+						if ((pSettings->extraDisplay == EXTRADISPLAY_BIGFONT) || (pSettings->extraDisplay == EXTRADISPLAY_BFACTIVE))
 						{
 							pSettings->design = 3;
 							if(pSettings->MotionDetection == MOTION_DETECT_SECTOR)
@@ -781,8 +851,10 @@ static void TriggerButtonAction()
 								MapCVToSector();
 							}
 						}
+#ifdef HAVEDECOGAME
 						else if (pSettings->extraDisplay	== EXTRADISPLAY_DECOGAME)
 							pSettings->design = 4;
+#endif
 					}
 					set_globalState(StD);
 				}
@@ -960,6 +1032,10 @@ void get_idSpecificStateList(uint32_t id, SStateList *output)
     output->mode  = (uint8_t)((id     ) & 0xFF);
 }
 
+SButtonLock get_ButtonLock(void)
+{
+	return ButtonLockState;
+}
 
 void set_globalState_Menu_Page(uint8_t page)
 {

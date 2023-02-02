@@ -1340,11 +1340,17 @@ static uint8_t text_IT_ExtraDisplay[] = "Caratteri grandi";
 static uint8_t text_ES_ExtraDisplay[] = "Letras grandes";
 
 // Menu SYS2
-static uint8_t text_EN_ExtraBigFont[] = "yes";
-static uint8_t text_DE_ExtraBigFont[] = "ja";
+static uint8_t text_EN_ExtraBigFont[] = "Optional";
+static uint8_t text_DE_ExtraBigFont[] = "Optional";
 static uint8_t text_FR_ExtraBigFont[] = "si";
 static uint8_t text_IT_ExtraBigFont[] = "si";
 static uint8_t text_ES_ExtraBigFont[] = "si";
+
+static uint8_t text_EN_ExtraBFActive[] = "Start screen";
+static uint8_t text_DE_ExtraBFActive[] = "Start Bildschirm";
+static uint8_t text_FR_ExtraBFActive[] = "";
+static uint8_t text_IT_ExtraBFActive[] = "";
+static uint8_t text_ES_ExtraBFActive[] = "";
 
 // Menu SYS2 (future feature)
 static uint8_t text_EN_ExtraDecoGame[] = "Deco game";
@@ -1753,6 +1759,11 @@ static uint8_t text_FR_CO2Sensor[] = "CO2 Sensor";
 static uint8_t text_IT_CO2Sensor[] = "CO2 Sensor";
 static uint8_t text_ES_CO2Sensor[] = "CO2 Sensor";
 
+static uint8_t text_EN_KeyLock[] = "Key lock";
+static uint8_t text_DE_KeyLock[] = "Tastensperre";
+static uint8_t text_FR_KeyLock[] = "";
+static uint8_t text_IT_KeyLock[] = "";
+static uint8_t text_ES_KeyLock[] = "";
 
 /* Lookup Table -------------------------------------------------------------*/
 
@@ -1843,6 +1854,7 @@ const tText text_array[] =
 	{(uint8_t)TXT_PSCRLungRatio,	{text_EN_LungRatio, text_DE_LungRatio, text_FR_LungRatio, text_IT_LungRatio, text_ES_LungRatio}},
 	{(uint8_t)TXT_SimPpo2,			{text_EN_SimPpo2, text_DE_SimPpo2, text_FR_SimPpo2, text_IT_SimPpo2, text_ES_SimPpo2}},
 	{(uint8_t)TXT_CO2Sensor,		{text_EN_CO2Sensor, text_DE_CO2Sensor, text_FR_CO2Sensor, text_IT_CO2Sensor, text_ES_CO2Sensor}},
+	{(uint8_t)TXT_ButtonLock,			{text_EN_KeyLock, text_DE_KeyLock, text_FR_KeyLock, text_IT_KeyLock, text_ES_KeyLock}},
 };
 
 const tText text_array2[] =
@@ -1970,6 +1982,7 @@ const tText text_array2[] =
     {(uint8_t)TXT2BYTE_ExtraBigFont,	{text_EN_ExtraBigFont, text_DE_ExtraBigFont, text_FR_ExtraBigFont, text_IT_ExtraBigFont, text_ES_ExtraBigFont}},
     {(uint8_t)TXT2BYTE_ExtraDecoGame,	{text_EN_ExtraDecoGame, text_DE_ExtraDecoGame, text_FR_ExtraDecoGame, text_IT_ExtraDecoGame, text_ES_ExtraDecoGame}},
     {(uint8_t)TXT2BYTE_ExtraNone,		{text_EN_ExtraNone, text_DE_ExtraNone, text_FR_ExtraNone, text_IT_ExtraNone, text_ES_ExtraNone}},
+	{(uint8_t)TXT2BYTE_ExtraActive,		{text_EN_ExtraBFActive, text_DE_ExtraBFActive, text_FR_ExtraBFActive, text_IT_ExtraBFActive, text_ES_ExtraBFActive}},
 	{(uint8_t)TXT2BYTE_MotionCtrl,		{text_EN_MotionCtrl, text_DE_MotionCtrl, text_FR_MotionCtrl, text_IT_MotionCtrl, text_ES_MotionCtrl}},
 	{(uint8_t)TXT2BYTE_MoCtrlNone,		{text_EN_MoCtrlNone, text_DE_MoCtrlNone, text_FR_MoCtrlNone, text_IT_MoCtrlNone, text_ES_MoCtrlNone}},
 	{(uint8_t)TXT2BYTE_MoCtrlPitch,		{text_EN_MoCtrlPitch, text_DE_MoCtrlPitch, text_FR_MoCtrlPitch, text_IT_MoCtrlPitch, text_ES_MoCtrlPitch}},

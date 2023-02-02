@@ -147,6 +147,7 @@ extern const tText text_array2[];
 		TXT_PSCRLungRatio,
 		TXT_SimPpo2,
 		TXT_CO2Sensor,
+		TXT_ButtonLock,
 		/* */
 		TXT_END,
 
@@ -299,6 +300,7 @@ extern const tText text_array2[];
 		TXT2BYTE_ExtraBigFontV2,
 		TXT2BYTE_ExtraDecoGame,
 		TXT2BYTE_ExtraNone,
+		TXT2BYTE_ExtraActive,
 		/* */
 		TXT2BYTE_MotionCtrl,
 		TXT2BYTE_MoCtrlNone,

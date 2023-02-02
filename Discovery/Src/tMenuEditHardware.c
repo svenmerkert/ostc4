@@ -67,6 +67,7 @@ uint8_t OnAction_Sensor_Info	(uint32_t editId, uint8_t blockNumber, uint8_t digi
 uint8_t OnAction_Sensor_Detect	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_Button			(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_ButtonBalance	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
+uint8_t OnAction_ButtonLock		(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 // not required uint8_t OnAction_Bluetooth				(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 
 /* Exported functions --------------------------------------------------------*/
@@ -872,6 +873,8 @@ void openEdit_ButtonSens(void)
         write_field_button(eventListButtonBalance[i],360,500,ME_Y_LINE4-(i*ME_Y_LINE_STEP),&FontT48,text);
     }
 
+    snprintf(text,32,"%c",TXT_ButtonLock);
+    write_field_on_off(StMHARD5_ButtonLock,	 30, 95, ME_Y_LINE5,  &FontT48, text, settingsGetPointer()->buttonLockActive);
 
     setEvent(StMHARD5_Button1, (uint32_t)OnAction_Button);
 
@@ -879,7 +882,7 @@ void openEdit_ButtonSens(void)
     {
         setEvent(eventListButtonBalance[i], (uint32_t)OnAction_ButtonBalance);
     }
-
+    setEvent(StMHARD5_ButtonLock, (uint32_t)OnAction_ButtonLock);
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
 
@@ -897,12 +900,6 @@ void refresh_ButtonValuesFromPIC(void)
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 
-    text[0] = '\020'; // '\031';
-    text[1] = TXT_2BYTE;
-    text[2] = TXT2BYTE_LowerIsLess;
-    text[3] = 0;
-    write_label_var(  20, 780, ME_Y_LINE5, &FontT42, text);
-
     for(int i=0;i<3;i++)
     {
         text[0] = TXT_2BYTE;
@@ -915,13 +912,14 @@ void refresh_ButtonValuesFromPIC(void)
     {
         sens[i] = settingsHelperButtonSens_translate_hwOS_values_to_percentage(stateRealGetPointer()->lifeData.buttonPICdata[i]);
     }
-    snprintf(text,64,"(%03u  %03u  %03u)",sens[2],sens[1],sens[0]);
+    snprintf(text,64,"\020\016\016%c%c \017 (%03u  %03u  %03u)",TXT_2BYTE,TXT2BYTE_LowerIsLess,sens[2],sens[1],sens[0]);
     write_label_var(  20, 340, ME_Y_LINE6, &FontT42, text);
 
     tMenuEdit_refresh_field(StMHARD5_Button1);
     tMenuEdit_refresh_field(StMHARD5_ButtonBalance1);
     tMenuEdit_refresh_field(StMHARD5_ButtonBalance2);
     tMenuEdit_refresh_field(StMHARD5_ButtonBalance3);
+    tMenuEdit_refresh_field(StMHARD5_ButtonLock);
 }
 
 
@@ -1003,6 +1001,24 @@ uint8_t OnAction_ButtonBalance(uint32_t editId, uint8_t blockNumber, uint8_t dig
 
         buttonBalanceText_helper(idBalance,text);
         tMenuEdit_newButtonText(eventListButtonBalance[idBalance],text);
+    }
+
+    return UNSPECIFIC_RETURN;
+}
+
+uint8_t OnAction_ButtonLock(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+	SSettings *pSettings = settingsGetPointer();
+
+    if(pSettings->buttonLockActive)
+    {
+    	pSettings->buttonLockActive = 0;
+        tMenuEdit_set_on_off(editId, 0);
+    }
+    else
+    {
+    	pSettings->buttonLockActive = 1;
+        tMenuEdit_set_on_off(editId, 1);
     }
 
     return UNSPECIFIC_RETURN;
