@@ -83,12 +83,23 @@ void externalInterface_Init(void)
 	}
 	global.deviceDataSendToMaster.hw_Info.checkADC = 1;
 
-/* init data values */
+	externalInterface_InitDatastruct();
+}
+
+void externalInterface_InitDatastruct(void)
+{
+	uint8_t index = 0;
+	/* init data values */
 	externalV33_On = 0;
 	externalCO2Value = 0;
 	externalCO2SignalStrength = 0;
 	externalCO2Status = 0;
 	externalAutoDetect = DETECTION_OFF;
+
+	for(index = 0; index < MAX_ADC_CHANNEL; index++)
+	{
+		externalChannel_mV[index] = 0.0;
+	}
 }
 
 

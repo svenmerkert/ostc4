@@ -521,7 +521,7 @@ int main(void) {
 			{
 				externalInterface_SwitchPower33(true);
 			}
-
+			externalInterface_InitDatastruct();
 			// EXTILine0_Button_DeInit(); not now, later after testing
 			break;
 		}

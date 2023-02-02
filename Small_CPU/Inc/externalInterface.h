@@ -54,6 +54,7 @@
 
 void externalInterface_Init(void);
 void externalInterface_InitPower33(void);
+void externalInterface_InitDatastruct(void);
 uint8_t externalInterface_StartConversion(uint8_t channel);
 uint8_t externalInterface_ReadAndSwitch();
 float externalInterface_CalculateADCValue(uint8_t channel);
