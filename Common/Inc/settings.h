@@ -85,7 +85,7 @@
 
 #define UART_MAX_PROTOCOL		(2u)
 
-#define FUTURE_SPARE_SIZE		(5u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
+#define FUTURE_SPARE_SIZE		(4u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
@@ -235,6 +235,7 @@ typedef struct
 	uint8_t scubberActiveId;									/* redefined in 0xFFFF0023 */
 	SScrubberData scrubberData[2];
 	uint8_t ext_sensor_map[5];
+	uint8_t buttonLockActive;										/* redefined in 0xFFFF0025 */
 	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
 	// new in 0xFFFF0006
 	uint8_t ppo2sensors_deactivated;
