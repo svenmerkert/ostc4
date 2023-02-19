@@ -593,6 +593,15 @@ void t7_refresh(void)
             {
             	InitMotionDetection();
             }
+
+            if(settingsGetPointer()->extraDisplay == EXTRADISPLAY_BFACTIVE)
+            {
+                settingsGetPointer()->design = 3;
+                releaseAllFramesExcept(22,t7screen.FBStartAdress);
+                releaseFrame(22,t7screen.FBStartAdress);
+                set_globalState(StD);
+                return;
+            }
         }
 
         if(status.page == PageSurface)
