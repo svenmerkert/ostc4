@@ -174,29 +174,29 @@ void test_O2_sensor_values_outOfBounds(int8_t * outOfBouds1, int8_t * outOfBouds
     }
 
     // test2: mV of remaining sensors
-    for(int i=0;i<3;i++)
+    for(index=0; index<3; index++)
     {
-    	sensorState[i] = sensorOK;
+    	sensorState[index] = sensorOK;
 
-        if(sensorActive[i])
+        if(sensorActive[index])
         {
-            if(	(stateUsed->lifeData.sensorVoltage_mV[i] < MIN_SENSOR_VOLTAGE_MV) ||
-                    (stateUsed->lifeData.sensorVoltage_mV[i] > MAX_SENSOR_VOLTAGE_MV))
-            {
-                sensorActive[i] = 0;
-                switch(i)
-                {
-                    case 0:
-                        sensorNotActiveBinary |= 1;
-                    break;
-                    case 1:
-                        sensorNotActiveBinary |= 2;
-                    break;
-                    case 2:
-                        sensorNotActiveBinary |= 4;
-                    break;
-                }
-            }
+        	if(((stateUsed->lifeData.extIf_sensor_map[index] == SENSOR_DIGO2) && (((SSensorDataDiveO2*)(stateUsed->lifeData.extIf_sensor_data))->status & DVO2_FATAL_ERROR))
+        			|| ((stateUsed->lifeData.sensorVoltage_mV[index] < MIN_SENSOR_VOLTAGE_MV) ||	(stateUsed->lifeData.sensorVoltage_mV[index] > MAX_SENSOR_VOLTAGE_MV)))
+			{
+				sensorActive[index] = 0;
+				switch(index)
+				{
+						case 0:
+							sensorNotActiveBinary |= 1;
+						break;
+						case 1:
+							sensorNotActiveBinary |= 2;
+						break;
+						case 2:
+							sensorNotActiveBinary |= 4;
+						break;
+				}
+        	}
         }
     }
 
