@@ -28,6 +28,8 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
+#include "configuration.h"
+
 
 #define MAX_ADC_CHANNEL		(3u)		/* number of channels to be read */
 #define EXTERNAL_ADC_NO_DATA	0xFF
@@ -45,7 +47,13 @@
 	DETECTION_ANALOG1,		/* check ADC channels for connected sensors */
 	DETECTION_ANALOG2,
 	DETECTION_DIGO2,		/* check UART channel for connected DigO2 sensor */
+#ifdef ENABLE_CO2_SUPPORT
 	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+	DETECTION_SENTINEL,		/* check UART channel for connected Sentinel */
+	DETECTION_SENTINEL2,
+#endif
 	DETECTION_DONE
  } externalInterfaceAutoDetect_t;
 

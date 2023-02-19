@@ -39,6 +39,7 @@ static uint8_t lastCmdIndex;							/* Index of last command which has not been c
 static uint8_t dmaActive;								/* Indicator if DMA reception needs to be started */
 static uint8_t digO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
 static uint8_t CO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
+static uint8_t SentinelConnected = 0;					/* Binary indicator if a sensor is connected or not */
 static uint8_t ppO2TargetChannel = 0;					/* The OSTC4 supports three slots for visualization of the ppo2. This one is reserved for the digital sensor */
 
 static SSensorDataDiveO2 sensorDataDiveO2;		/* intermediate storage for additional sensor data */
@@ -86,6 +87,7 @@ void MX_USART1_UART_Init(void)
   dmaActive = 0;
   digO2Connected = 0;
   CO2Connected = 0;
+  SentinelConnected = 0;
   Comstatus_O2 = UART_O2_INIT;
 }
 
@@ -194,6 +196,13 @@ void ConvertByteToHexString(uint8_t byte, char* str)
 	}
 }
 
+void UART_StartDMA_Receiption()
+{
+	if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
+	{
+		dmaActive = 1;
+	}
+}
 
 #ifdef ENABLE_CO2_SUPPORT
 void UART_HandleCO2Data(void)
@@ -265,7 +274,7 @@ void UART_HandleCO2Data(void)
 				rxState = RX_Ready;
 			}
 		}
-
+		rxBuffer[localRX] = 0;
 		localRX++;
 		rxReadIndex++;
 		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
@@ -283,10 +292,7 @@ void UART_HandleCO2Data(void)
 
 	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
 	{
-		if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
-		{
-			dmaActive = 1;
-		}
+		UART_StartDMA_Receiption();
 	}
 }
 #endif
@@ -303,9 +309,9 @@ void UART_HandleSentinelData(void)
 	static uint8_t lastAlive = 0;
 	static uint8_t curAlive = 0;
 	static uint8_t checksum = 0;
-	char checksum_str[]="00";
+	static char checksum_str[]="00";
 
-	while(localRX != rxWriteIndex)
+	while((rxBuffer[localRX]!=0))
 	{
 		lastReceiveTick = HAL_GetTick();
 
@@ -404,6 +410,7 @@ void UART_HandleSentinelData(void)
 										setExternalInterfaceChannel(0,(float)(dataValue[0] / 10.0));
 										setExternalInterfaceChannel(1,(float)(dataValue[1] / 10.0));
 										setExternalInterfaceChannel(2,(float)(dataValue[2] / 10.0));
+										SentinelConnected = 1;
 									}
 									rxState = RX_Ready;
 				break;
@@ -413,7 +420,6 @@ void UART_HandleSentinelData(void)
 				break;
 
 		}
-
 		localRX++;
 		rxReadIndex++;
 		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
@@ -430,16 +436,14 @@ void UART_HandleSentinelData(void)
 			setExternalInterfaceChannel(0,0.0);
 			setExternalInterfaceChannel(1,0.0);
 			setExternalInterfaceChannel(2,0.0);
+			SentinelConnected = 0;
 		}
 		lastAlive = curAlive;
 	}
 
 	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
 	{
-		if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
-		{
-			dmaActive = 1;
-		}
+		UART_StartDMA_Receiption();
 	}
 }
 #endif
@@ -482,10 +486,7 @@ void UART_HandleDigitalO2(void)
 		cmdReadIndex = 0;
 		lastO2ReqTick = tick;
 
-		if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
-		{
-			dmaActive = 1;
-		}
+		UART_StartDMA_Receiption();
 	}
 	if(time_elapsed_ms(lastO2ReqTick,tick) > 1000)		/* repeat request once per second */
 	{
@@ -654,13 +655,9 @@ void UART_HandleDigitalO2(void)
 		}
 		lastAlive = curAlive;
 	}
-
 	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
 	{
-		if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
-		{
-			dmaActive = 1;
-		}
+		UART_StartDMA_Receiption();
 	}
 }
 
@@ -672,7 +669,10 @@ uint8_t UART_isCO2Connected()
 {
 	return CO2Connected;
 }
-
+uint8_t UART_isSentinelConnected()
+{
+	return SentinelConnected;
+}
 
 void UART_setTargetChannel(uint8_t channel)
 {
@@ -694,10 +694,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     		if(externalInterface_isEnabledPower33())
     		{
     			memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
-				if(HAL_OK == HAL_UART_Receive_DMA (&huart1, &rxBuffer[rxWriteIndex], CHUNK_SIZE))
-				{
-					dmaActive = 1;
-				}
+				UART_StartDMA_Receiption();
     		}
     	}
     }

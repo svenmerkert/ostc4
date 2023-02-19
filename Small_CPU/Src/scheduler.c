@@ -517,18 +517,18 @@ void scheduleDiveMode(void)
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
 #ifdef ENABLE_CO2_SUPPORT
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_CO2)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_CO2 >> 8))
 		{
 			UART_HandleCO2Data();
 		}
 #endif
 #ifdef ENABLE_SENTINEL_MODE
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_SENTINEL >> 8))
 		{
 			UART_HandleSentinelData();
 		}
 #endif
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_O2)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_O2 >> 8))
 		{
 			UART_HandleDigitalO2();
 		}
@@ -845,7 +845,7 @@ void scheduleSurfaceMode(void)
 		}
 #endif
 #ifdef ENABLE_SENTINEL_MODE
-		if(global.dataSendToSlave.data.externalInterface_Cmd & EXT_INTERFACE_UART_SENTINEL)
+		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_SENTINEL >> 8))
 		{
 			UART_HandleSentinelData();
 		}

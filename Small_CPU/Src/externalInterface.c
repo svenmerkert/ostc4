@@ -313,8 +313,10 @@ void externalInterface_SwitchUART(uint8_t protocol)
 		case 0:
 		case (EXT_INTERFACE_UART_CO2 >> 8):
 		case (EXT_INTERFACE_UART_O2 >> 8):
+		case (EXT_INTERFACE_UART_SENTINEL >> 8):
 				if((externalAutoDetect <= DETECTION_START) || ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
-														   || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2)))
+														   || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2))
+														   || ((protocol == EXT_INTERFACE_UART_SENTINEL >> 8) && (externalAutoDetect == DETECTION_SENTINEL)))
 				{
 					sensorDataId = 0;
 					externalUART_Protocol = protocol;
@@ -486,7 +488,8 @@ void externalInterface_AutodetectSensor()
 										UART_setTargetChannel(index);
 										/* tmpSensorMap[sensorIndex++] = SENSOR_DIGO2; */
 									}
-									externalAutoDetect = DETECTION_CO2;
+									externalAutoDetect++;
+#ifdef ENABLE_CO2_SUPPORT
 									externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
 				break;
 			case DETECTION_CO2:		if(UART_isCO2Connected())
@@ -508,7 +511,25 @@ void externalInterface_AutodetectSensor()
 										}
 
 									}
-									externalAutoDetect = DETECTION_DONE;
+									externalAutoDetect++;
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+									externalInterface_SwitchUART(EXT_INTERFACE_UART_SENTINEL >> 8);
+									UART_StartDMA_Receiption();
+				break;
+
+			case DETECTION_SENTINEL:
+			case DETECTION_SENTINEL2:
+									if(UART_isSentinelConnected())
+									{
+										for(index = 0; index < 3; index++)	/* Sentinel is occupiing all sensor slots */
+										{
+											tmpSensorMap[index] = SENSOR_SENTINEL;
+										}
+										sensorIndex = 3;
+									}
+									externalAutoDetect++;
+#endif
 				break;
 			case DETECTION_DONE:	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
 									{
@@ -550,6 +571,10 @@ void externalInterface_ExecuteCmd(uint16_t Cmd)
 	switch(Cmd & 0x00FF)		/* lower byte is reserved for commands */
 	{
 		case EXT_INTERFACE_AUTODETECT:	externalAutoDetect = DETECTION_INIT;
+										for(index = 0; index < 3; index++)
+										{
+											SensorMap[index] = SENSOR_SEARCH;
+										}
 			break;
 		case EXT_INTERFACE_CO2_CALIB:	cmdLength = snprintf(cmdString, 10, "G\r\n");
 			break;

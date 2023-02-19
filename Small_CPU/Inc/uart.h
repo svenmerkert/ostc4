@@ -84,6 +84,7 @@ void MX_USART1_UART_Init(void);
 void MX_USART1_UART_DeInit(void);
 void MX_USART1_DMA_Init(void);
 uint8_t UART_ButtonAdjust(uint8_t *array);
+void UART_StartDMA_Receiption(void);
 #ifdef ENABLE_CO2_SUPPORT
 void UART_HandleCO2Data(void);
 #endif
@@ -91,9 +92,9 @@ void UART_HandleCO2Data(void);
 void UART_HandleSentinelData(void);
 #endif
 void UART_HandleDigitalO2(void);
-
 uint8_t UART_isDigO2Connected();
 uint8_t UART_isCO2Connected();
+uint8_t UART_isSentinelConnected();
 void UART_setTargetChannel(uint8_t channel);
 
 
