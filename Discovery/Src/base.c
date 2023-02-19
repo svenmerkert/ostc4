@@ -730,9 +730,6 @@ static void TriggerButtonUnlock()
 {
 	static uint32_t lastInput = 0;
 	uint8_t action = ButtonAction;
-	SStateList status;
-	SSettings* pSettings;
-	pSettings = settingsGetPointer();
 
 	if(action != ACTION_END)
 	{
