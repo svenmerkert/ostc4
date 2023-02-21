@@ -327,8 +327,10 @@ void refresh_O2Sensors(void)
 											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_DIGITAL;
 										}
 									break;
+#ifdef ENABLE_SENTINEL_MODE
 					case SENSOR_SENTINEL:	pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_SENTINEL;
 									break;
+#endif
 					default:
 									break;
 				}
@@ -418,7 +420,11 @@ void refresh_O2Sensors(void)
 		}
 		else
 		{
-			if((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)|| (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL))
+			if((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
+#ifdef ENABLE_CO2_SUPPORT
+					|| (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+#endif
+					)
 			{
 				strSensorId[0] = TXT_2BYTE;
 				strSensorId[1] = TXT2BYTE_O2Calib;
@@ -473,7 +479,7 @@ void openEdit_O2Sensors(void)
 {
 	SSettings *pSettings = settingsGetPointer();
     uint8_t sensorActive[3];
-    uint8_t text[3];
+    char text[3];
 
     set_globalState(StMHARD3_Sensors);
 	resetMenuEdit(CLUT_MenuPageHardware);

@@ -314,9 +314,14 @@ void externalInterface_SwitchUART(uint8_t protocol)
 		case (EXT_INTERFACE_UART_CO2 >> 8):
 		case (EXT_INTERFACE_UART_O2 >> 8):
 		case (EXT_INTERFACE_UART_SENTINEL >> 8):
-				if((externalAutoDetect <= DETECTION_START) || ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
-														   || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2))
-														   || ((protocol == EXT_INTERFACE_UART_SENTINEL >> 8) && (externalAutoDetect == DETECTION_SENTINEL)))
+				if((externalAutoDetect <= DETECTION_START) || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2))
+#ifdef ENABLE_CO2_SUPPORT
+															|| ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
+#endif
+#ifdef ENABLE_SENTINEL_MODE
+														   || ((protocol == EXT_INTERFACE_UART_SENTINEL >> 8) && (externalAutoDetect == DETECTION_SENTINEL))
+#endif
+					)
 				{
 					sensorDataId = 0;
 					externalUART_Protocol = protocol;
