@@ -3022,7 +3022,18 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
 
     t7_colorscheme_mod(text);
 #ifndef ENABLE_BOTTLE_SENSOR
-   	GFX_write_string(&FontT105,&t7l3,text,line);
+#ifdef ENABLE_CO2_SUPPORT
+    if(selection_custom_field != LCC_CO2)
+    {
+    	GFX_write_string(&FontT105,&t7l3,text,line);
+    }
+    else
+    {
+        	GFX_write_string(&FontT48,&t7l3,text,line);
+    }
+#else
+    GFX_write_string(&FontT105,&t7l3,text,line);
+#endif
 #else
     if(selection_custom_field != LCC_BottleBar)			/* a changing color set is used for bar display */
     {

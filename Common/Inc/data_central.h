@@ -83,7 +83,7 @@ typedef struct
 
 typedef struct
 {
-		uint16_t CO2_ppm;
+		uint32_t CO2_ppm;
 		uint16_t signalStrength;
 } 	SCO2Sensor;
 

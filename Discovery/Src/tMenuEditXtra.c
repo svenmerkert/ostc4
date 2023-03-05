@@ -376,7 +376,7 @@ void refresh_CO2Data(void)
     snprintf(text,32,"\001%c",TXT_CO2Sensor);
     write_topline(text);
 
-    snprintf(text,32,"CO2: %d ppm",stateUsed->lifeData.CO2_data.CO2_ppm);
+    snprintf(text,32,"CO2: %ld ppm",stateUsed->lifeData.CO2_data.CO2_ppm);
     write_label_var(   30, 800, ME_Y_LINE1, &FontT48, text);
 
     snprintf(text,32,"Signal: %d",stateUsed->lifeData.CO2_data.signalStrength);

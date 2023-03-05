@@ -41,6 +41,7 @@
 #include "tComm.h"
 #include "data_exchange_main.h"
 
+
 extern void tM_build_pages(void);
 
 /* Private function prototypes -----------------------------------------------*/
@@ -371,7 +372,9 @@ void refresh_O2Sensors(void)
 
 			switch(pSettings->ext_sensor_map[index])
 			{
-				case SENSOR_SEARCH: strSensorId[4] = TXT2BYTE_SensorDetect;
+				case SENSOR_SEARCH: strSensorId[1] = TXT2BYTE_SensorDetect;
+									strSensorId[2] = 0;
+									strSensorId[4] = 0;
 								break;
 				case SENSOR_OPTIC:	strSensorId[4] = TXT2BYTE_O2IFOptic;
 								break;
@@ -386,6 +389,7 @@ void refresh_O2Sensors(void)
 				 	 	 	 	 	  strSensorId[4] = 'e';
 				 	 	 	 	break;
 				default:
+									  strSensorId[5] = 0;
 					break;
 			}
 			if(strSensorId[4] != 'X')
@@ -399,7 +403,7 @@ void refresh_O2Sensors(void)
 			}
 			else if(pSettings->ext_sensor_map[index] == SENSOR_CO2)
 			{
-				snprintf(strSensorValue, 10,"%d ppm",  pStateReal->lifeData.CO2_data.CO2_ppm);
+				snprintf(strSensorValue, 20,"%ld ppm",  pStateReal->lifeData.CO2_data.CO2_ppm);
 			}
 			y_line = ME_Y_LINE1 + (index * ME_Y_LINE_STEP);
 			if(strSensorValue[0] != 0)
@@ -408,7 +412,7 @@ void refresh_O2Sensors(void)
 			}
 		}
 
-		if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_OPTIC)
+		if(pSettings->ext_sensor_map[0] == SENSOR_OPTIC)
 		{
 			strSensorId[0] = TXT_2BYTE;
 			strSensorId[1] = TXT2BYTE_HUDbattery;

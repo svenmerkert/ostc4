@@ -203,6 +203,7 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     pDiveState->lifeData.ppO2Sensor_bar[1]  = pDiveState->lifeData.sensorVoltage_mV[1] * localCalibCoeff[1] * pDiveState->lifeData.pressure_ambient_bar;
     pDiveState->lifeData.ppO2Sensor_bar[2]  = pDiveState->lifeData.sensorVoltage_mV[2] * localCalibCoeff[2] * pDiveState->lifeData.pressure_ambient_bar;
 
+    pDiveState->lifeData.CO2_data.CO2_ppm  = stateRealGetPointer()->lifeData.CO2_data.CO2_ppm;
 
     if(is_ambient_pressure_close_to_surface(&pDiveState->lifeData)) // new hw 170214
     {
