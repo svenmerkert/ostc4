@@ -702,10 +702,7 @@ uint8_t OnAction_Customview_NextPage(uint32_t editId, uint8_t blockNumber, uint8
 	{
 		customviewsSubpage = 0;
 	}
-	resetMenuEdit(CLUT_MenuPageCustomView);				/* rebuild page */
-	openEdit_CustomviewDivemode(pcv_curchangelist);
-
-	tMenuEdit_select(StMCustom3_CViewSelection6);
+	CustomviewDivemode_refresh();
     return UPDATE_DIVESETTINGS;
 }
 
@@ -854,7 +851,24 @@ void openEdit_CustomviewDivemode(const uint8_t* pcv_changelist)
 				}
      	}
      }
-
+     for(;i<5;i++)	/* clear empty lines in case menu shows less than 5 entries */
+     {
+			switch(i)
+			{
+				case 0: 	write_label_var( 30, 800, ME_Y_LINE1, &FontT48, "");
+					break;
+				case 1:		write_label_var( 30, 800, ME_Y_LINE2, &FontT48, "");
+					break;
+				case 2: 	write_label_var( 30, 800, ME_Y_LINE3, &FontT48, "");
+					break;
+				case 3: 	write_label_var( 30, 800, ME_Y_LINE4, &FontT48, "");
+					break;
+				case 4: 	write_label_var( 30, 800, ME_Y_LINE5, &FontT48, "");
+					break;
+				default:
+					break;
+			};
+     }
      if(customviewsSubpageMax != 1)
      {
          textPointer = 0;
@@ -897,24 +911,7 @@ void openEdit_CustomviewDivemode(const uint8_t* pcv_changelist)
      {
     	 setEvent(StMCustom3_CViewSelection6,(uint32_t)OnAction_Customview_NextPage);
      }
-     for(;i<5;i++)	/* clear empty lines in case menu shows less than 5 entries */
-     {
-			switch(i)
-			{
-				case 0: 	write_label_var( 30, 800, ME_Y_LINE1, &FontT48, "");
-					break;
-				case 1:		write_label_var( 30, 800, ME_Y_LINE2, &FontT48, "");
-					break;
-				case 2: 	write_label_var( 30, 800, ME_Y_LINE3, &FontT48, "");
-					break;
-				case 3: 	write_label_var( 30, 800, ME_Y_LINE4, &FontT48, "");
-					break;
-				case 4: 	write_label_var( 30, 800, ME_Y_LINE5, &FontT48, "");
-					break;
-				default:
-					break;
-			};
-     }
+
      write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
 
