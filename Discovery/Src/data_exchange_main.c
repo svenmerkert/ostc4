@@ -57,6 +57,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <stdlib.h>
 #include <string.h> // for memcpy
+#include <math.h>
 #include "stm32f4xx_hal.h"
 #include "stdio.h"
 #include "ostc.h"
@@ -409,6 +410,10 @@ void DateEx_copy_to_dataOut(void)
 				break;
 			case SENSOR_CO2:	SensorActive[SENSOR_CO2] = 1;
 				break;
+#ifdef ENABLE_SENTINEL_MODE
+			case SENSOR_SENTINEL:	SensorActive[SENSOR_SENTINEL] = 1;
+				break;
+#endif
 			default:
 				break;
 		}
@@ -428,7 +433,7 @@ void DateEx_copy_to_dataOut(void)
 	}
 
 #ifdef ENABLE_SENTINEL_MODE
-	if(settings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
+	if(SensorActive[SENSOR_SENTINEL])
 	{
 			externalInterface_Cmd |= EXT_INTERFACE_33V_ON | EXT_INTERFACE_UART_SENTINEL;
 			externalInterface_Cmd &= (~EXT_INTERFACE_ADC_ON);
@@ -829,9 +834,11 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 	uint8_t idx;
 	float meter = 0;
 	SSettings *pSettings;
-
-
 	
+#ifdef ENABLE_EXTERNAL_PRESSURE
+    float CO2Corr = 0.0;
+#endif
+
 	// wireless - �ltere daten aufr�umen
 #if 0
 	for(int i=0;i<(2*NUM_GASES+1);i++)
@@ -1139,8 +1146,14 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		pStateReal->sensorErrorsRTE = dataIn.sensorErrors;
 
 		/* data from CO2 sensor */
-		pStateReal->lifeData.CO2_data.CO2_ppm = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_ppm;
+		pStateReal->lifeData.CO2_data.CO2_ppm = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_ppm * 10;	/* Scale factor depends on sensor */
 		pStateReal->lifeData.CO2_data.signalStrength = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_CO2)].CO2_signalStrength;
+
+#ifdef ENABLE_EXTERNAL_PRESSURE
+		CO2Corr = 2.811*pow(10,-38)*pow(pStateReal->lifeData.CO2_data.CO2_ppm,6)- 9.817*pow(10,-32)*pow(pStateReal->lifeData.CO2_data.CO2_ppm,5)+1.304*pow(10,-25)*pow(pStateReal->lifeData.CO2_data.CO2_ppm,4)
+				 -8.216*pow(10,-20)*pow(pStateReal->lifeData.CO2_data.CO2_ppm,3)+2.311*pow(10,-14)*pow(pStateReal->lifeData.CO2_data.CO2_ppm,2) - 2.195*pow(10,-9)*pStateReal->lifeData.CO2_data.CO2_ppm - 1.471*pow(10,-3);
+		pStateReal->lifeData.CO2_data.CO2_ppm = pStateReal->lifeData.CO2_data.CO2_ppm / (1.0 + (CO2Corr * ((stateRealGetPointer()->lifeData.pressure_surface_bar * 1000) - ((stateRealGetPointer()->lifeData.ppO2Sensor_bar[2] *1000)))));
+#endif
 	}
 
 	/* apnea specials

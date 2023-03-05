@@ -208,8 +208,8 @@ void UART_StartDMA_Receiption()
 void UART_HandleCO2Data(void)
 {
 	uint8_t localRX = rxReadIndex;
-	uint8_t dataType = 0;
-	uint32_t dataValue = 0;
+	static uint8_t dataType = 0;
+	static uint32_t dataValue = 0;
 	static receiveState_t rxState = RX_Ready;
 	static uint32_t lastReceiveTick = 0;
 
@@ -266,7 +266,8 @@ void UART_HandleCO2Data(void)
 						break;
 					case 'Z':			externalInterface_SetCO2Value(dataValue);
 						break;
-					default: break;
+					default:			rxState = RX_Ready;
+						break;
 				}
 			}
 			if(rxState != RX_Data0)	/* reset state machine because message in wrong format */

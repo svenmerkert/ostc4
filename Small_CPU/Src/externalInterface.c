@@ -30,6 +30,7 @@
 #include "scheduler.h"
 #include "uart.h"
 #include "data_exchange.h"
+#include "pressure.h"
 
 extern SGlobal global;
 extern UART_HandleTypeDef huart1;
@@ -50,6 +51,9 @@ extern UART_HandleTypeDef huart1;
 
 #define ANSWER_CONFBYTE_INDEX		(4u)
 
+#define LOOKUP_CO2_CORR_TABLE_SCALE	(1000u)
+#define LOOKUP_CO2_CORR_TABLE_MAX	(30000u)
+
 static uint8_t activeChannel = 0;			/* channel which is in request */
 static uint8_t recBuf[ADC_ANSWER_LENGTH];
 static uint8_t timeoutCnt = 0;
@@ -66,13 +70,17 @@ static uint16_t  externalCO2Status = 0;
 static uint8_t sensorDataId = 0;
 static SSensorDataDiveO2 sensorDataDiveO2;
 static externalInterfaceAutoDetect_t externalAutoDetect = DETECTION_OFF;
-static externalInterfaceSensorType SensorMap[EXT_INTERFACE_SENSOR_CNT] ={ SENSOR_ANALOG, SENSOR_ANALOG, SENSOR_ANALOG, SENSOR_NONE, SENSOR_NONE};
+static externalInterfaceSensorType SensorMap[EXT_INTERFACE_SENSOR_CNT] ={ SENSOR_OPTIC, SENSOR_OPTIC, SENSOR_OPTIC, SENSOR_NONE, SENSOR_NONE};
 static externalInterfaceSensorType tmpSensorMap[EXT_INTERFACE_SENSOR_CNT];
 static externalInterfaceSensorType MasterSensorMap[EXT_INTERFACE_SENSOR_CNT];
+
+static float LookupCO2PressureCorrection[LOOKUP_CO2_CORR_TABLE_MAX / LOOKUP_CO2_CORR_TABLE_SCALE];		/* lookup table for pressure compensation values */
 
 
 void externalInterface_Init(void)
 {
+	uint16_t index;
+	uint16_t coeff;
 	activeChannel = 0;
 	timeoutCnt = 0;
 	externalInterfacePresent = 0;
@@ -83,6 +91,15 @@ void externalInterface_Init(void)
 	}
 	global.deviceDataSendToMaster.hw_Info.checkADC = 1;
 
+/* Create a lookup table based on GSS application note AN001: PRESSURE COMPENSATION OF A CO2 SENSOR */
+/* The main purpose of the sensor in the dive application is to be a warning indicator */
+/* => no exact values necessary => a lookup table with 50 entries should be sufficient */
+	LookupCO2PressureCorrection [0] = -0.0014;
+	for(index = 1; index < (LOOKUP_CO2_CORR_TABLE_MAX / LOOKUP_CO2_CORR_TABLE_SCALE); index++)
+	{
+		coeff = index * LOOKUP_CO2_CORR_TABLE_SCALE;
+		LookupCO2PressureCorrection[index] = 2.811*pow(10,-38)*pow(coeff,6)- 9.817*pow(10,-32)*pow(coeff,5)+1.304*pow(10,-25)*pow(coeff,4)-8.216*pow(10,-20)*pow(coeff,3)+2.311*pow(10,-14)*pow(coeff,2) - 2.195*pow(10,-9)*coeff - 1.471*pow(10,-3);
+	}
 	externalInterface_InitDatastruct();
 }
 
@@ -339,7 +356,25 @@ void externalInterface_SwitchUART(uint8_t protocol)
 
 void externalInterface_SetCO2Value(uint16_t CO2_ppm)
 {
-	externalCO2Value = CO2_ppm;
+	float local_ppm = CO2_ppm * 10.0;		/* scalfactor */
+
+#ifndef ENABLE_EXTERNAL_PRESSURE
+	float local_corr = 0.0;
+
+	if (local_ppm >= LOOKUP_CO2_CORR_TABLE_MAX)
+	{
+		local_corr = -0.0014;
+	}
+	else
+	{
+		local_corr = LookupCO2PressureCorrection[((uint16_t) (local_ppm / LOOKUP_CO2_CORR_TABLE_SCALE))];
+	}
+	local_ppm = local_ppm / (1.0 + (local_corr * (get_surface_mbar() - get_pressure_mbar())));
+#else
+/* The external pressure value is passed via ADC channel2 and calibration is done at firmware => just forward sensor data */
+/* compensation is done at firmware side. This is for testing only. Take care the the same algorithm is taken as used for the lookup table */
+#endif
+	externalCO2Value = local_ppm / 10.0;
 }
 
 void externalInterface_SetCO2SignalStrength(uint16_t LED_qa)
