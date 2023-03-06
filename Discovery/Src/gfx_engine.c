@@ -2084,7 +2084,7 @@ uint32_t GFX_write_string_color(const tFont *Font, GFX_DrawCfgWindow* hgfx, cons
 			else
 			/* Font style changes */
 			if(*pText == '\a')
-				settings.invert = 1;
+				settings.invert = settings.invert ? 0 : 1;
 			else
 			if((*pText == '\016') && !minimal)
 			{

@@ -27,6 +27,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdlib.h>
+
 #include "t7.h"
 #include "t3.h"
 #include "settings.h"
@@ -2898,8 +2900,91 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         snprintf(text,TEXTSIZE,"%d\016\016\017", stateUsed->lifeData.bottle_bar[stateUsed->lifeData.actualGas.GasIdInSettings]);
         break;
 #endif
+    case LLC_Compass:
+        headerText[2] = TXT_2BYTE;
+        headerText[3] = TXT2BYTE_Compass;
+        tinyHeaderFont = 1;
+
+        uint16_t heading;
+        if(settingsGetPointer()->compassInertia) {
+            heading = (uint16_t)compass_getCompensated();
+        } else {
+            heading = (uint16_t)stateUsed->lifeData.compass_heading;
+        }
+
+        uint16_t userSetHeading = stateUsed->diveSettings.compassHeading;
+        if (!userSetHeading) {
+            snprintf(text, TEXTSIZE, "\020\002\034%u    ", heading);
+        } else {
+            snprintf(text, TEXTSIZE, "\020\002\034\016\016%u    ", heading);
+
+            int16_t declinationFromForwardMark = ((userSetHeading - heading + 180 + 360) % 360) - 180;
+            int16_t declinationFromNearestMark = ((declinationFromForwardMark + 90 + 180) % 180) - 90;
+
+            uint16_t colour;
+            if (abs(declinationFromForwardMark) <= 90) {
+                colour = CLUT_CompassUserHeadingTick;
+            } else {
+                colour = CLUT_CompassUserBackHeadingTick;
+            }
+
+            char direction[] = "\001  \004 \004  ";
+            if (abs(declinationFromNearestMark) <= 10) {
+                direction[2] = '>';
+                direction[6] = '<';
+
+                if (abs(declinationFromForwardMark) <= 10) {
+                    direction[4] = 'X';
+                } else {
+                    direction[4] = 'O';
+                }
+
+                if (abs(declinationFromNearestMark) <= 3) {
+                    direction[3] = '\a';
+                    direction[5] = '\a';
+                }
+            } else {
+                if (declinationFromForwardMark < -90) {
+                    direction[7] = 'O';
+                } else if (declinationFromForwardMark < 0) {
+                    direction[1] = 'X';
+                } else if (declinationFromForwardMark <= 90) {
+                    direction[7] = 'X';
+                } else {
+                    direction[1] = 'O';
+                }
+
+                if (declinationFromNearestMark >= 0) {
+                    direction[6] = '>';
+                }
+                if (declinationFromNearestMark > 30) {
+                    direction[4] = '>';
+                }
+                if (declinationFromNearestMark > 60 || declinationFromForwardMark == 90) {
+                    direction[2] = '>';
+                }
+                if (declinationFromNearestMark < 0) {
+                    direction[2] = '<';
+                }
+                if (declinationFromNearestMark < -30) {
+                    direction[4] = '<';
+                }
+                if (declinationFromNearestMark < -60 || declinationFromForwardMark == -90) {
+                    direction[6] = '<';
+                }
+            }
+
+            GFX_write_string_color(&FontT48, &t7l3, direction, 1, colour);
+        }
+
+        break;
     }
-    headerText[3] = 0;
+
+    if (headerText[2] != TXT_2BYTE) {
+        headerText[3] = 0;
+    } else {
+        headerText[4] = 0;
+    }
 
     if(tinyHeaderFont)
         GFX_write_string(&FontT24,&t7l3,headerText,0);

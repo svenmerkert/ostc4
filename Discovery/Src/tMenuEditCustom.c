@@ -175,6 +175,11 @@ void refresh_Customviews(void)
     	text[4] = TXT_SimPpo2;
     	    	break;
 #endif
+    case LLC_Compass:
+        text[4] = TXT_2BYTE;
+        text[5] = TXT2BYTE_Compass;
+
+        break;
     /* none */
     case LLC_Empty:
         text[4] = '-';
@@ -183,7 +188,12 @@ void refresh_Customviews(void)
     	 text[4] = 'X';
     break;
     }
-    text[5] = 0;
+    if (text[4] != TXT_2BYTE) {
+        text[5] = 0;
+    } else {
+        text[6] = 0;
+    }
+
     write_label_var(  30, 700, ME_Y_LINE6, &FontT48, text);
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
