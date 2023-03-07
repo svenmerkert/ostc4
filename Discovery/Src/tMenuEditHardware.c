@@ -425,7 +425,7 @@ void refresh_O2Sensors(void)
 		else
 		{
 			if((pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG) || (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANADIG)
-#ifdef ENABLE_CO2_SUPPORT
+#ifdef ENABLE_SENTINEL_MODE
 					|| (pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_SENTINEL)
 #endif
 					)
@@ -439,11 +439,14 @@ void refresh_O2Sensors(void)
 			}
 		}
 
-		strSensorId[0] = TXT_2BYTE;
-		strSensorId[1] = TXT2BYTE_SensorDetect;
-		strSensorId[2] = 0;
+	   	if(DataEX_external_ADC_Present())
+	   	{
+			strSensorId[0] = TXT_2BYTE;
+			strSensorId[1] = TXT2BYTE_SensorDetect;
+			strSensorId[2] = 0;
 
-		write_label_var(  30, 340, ME_Y_LINE6, &FontT48, strSensorId);
+			write_label_var(  30, 340, ME_Y_LINE6, &FontT48, strSensorId);
+	   	}
 
 		if(haveSensorInfo == 1)
 		{
@@ -545,13 +548,16 @@ void openEdit_O2Sensors(void)
    		write_field_button(StMHARD3_Sensor_Info,	 30, 800, ME_Y_LINE5,  &FontT48, "");
    	}
 
-   	text[0] = TXT_2BYTE;
-   	text[1] = TXT2BYTE_SensorDetect;
-   	text[2] = 0;
+   	if(DataEX_external_ADC_Present())
+   	{
+		text[0] = TXT_2BYTE;
+		text[1] = TXT2BYTE_SensorDetect;
+		text[2] = 0;
 
-	write_label_var(  30, 340, ME_Y_LINE6, &FontT48, text);
+		write_label_var(  30, 340, ME_Y_LINE6, &FontT48, text);
 
-   	write_field_button(StMHARD3_Sensor_Detect,	 30, 800, ME_Y_LINE6,  &FontT48, text);
+		write_field_button(StMHARD3_Sensor_Detect,	 30, 800, ME_Y_LINE6,  &FontT48, text);
+   	}
 
     if((pSettings->ext_sensor_map[0] >= SENSOR_OPTIC) && (pSettings->ext_sensor_map[0] < SENSOR_TYPE_O2_END))
 	{
@@ -580,7 +586,10 @@ void openEdit_O2Sensors(void)
    		setEvent(StMHARD3_Sensor_Info, (uint32_t)OnAction_Sensor_Info);
    	}
 
-    setEvent(StMHARD3_Sensor_Detect, (uint32_t)OnAction_Sensor_Detect);
+   	if(DataEX_external_ADC_Present())
+   	{
+   		setEvent(StMHARD3_Sensor_Detect, (uint32_t)OnAction_Sensor_Detect);
+   	}
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
 
