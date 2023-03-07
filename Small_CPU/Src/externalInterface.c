@@ -93,7 +93,7 @@ void externalInterface_Init(void)
 
 /* Create a lookup table based on GSS application note AN001: PRESSURE COMPENSATION OF A CO2 SENSOR */
 /* The main purpose of the sensor in the dive application is to be a warning indicator */
-/* => no exact values necessary => a lookup table with 50 entries should be sufficient */
+/* => no exact values necessary => a lookup table with 1000ppm scaling should be sufficient */
 	LookupCO2PressureCorrection [0] = -0.0014;
 	for(index = 1; index < (LOOKUP_CO2_CORR_TABLE_MAX / LOOKUP_CO2_CORR_TABLE_SCALE); index++)
 	{
