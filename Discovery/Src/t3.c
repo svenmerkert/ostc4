@@ -1528,145 +1528,125 @@ void t3_basics_show_customview_warnings(GFX_DrawCfgWindow* tXc1)
     textpointerMain = 0;
     textMain[textpointerMain++] = '\025';		/* red */
     textMain[textpointerMain++] = '\003';		/* doublesize */
+    textMain[textpointerMain++] = TXT_2BYTE;	/* There is only one Main warning to be displayed */
 
     textpointer = 0;
+    text[textpointer++] = '\025';				/* red */
 
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnDecoMissed;
     if(stateUsed->warnings.decoMissed)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
+            textMain[textpointerMain++] = TXT2BYTE_WarnDecoMissed;
             lineFree--;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnDecoMissed;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
 
-    text[textpointer++] = '\t';
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnPPO2Low;
     if(stateUsed->warnings.ppO2Low)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
+            textMain[textpointerMain++] = TXT2BYTE_WarnPPO2Low;
             lineFree--;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnPPO2Low;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
 
-    text[textpointer++] = '\n';
-    text[textpointer++] = '\r';
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnPPO2High;
     if(stateUsed->warnings.ppO2High)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
+            textMain[textpointerMain++] = TXT2BYTE_WarnPPO2High;
             lineFree--;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnPPO2High;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
 
-    text[textpointer++] = '\t';
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnFallback;
     if(stateUsed->warnings.fallback)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
+            textMain[textpointerMain++] = TXT2BYTE_WarnFallback;
             lineFree--;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnFallback;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
 
-    text[textpointer++] = '\n';
-    text[textpointer++] = '\r';
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnSensorLinkLost;
     if(stateUsed->warnings.sensorLinkLost)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
+            textMain[textpointerMain++] = TXT2BYTE_WarnSensorLinkLost;
             lineFree--;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnSensorLinkLost;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
 
-/*
-    text[textpointer++] = '\t';
-    text[textpointer++] = '\031';
-    text[textpointer++] = TXT_2BYTE;
-    text[textpointer++] = TXT2BYTE_WarnBatteryLow;
-    if(stateUsed->warnings.lowBattery)
+    if(stateUsed->warnings.co2High)
     {
-        text[textpointer - 3] =  '\025';
         if(lineFree)
         {
-            textMain[textpointerMain++] = TXT_2BYTE;
-            textMain[textpointerMain++] = text[textpointer - 1];
-            textMain[textpointerMain] = 0;
-            lineFree--;
+            textMain[textpointerMain++] = TXT2BYTE_WarnCO2High;
         }
         else
         {
+        	text[textpointer++] = '\002';
+            text[textpointer++] = TXT_2BYTE;
+            text[textpointer++] = TXT2BYTE_WarnCO2High;
+            text[textpointer++] = '\r';
+            text[textpointer++] = '\n';
             more++;
         }
     }
-*/
+
     text[textpointer] = 0;
-/*
-    if(more)
+    textMain[textpointerMain] = 0;
+
+    if(lineFree == 0)
     {
-        text[textpointer++] = '\002';
-        text[textpointer++] = '+';
-        if(more < 10)
-            text[textpointer++] = '0' + more;
-        else
-            text[textpointer++] = 'X';
-        text[textpointer] = 0;
+    	GFX_write_string(&FontT48,&t3c1,textMain,0);
     }
-*/
-    GFX_write_string(&FontT48,&t3c1,textMain,0);
     if(more)
     {
         GFX_write_string(&FontT48,&t3c2,text,0);
