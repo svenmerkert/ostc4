@@ -1412,6 +1412,7 @@ uint8_t t7_test_customview_warnings(void)
     //count += stateUsed->warnings.lowBattery;
     count += stateUsed->warnings.sensorLinkLost;
     count += stateUsed->warnings.fallback;
+    count += stateUsed->warnings.co2High;
 #ifdef ENABLE_BOTTLE_SENSOR
     if(stateUsed->warnings.newPressure)
     {
@@ -1560,6 +1561,18 @@ void t7_show_customview_warnings(void)
     	text[textpointer++] = '\001';
     	sprintf(&text[textpointer],"  %u Bar\n", stateUsed->warnings.newPressure);
     	textpointer++;
+        lineFree--;
+    }
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+    if(lineFree && stateUsed->warnings.co2High)
+    {
+    	text[textpointer++] = '\001';
+        text[textpointer++] = TXT_2BYTE;
+        text[textpointer++] = TXT2BYTE_WarnCO2High;
+        text[textpointer++] = '\n';
+        text[textpointer++] = '\r';
+        text[textpointer] = 0;
         lineFree--;
     }
 #endif

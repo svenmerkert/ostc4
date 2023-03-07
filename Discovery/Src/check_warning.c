@@ -41,6 +41,7 @@
 
 #define DEBOUNCE_FALLBACK_TIME_MS	(5000u)		/* set warning after 5 seconds of pending error condition */
 
+
 /* Private variables with access ----------------------------------------------*/
 static uint8_t betterGasId = 0;
 static uint8_t betterSetpointId = 0;
@@ -60,6 +61,9 @@ static int8_t check_BetterSetpoint(SDiveState * pDiveState);
 static int8_t check_Battery(SDiveState * pDiveState);
 #ifdef ENABLE_BOTTLE_SENSOR
 static int8_t check_pressureSensor(SDiveState * pDiveState);
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+static int8_t check_co2(SDiveState * pDiveState);
 #endif
 static int8_t check_helper_same_oxygen_and_helium_content(SGasLine * gas1, SGasLine * gas2);
 
@@ -87,6 +91,9 @@ void check_warning2(SDiveState * pDiveState)
 	pDiveState->warnings.numWarnings += check_fallback(pDiveState);
 #ifdef ENABLE_BOTTLE_SENSOR
 	pDiveState->warnings.numWarnings += check_pressureSensor(pDiveState);
+#endif
+#ifdef ENABLE_CO2_SUPPORT
+	pDiveState->warnings.numWarnings += check_co2(pDiveState);
 #endif
 }
 
@@ -430,6 +437,28 @@ static int8_t check_pressureSensor(SDiveState * pDiveState)
 		pDiveState->warnings.newPressure = 0;
 	}
 	return ret;
+}
+#endif
+
+#ifdef ENABLE_CO2_SUPPORT
+static int8_t check_co2(SDiveState * pDiveState)
+{
+	if(pDiveState->mode != MODE_DIVE)
+	{
+		pDiveState->warnings.co2High = 0;
+	}
+	else
+	{
+		if(pDiveState->lifeData.CO2_data.CO2_ppm > CO2_ALARM_LEVEL_PPM)
+		{
+			pDiveState->warnings.co2High = 1;
+		}
+		else
+		{
+			pDiveState->warnings.co2High = 0;
+		}
+	}
+	return pDiveState->warnings.co2High;
 }
 #endif
 

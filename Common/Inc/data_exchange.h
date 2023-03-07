@@ -54,6 +54,9 @@
 
 #define EXTIF_SENSOR_INFO_SIZE		(32u)		/* size of data array reserved for extended sensor data from external interface */
 
+#define CO2_WARNING_LEVEL_PPM		(2000u)	    /* Early warning to indicate unexpected high co2 concentration (yellow) */
+#define CO2_ALARM_LEVEL_PPM			(5000u)		/* starting by this level CO2 has a negative impact on health (long exposure) */
+
 enum MODE
 {
 	MODE_SURFACE	= 0,

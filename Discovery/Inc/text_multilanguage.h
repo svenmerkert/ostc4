@@ -221,6 +221,7 @@ extern const tText text_array2[];
 		TXT2BYTE_WarnSensorLinkLost,
 		TXT2BYTE_WarnFallback,
 		TXT2BYTE_WarnCnsHigh,
+		TXT2BYTE_WarnCO2High,
 		/* */
 		TXT2BYTE_O2monitor,
 		TXT2BYTE_O2voltage,

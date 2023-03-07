@@ -972,6 +972,13 @@ static uint8_t text_FR_WarnCnsHigh[] = "SNC haut";
 static uint8_t text_IT_WarnCnsHigh[] = "CNS alto";
 static uint8_t text_ES_WarnCnsHigh[] = "CNS alto";
 
+// Warning
+static uint8_t text_EN_WarnCO2High[] = "CO2 high";
+static uint8_t text_DE_WarnCO2High[] = "CO2 hoch";
+static uint8_t text_FR_WarnCO2High[] = "CO2 haut";
+static uint8_t text_IT_WarnCO2High[] = "CO2 alto";
+static uint8_t text_ES_WarnCO2High[] = "CO2 alto";
+
 // Tissue Graph
 static uint8_t text_EN_Nitrogen[] = "Nitrogen";
 static uint8_t text_DE_Nitrogen[] = "Stickstoff";
@@ -1921,6 +1928,7 @@ const tText text_array2[] =
     {(uint8_t)TXT2BYTE_WarnSensorLinkLost,{text_EN_WarnSensorLinkLost, text_DE_WarnSensorLinkLost, text_FR_WarnSensorLinkLost, text_IT_WarnSensorLinkLost, text_ES_WarnSensorLinkLost}},
     {(uint8_t)TXT2BYTE_WarnFallback,	{text_EN_WarnFallback, text_DE_WarnFallback, text_FR_WarnFallback, text_IT_WarnFallback, text_ES_WarnFallback}},
     {(uint8_t)TXT2BYTE_WarnCnsHigh,		{text_EN_WarnCnsHigh, text_DE_WarnCnsHigh, text_FR_WarnCnsHigh, text_IT_WarnCnsHigh, text_ES_WarnCnsHigh}},
+    {(uint8_t)TXT2BYTE_WarnCO2High,		{text_EN_WarnCO2High, text_DE_WarnCO2High, text_FR_WarnCO2High, text_IT_WarnCO2High, text_ES_WarnCO2High}},
     {(uint8_t)TXT2BYTE_O2monitor,		{text_EN_O2monitor, text_DE_O2monitor, text_FR_O2monitor, text_IT_O2monitor, text_ES_O2monitor}},
     {(uint8_t)TXT2BYTE_O2voltage,		{text_EN_O2voltage, text_DE_O2voltage, text_FR_O2voltage, text_IT_O2voltage, text_ES_O2voltage}},
     {(uint8_t)TXT2BYTE_Tissues,			{text_EN_Tissues, text_DE_Tissues, text_FR_Tissues, text_IT_Tissues, text_ES_Tissues}},
