@@ -172,6 +172,9 @@ typedef struct
 typedef struct
 {
 	/* from Small CPU */
+	uint8_t extIf_sensor_data[32]; /* The external sensor may contain a 64 bit ID. It has been placed at the beginning of the structure to avoid problems in alignment */
+	uint8_t extIf_sensor_map[EXT_INTERFACE_SENSOR_CNT];
+
 	int32_t dive_time_seconds;
 	int32_t dive_time_seconds_without_surface_time;
 	uint32_t surface_time_seconds;
@@ -201,9 +204,6 @@ typedef struct
 	uint8_t buttonPICdata[4];
 	SCO2Sensor CO2_data;
 	uint8_t extIf_sensor_Id;
-	uint8_t UINT64ALIGNMENT;					/* If your program crash check if you changed something in the life data structure ! The external sensor may contain a 64 bit ID */
-	uint8_t extIf_sensor_data[32];
-	uint8_t extIf_sensor_map[EXT_INTERFACE_SENSOR_CNT];
 
 	/* by create DiveSettings() and by setActualGas()
 	 * is send to Small CPU2 for nitrogen calculation
@@ -268,6 +268,7 @@ typedef struct
 	int8_t betterGas;
 	int8_t fallback;
 	int8_t betterSetpoint;
+	int8_t co2High;
 #ifdef ENABLE_BOTTLE_SENSOR
 	int8_t newPressure;
 #endif
