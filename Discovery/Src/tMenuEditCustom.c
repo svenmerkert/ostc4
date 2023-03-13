@@ -175,6 +175,11 @@ void refresh_Customviews(void)
     	text[4] = TXT_SimPpo2;
     	    	break;
 #endif
+#ifdef ENABLE_CO2_SUPPORT
+    case LCC_CO2:
+        text[4] = TXT_CO2Sensor;
+       	    	break;
+#endif
     case LLC_Compass:
         text[4] = TXT_2BYTE;
         text[5] = TXT2BYTE_Compass;
