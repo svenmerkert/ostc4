@@ -52,7 +52,10 @@ typedef enum
 #ifdef ENABLE_PSCR_MODE
 		LCC_SimPpo2,
 #endif
-        LLC_Compass,
+		LLC_Compass,
+#ifdef ENABLE_CO2_SUPPORT
+		LCC_CO2,
+#endif
 		LLC_END
 
 } customview_llc_t;

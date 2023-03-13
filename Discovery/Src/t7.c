@@ -2929,6 +2929,23 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         snprintf(text,TEXTSIZE,"%d\016\016\017", stateUsed->lifeData.bottle_bar[stateUsed->lifeData.actualGas.GasIdInSettings]);
         break;
 #endif
+#ifdef ENABLE_CO2_SUPPORT
+    case LCC_CO2:
+        headerText[2] = TXT_CO2Sensor;
+        if(stateUsed->lifeData.CO2_data.CO2_ppm < CO2_WARNING_LEVEL_PPM)
+        {
+        	text[textpointer++] = '\020';
+        }
+        else if(stateUsed->lifeData.CO2_data.CO2_ppm < CO2_ALARM_LEVEL_PPM)
+        {
+        	text[textpointer++] = '\024';	/* yellow */
+        }
+        else
+        {
+        	text[textpointer++] = '\025'; 	/* red */
+        }
+        snprintf(&text[textpointer],TEXTSIZE,"\%5ldppm", stateUsed->lifeData.CO2_data.CO2_ppm);
+#endif
     case LLC_Compass:
         headerText[2] = TXT_2BYTE;
         headerText[3] = TXT2BYTE_Compass;
