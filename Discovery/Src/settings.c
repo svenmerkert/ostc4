@@ -1497,13 +1497,13 @@ uint8_t check_and_correct_settings(void)
     	Settings.scubberActiveId = 0;
     	corrections++;
     }
-    if((Settings.scrubberData[0].TimerMax > MAX_SCRUBBER_TIME) || (Settings.scrubberData[0].TimerCur > MAX_SCRUBBER_TIME))
+    if((Settings.scrubberData[0].TimerMax > MAX_SCRUBBER_TIME) || Settings.scrubberData[0].TimerCur < MIN_SCRUBBER_TIME || (Settings.scrubberData[0].TimerCur > MAX_SCRUBBER_TIME))
     {
     	Settings.scrubberData[0].TimerMax = 0;
     	Settings.scrubberData[0].TimerCur = 0;
     	corrections++;
     }
-    if((Settings.scrubberData[1].TimerMax > MAX_SCRUBBER_TIME) || (Settings.scrubberData[1].TimerCur > MAX_SCRUBBER_TIME))
+    if((Settings.scrubberData[1].TimerMax > MAX_SCRUBBER_TIME) || Settings.scrubberData[1].TimerCur < MIN_SCRUBBER_TIME || (Settings.scrubberData[1].TimerCur > MAX_SCRUBBER_TIME))
     {
     	Settings.scrubberData[1].TimerMax = 0;
     	Settings.scrubberData[1].TimerCur = 0;

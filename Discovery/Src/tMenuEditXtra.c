@@ -204,6 +204,19 @@ static void openEdit_Fallback(void)
 }
 
 
+static void printScrubberResetText(char *text, SSettings *settings)
+{
+    int16_t currentTimerMinutes = settings->scrubberData[settings->scubberActiveId].TimerCur;
+    char colour = '\020';
+    if (currentTimerMinutes <= 0) {
+        colour = '\025';
+    } else if (currentTimerMinutes <= 30) {
+        colour = '\024';
+    }
+    snprintf(text, 32, "%c\002%c%03i\016\016 %c\017", TXT_ScrubTimeReset, colour, currentTimerMinutes, TXT_Minutes);
+}
+
+
 static void openEdit_Scrubber(void)
 {
 	char text[32];
@@ -235,12 +248,7 @@ static void openEdit_Scrubber(void)
 
     write_field_udigit(StMXTRA_ScrubTimer_Max,	 610, 780, ME_Y_LINE2,  &FontT48, text,localScrubTimer, 0, 0, 0);
 
-    snprintf(&text[0], 32,\
-                     "%c\002%03u\016\016 %c\017"
-                     ,TXT_ScrubTimeReset
-                     ,pSettings->scrubberData[pSettings->scubberActiveId].TimerCur
-                     ,TXT_Minutes);
-
+    printScrubberResetText(text, pSettings);
     write_field_button(StMXTRA_ScrubTimer_Reset, 20, 780, ME_Y_LINE3,  &FontT48, text);
 
     if(pSettings->scrubberData[pSettings->scubberActiveId].lastDive.WeekDay != 0)
@@ -420,11 +428,7 @@ uint8_t OnAction_ScrubberTimerId(uint32_t editId, uint8_t blockNumber, uint8_t d
     snprintf(&text[0], 32,"%c \002#%d",TXT_ScrubTime,pSettings->scubberActiveId);
     tMenuEdit_newButtonText(StMXTRA_ScrubTimer, text);
 
-    snprintf(&text[0], 32,\
-                     "%c\002%03u\016\016 %c\017"
-                     ,TXT_ScrubTimeReset
-                     ,pSettings->scrubberData[pSettings->scubberActiveId].TimerCur
-                     ,TXT_Minutes);
+    printScrubberResetText(text, pSettings);
     tMenuEdit_newButtonText(StMXTRA_ScrubTimer_Reset, text);
 
     tMenuEdit_newInput(StMXTRA_ScrubTimer_Max, pSettings->scrubberData[pSettings->scubberActiveId].TimerMax,  0,  0, 0);
@@ -495,12 +499,7 @@ uint8_t OnAction_ScrubberReset(uint32_t editId, uint8_t blockNumber, uint8_t dig
     pSettings->scrubberData[pSettings->scubberActiveId].TimerCur = pSettings->scrubberData[pSettings->scubberActiveId].TimerMax;
     pSettings->scrubberData[pSettings->scubberActiveId].lastDive.WeekDay = 0;	/* invalidate date */
 
-    snprintf(&text[0], 32,\
-                     "%c\002%03u\016\016 %c\017"
-                     ,TXT_ScrubTimeReset
-                     ,pSettings->scrubberData[pSettings->scubberActiveId].TimerCur
-                     ,TXT_Minutes);
-
+    printScrubberResetText(text, pSettings);
     tMenuEdit_newButtonText(StMXTRA_ScrubTimer_Reset, text);
 
    	snprintf(&text[0], 32,"%c%c\002   --.--.--", TXT_2BYTE, TXT2BYTE_SimDiveTime);

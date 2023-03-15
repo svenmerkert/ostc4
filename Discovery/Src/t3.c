@@ -27,6 +27,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdbool.h>
+
 #include "t3.h"
 
 #include "data_exchange_main.h"
@@ -1312,15 +1314,9 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
                  snprintf(text,TEXTSIZE,"\032\002\f%c",TXT_ScrubTime);
                  GFX_write_string(&FontT42,tXc1,text,0);
 
-            	textpointer = 0;
-                if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
-                {
-                	textpointer += snprintf(&text[textpointer],10,"\020\002%3u'",  pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
-                }
-                else
-                {
-                	textpointer += snprintf(&text[textpointer],20,"\020\002%u\016\016%%\017", (uint16_t)(pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / pSettings->scrubberData[pSettings->scubberActiveId].TimerMax));
-                }
+                textpointer = 0;
+                text[textpointer++] = '\002';
+                textpointer += printScrubberText(&text[textpointer], 10, pSettings);
                 GFX_write_string(&FontT105,tXc1,text,1);
             }
         }
@@ -1971,4 +1967,21 @@ uint8_t t3_GetEnabled_customviews()
 uint8_t t3_getCustomView(void)
 {
     return t3_selection_customview;
+}
+
+int printScrubberText(char *text, size_t size, SSettings *settings)
+{
+    int16_t currentTimerMinutes = settings->scrubberData[settings->scubberActiveId].TimerCur;
+    char colour = '\020';
+    if (currentTimerMinutes <= 0) {
+        colour = '\025';
+    } else if (currentTimerMinutes <= 30) {
+        colour = '\024';
+    }
+
+    if (settings->scrubTimerMode == SCRUB_TIMER_MINUTES || currentTimerMinutes < 0) {
+        return snprintf(text, size, "%c%3i'", colour, currentTimerMinutes);
+    } else {
+        return snprintf(text, size, "%c%u\016\016%%\017", colour, currentTimerMinutes * 100 / settingsGetPointer()->scrubberData[settings->scubberActiveId].TimerMax);
+    }
 }

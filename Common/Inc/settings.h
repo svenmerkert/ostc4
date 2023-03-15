@@ -77,6 +77,7 @@
 #define MAX_VIEWPORT_MODE 		(0x7F)
 
 #define MAX_SCRUBBER_TIME 		(999u)
+#define MIN_SCRUBBER_TIME       -99
 #define MIN_PPO2_SP_CBAR		(40u)
 
 #define PSCR_MAX_O2_DROP		(15u)
@@ -163,7 +164,7 @@ typedef struct
 typedef struct
 {
 	uint16_t TimerMax;
-	uint16_t TimerCur;
+	int16_t TimerCur;
 	RTC_DateTypeDef lastDive;
 } SScrubberData;
 

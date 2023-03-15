@@ -2919,14 +2919,9 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
     case LLC_ScrubberTime:
     	tinyHeaderFont = 1;
         headerText[2] = TXT_ScrubTime;
-        if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
-        {
-        	snprintf(text,TEXTSIZE,"\020%3u'",pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
-        }
-        else
-        {
-        	snprintf(text,TEXTSIZE,"\020%u\016\016%%\017", (pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / settingsGetPointer()->scrubberData[pSettings->scubberActiveId].TimerMax));
-        }
+
+        printScrubberText(text, TEXTSIZE, pSettings);
+
 		break;
 #ifdef ENABLE_PSCR_MODE
     case LCC_SimPpo2:
@@ -3676,14 +3671,8 @@ void t7_SummaryOfLeftCorner(void)
         text[textpointer++] = '\n';
         text[textpointer++] = '\r';
         text[textpointer++] = '\t';
-        if(settingsGetPointer()->scrubTimerMode == SCRUB_TIMER_MINUTES)
-        {
-        	textpointer += snprintf(&text[textpointer],10,"\020%3u'", pSettings->scrubberData[pSettings->scubberActiveId].TimerCur);
-        }
-        else
-        {
-        	textpointer += snprintf(&text[textpointer],10,"\020%u\016\016%%\017", (pSettings->scrubberData[pSettings->scubberActiveId].TimerCur * 100 / pSettings->scrubberData[pSettings->scubberActiveId].TimerMax));
-        }
+
+        textpointer += printScrubberText(&text[textpointer], 10, pSettings);
     }
     text[textpointer++] = 0;
     t7_colorscheme_mod(text);

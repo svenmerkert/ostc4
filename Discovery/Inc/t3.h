@@ -31,6 +31,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 #include "gfx_engine.h"
+#include "settings.h"
 
 /* Exported functions --------------------------------------------------------*/
 void t3_init(void);
@@ -41,5 +42,7 @@ uint8_t t3_GetEnabled_customviews(void);
 uint8_t t3_getCustomView(void);
 void t3_set_customview_to_primary(void);
 uint8_t t3_customview_disabled(uint8_t view);
+
+int printScrubberText(char *text, size_t size, SSettings *settings);
 
 #endif /* T3_H */
