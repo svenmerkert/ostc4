@@ -1778,6 +1778,12 @@ static uint8_t text_FR_KeyLock[] = "";
 static uint8_t text_IT_KeyLock[] = "";
 static uint8_t text_ES_KeyLock[] = "";
 
+static uint8_t text_EN_NotCalibrated[] = "not calibrated";
+static uint8_t text_DE_NotCalibrated[] = "nicht kalibriert";
+static uint8_t text_FR_NotCalibrated[] = "non calibrée";
+static uint8_t text_IT_NotCalibrated[] = "non calibrata";
+static uint8_t text_ES_NotCalibrated[] = "no calibrada";
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -2041,6 +2047,5 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_Maximum, 		{text_EN_Maximum, text_DE_Maximum, text_FR_Maximum, text_IT_Maximum, text_ES_Maximum}},
 
 	{(uint8_t)TXT2BYTE_CheckSettings, 	{text_EN_CheckSettings, text_DE_CheckSettings, text_FR_CheckSettings, text_IT_CheckSettings, text_ES_CheckSettings}},
-
-
+	{(uint8_t)TXT2BYTE_NotCalibrated, 	{text_EN_NotCalibrated, text_DE_NotCalibrated, text_FR_NotCalibrated, text_IT_NotCalibrated, text_ES_NotCalibrated}},
 };

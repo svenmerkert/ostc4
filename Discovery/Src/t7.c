@@ -28,6 +28,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "t7.h"
 #include "t3.h"
@@ -1752,6 +1753,12 @@ uint8_t t7_get_length_of_customtext(void)
 }
 
 
+bool isCompassCalibrated(void)
+{
+    return stateUsed->lifeData.compass_heading != -1;
+}
+
+
 void t7_refresh_customview(void)
 {
 	static uint8_t last_customview = CVIEW_END;
@@ -1893,6 +1900,27 @@ void t7_refresh_customview(void)
                 t7cC.WindowY0 += shiftWindowY0;
             }
             t7cC.WindowNumberOfTextLines = 1;
+		}
+        else if(!isCompassCalibrated()) {
+            if(warning_count_high_time) {
+                shiftWindowY0 += 20;
+                t7cC.WindowY0 -= shiftWindowY0;
+                textpointer = 0;
+                text[textpointer++] = '\001';
+                text[textpointer++] = TXT_2BYTE;
+                text[textpointer++] = TXT2BYTE_Compass;
+                text[textpointer++] = '\n';
+                text[textpointer++] = '\r';
+                text[textpointer++] = '\001';
+                text[textpointer++] = TXT_2BYTE;
+                text[textpointer++] = TXT2BYTE_NotCalibrated;
+                text[textpointer++] = '\n';
+                text[textpointer++] = '\r';
+                text[textpointer++] = 0;
+                GFX_write_string_color(&FontT42, &t7cC,text, 1, CLUT_WarningRed);
+                t7cC.WindowY0 += shiftWindowY0;
+            }
+            t7cC.WindowNumberOfTextLines = 2;
 		}
         else // customtext
         {

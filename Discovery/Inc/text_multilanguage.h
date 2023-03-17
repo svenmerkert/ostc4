@@ -348,6 +348,7 @@ extern const tText text_array2[];
 		TXT2BYTE_Maximum,
 
 		TXT2BYTE_CheckSettings,
+		TXT2BYTE_NotCalibrated,
 
 		TXT2BYTE_END
 };
