@@ -42,7 +42,7 @@ typedef struct
     float	ppO2AtBottom;
 } SSimDataSummary;
 
-void simulation_start(int aim_depth);
+void simulation_start(int aim_depth, uint16_t aim_time_minutes);
 void simulation_exit(void);
 
 void simulation_set_heed_decostops(_Bool heed_decostops_while_ascending);

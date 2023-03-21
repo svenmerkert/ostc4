@@ -86,7 +86,7 @@ void openEdit_Planner(uint8_t line)
             settingsGetPointer()->bluetoothActive = 0;
             MX_Bluetooth_PowerOff();
         }
-        simulation_start(tMplan_depth_meter);
+        simulation_start(tMplan_depth_meter, tMplan_dive_time_minutes);
         exitMenuEdit_to_Home();
         break;
     case 2:

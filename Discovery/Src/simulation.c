@@ -48,6 +48,7 @@
 
 //Private state variables
 static float sim_aim_depth_meter;
+static float sim_aim_time_minutes;
 static _Bool sim_heed_decostops = 1;
 
 static const float sim_descent_rate_meter_per_min = 20;
@@ -80,7 +81,7 @@ void simulation_set_heed_decostops(_Bool heed_decostops_while_ascending)
   ******************************************************************************
   * @return void
   */
-void simulation_start(int aim_depth)
+void simulation_start(int aim_depth, uint16_t aim_time_minutes)
 {
 	copyDiveSettingsToSim();
     copyVpmRepetetiveDataToSim();
@@ -90,6 +91,7 @@ void simulation_start(int aim_depth)
     if(aim_depth <= 0)
         aim_depth = 20;
     simulation_set_aim_depth(aim_depth);
+    sim_aim_time_minutes = aim_time_minutes;
     timer_init();
     set_stateUsedToSim();
     stateSim.lifeData.boolResetAverageDepth = 1;
@@ -130,6 +132,10 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     static int last_second = -1;
     static _Bool two_second = 0;
     static float lastPressure_bar = 0;
+
+    if (sim_aim_time_minutes * 60 <= pDiveState->lifeData.dive_time_seconds) {
+        simulation_set_aim_depth(0);
+    }
 
     float localCalibCoeff[3] = { 0.0, 0.0, 0.0 };
     uint8_t index, index2;
@@ -912,6 +918,7 @@ void Sim_Quit (void)
         }
     }
 }
+
 void Sim_IncreasePPO(uint8_t sensorIdx)
 {
 	if((sensorIdx < NUM_OF_SENSORS) && (simSensmVOffset[sensorIdx] + SIM_PPO2_STEP < 100.0) && ((stateUsed->diveSettings.ppo2sensors_deactivated & (1 << sensorIdx)) == 0))
