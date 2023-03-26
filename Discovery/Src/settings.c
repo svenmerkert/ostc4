@@ -41,7 +41,7 @@ static uint8_t settingsWarning = 0;		/* Active if setting values have been corre
 SSettings Settings;
 
 const uint8_t RTErequiredHigh = 3;
-const uint8_t RTErequiredLow = 0;
+const uint8_t RTErequiredLow = 1;
 
 const uint8_t FONTrequiredHigh = 1;
 const uint8_t FONTrequiredLow =	0;
@@ -60,15 +60,15 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
 {
     .versionFirst   = 1,
     .versionSecond 	= 6,
-    .versionThird   = 1,
-    .versionBeta    = 1,
+    .versionThird   = 2,
+    .versionBeta    = 0,
 
     /* 4 bytes with trailing 0 */
     .signature = "mh",
 
-    .release_year = 22,
-    .release_month = 8,
-    .release_day = 19,
+    .release_year = 23,
+    .release_month = 3,
+    .release_day = 26,
     .release_sub = 0,
 
     /* max 48 with trailing 0 */
