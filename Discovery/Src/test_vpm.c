@@ -352,7 +352,7 @@ uint8_t test2_unapproved(void)
   ******************************************************************************
   * @brief		test 3
   *						Trimix 10/70
-    *						everything else identical to test1 by Peter Ryser
+    *						everything else identical to test1 by heinrichs weikamp gmbh
   * @version 	V0.0.1
   * @date   	19-April-2014
   * @retval 	1 for result is similar to DRx code, 0 otherwise

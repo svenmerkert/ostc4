@@ -3,7 +3,7 @@
 ///
 /// \file   Discovery/Inc/timer.h
 /// \brief  Contains timer related functionality like stopwatch and security stop
-/// \author Peter Ryser
+/// \author heinrichs weikamp gmbh
 /// \date
 ///
 /// $Id$

@@ -1763,8 +1763,7 @@ uint32_t GFX_write_label(const tFont *Font, GFX_DrawCfgWindow* hgfx, const char 
 
 /**
   ******************************************************************************
-  * @brief   GFX writeGfx_write_label_varstring. /  Write string with all parameters and font color options
-  * @author  Peter Ryser
+  * @brief   GFX writeGfx_write_label_varstring. /  Write string with all parameters and font color options	heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    22-April-2014
   ******************************************************************************

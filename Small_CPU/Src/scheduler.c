@@ -476,7 +476,7 @@ void schedule_check_resync(void)
 /**
   ******************************************************************************
 * @brief   scheduleDiveMode. /  Dive Mode: Main Loop
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    22-April-2014
   ******************************************************************************
@@ -726,7 +726,7 @@ void scheduleDiveMode(void)
 /**
   ******************************************************************************
 * @brief   scheduleSurfaceMode / surface mode: Main Loop
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    22-April-2014
   ******************************************************************************
@@ -1216,7 +1216,7 @@ void scheduleSleepMode(void)
 /**
   ******************************************************************************
 	* @brief   scheduleUpdateLifeData / calculates tissues
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    22-April-2014
   ******************************************************************************
@@ -1474,7 +1474,7 @@ void scheduleUpdateDeviceDataChargerCharging(void)
 /**
   ******************************************************************************
 * @brief   vpm_crush / calls vpm calc_crushing_pressure every four seconds during descend
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    22-April-2014
   ******************************************************************************

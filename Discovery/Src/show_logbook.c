@@ -72,7 +72,7 @@ static inline uint32_t MaxU32LOG(uint32_t a, uint32_t b)
 /**
   ******************************************************************************
   * @brief   GFX write label. /  print coordinate system & depth graph
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    07-July-2014
   ******************************************************************************
@@ -417,7 +417,7 @@ static void scaleHelper(	uint16_t InputDataLength, int16_t *InputDataArray, int 
 /**
   ******************************************************************************
   * @brief  show_logbook_logbook_show_log_page1 /
-  * @author  Peter Ryser
+  * @author  heinrichs weikamp gmbh
   * @version V0.0.1
   * @date    07-July-2014
   ******************************************************************************

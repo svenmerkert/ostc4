@@ -375,12 +375,12 @@ int main(void) {
 
 		if (!scheduleSetButtonResponsiveness())
 		{
-			HAL_Delay(1);
+			HAL_Delay(10);
 			if (!scheduleSetButtonResponsiveness()) // send again, if problem it's not my problem here.
 			{
-				HAL_Delay(1);
+				HAL_Delay(10);
 				scheduleSetButtonResponsiveness(); // init
-				HAL_Delay(1);
+				HAL_Delay(10);
 			}
 		}
 	}

@@ -283,7 +283,7 @@ uint8_t DataEX_call(void)
 	}
 	else
 	{
-		if(data_old__lost_connection_to_slave_counter_temp >= 2) /* error reaction is triggered whenever communication could not be reestablishen within two cycles */
+		if(data_old__lost_connection_to_slave_counter_temp >= 2) /* error reaction is triggered whenever communication could not be reestablished within two cycles */
 		{
 			data_old__lost_connection_to_slave_counter_temp = 0;
 			if(DataEX_check_header_and_footer_shifted())
@@ -299,7 +299,7 @@ uint8_t DataEX_call(void)
 				{
 					HAL_SPI_Abort_IT(&cpu2DmaSpi);
 				}
-				/* reset of own DMA does not work ==> request reset of slave dma by indicating shifted receiption */
+				/* reset of own DMA does not work ==> request reset of slave dma by indicating shifted reception */
 				if (data_old__lost_connection_to_slave_counter_retry == 1)
 				{
 					dataOut.header.checkCode[SPI_HEADER_INDEX_RX_STATE] = SPI_RX_STATE_SHIFTED;

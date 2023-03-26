@@ -40,7 +40,7 @@
 #define SCHEDULER_TICK_EXE1SEC	(980u) 	/* tick count based on cycle start which is used to trigger functions which */
 										/* shall be executed once in a second (20ms before cycle restarts) */
 
-#define SPI_COM_TIMEOUT_START		(5)		/* *100 ms timeout to avoid tiemout e.g. after Main wakeup */
+#define SPI_COM_TIMEOUT_START		(5)		/* *100 ms timeout to avoid timeout e.g. after Main wakeup */
 #define SPI_COM_TIMEOUT_COMMON		(3)		/* *100ms shorter timeout during normal operation to have a faster error reaction */
 
 typedef struct

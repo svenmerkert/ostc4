@@ -197,7 +197,7 @@ typedef struct
 		uint8_t sensor_map[EXT_INTERFACE_SENSOR_CNT];
 		uint8_t SPARE_OldWireless[5]; 							/* 64 - 12 for extADC - 6 for CO2 - 34 for sensor (+dummmy) - sensor map*/
 		// PIC data
-		uint8_t button_setting[4]; /* see dependency to SLiveData->buttonPICdata */
+		uint8_t button_setting[4]; /* see dependency to SlaveData->buttonPICdata */
 		uint8_t SPARE1;
 		//debug
 		uint32_t pressure_uTick;
