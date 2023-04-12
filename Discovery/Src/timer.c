@@ -3,7 +3,7 @@
 ///
 /// \file   Discovery/Src/timer.c
 /// \brief  Contains timer related functionality like stopwatch and security stop
-/// \author heinrichs weikamp gmbh & heinrichs weikamp gmbh
+/// \author heinrichs weikamp gmbh
 /// \date   5. Feb.2015 (maybe)
 ///
 /// \details
