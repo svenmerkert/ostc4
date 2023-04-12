@@ -27,6 +27,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include <string.h>
+#include <stdbool.h>
+
 #include "settings.h"
 #include "firmwareEraseProgram.h" // for HARDWAREDATA_ADDRESS
 #include "externLogbookFlash.h" // for SAMPLESTART and SAMPLESTOP
@@ -559,9 +561,29 @@ uint8_t newFirmwareVersionCheckViaSettings(void)
 }
 
 
-void set_settings_button_to_standard_with_individual_buttonBalance(void)
+void set_settings_button_to_factory_with_individual_buttonBalance(void)
 {
-    settingsHelperButtonSens_keepPercentageValues(SettingsStandard.ButtonResponsiveness[3], settingsGetPointer()->ButtonResponsiveness);
+    bool factoryBalanceSettingsValid = true;
+    unsigned i = 0;
+    while (factoryBalanceSettingsValid && i < 3) {
+        if (Settings.FactoryButtonBalance[i] < 2 || Settings.FactoryButtonBalance[i] > 5) {
+            factoryBalanceSettingsValid = false;
+        }
+
+        i++;
+    }
+    if (factoryBalanceSettingsValid) {
+        for (i = 0; i < 3; i++) {
+            Settings.buttonBalance[i] = Settings.FactoryButtonBalance[i];
+        }
+    }
+
+    uint8_t buttonResponsiveness = Settings.FactoryButtonBase;
+    if (buttonResponsiveness < 70 || buttonResponsiveness > 110) {
+        buttonResponsiveness = SettingsStandard.ButtonResponsiveness[3];
+    }
+
+    settingsHelperButtonSens_keepPercentageValues(buttonResponsiveness, settingsGetPointer()->ButtonResponsiveness);
 }
 
 

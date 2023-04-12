@@ -381,7 +381,7 @@ int main(void)
     if( newFirmwareVersionCheckViaSettings() ) // test for old firmware version in loaded settings
     {
         wasFirmwareUpdateCheckBattery = 1;
-        set_settings_button_to_standard_with_individual_buttonBalance(); // will adapt individual values
+        set_settings_button_to_factory_with_individual_buttonBalance(); // will adapt individual values
     }
     //settingsGetPointer()->bluetoothActive = 0; 	/* MX_Bluetooth_PowerOff();  unnecessary as part of MX_GPIO_Init() */
     //settingsGetPointer()->compassBearing = 0;

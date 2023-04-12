@@ -354,7 +354,7 @@ void getActualRTEandFONTversion(uint8_t *RTEhigh, uint8_t *RTElow, uint8_t *FONT
 void set_new_settings_missing_in_ext_flash(void);
 uint8_t check_and_correct_settings(void);
 uint8_t newFirmwareVersionCheckViaSettings(void);
-void set_settings_button_to_standard_with_individual_buttonBalance(void);
+void set_settings_button_to_factory_with_individual_buttonBalance(void);
 uint8_t getLicence(void);
 void firmwareGetDate(RTC_DateTypeDef *SdateOutput);
 
