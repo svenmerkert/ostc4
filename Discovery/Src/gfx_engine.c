@@ -2371,8 +2371,14 @@ static uint32_t GFX_write_char_doubleSize(GFX_DrawCfgWindow* hgfx, GFX_CfgWriteS
 
 // -----------------------------
 	char_truncated_WidthFlag = 0;
-	width_left = hgfx->Image->ImageWidth - (hgfx->WindowX0 + cfg->Xdelta);
-
+	if(!pSettings->FlipDisplay)
+	{
+		width_left = hgfx->Image->ImageWidth - (hgfx->WindowX0 + cfg->Xdelta);
+	}
+	else
+	{
+		width_left = (hgfx->WindowX1 - cfg->Xdelta);
+	}
 	if(width_left < width)
 	{
 		char_truncated_WidthFlag = 1;
@@ -2764,7 +2770,14 @@ static uint32_t GFX_write_char(GFX_DrawCfgWindow* hgfx, GFX_CfgWriteString* cfg,
 
 // -----------------------------
 	char_truncated_WidthFlag = 0;
-	width_left = hgfx->Image->ImageWidth - (hgfx->WindowX0 + cfg->Xdelta);
+	if(!pSettings->FlipDisplay)
+	{
+		width_left = hgfx->Image->ImageWidth - (hgfx->WindowX0 + cfg->Xdelta);
+	}
+	else
+	{
+		width_left = (hgfx->WindowX1 - cfg->Xdelta);
+	}
 	if(width_left < width)
 	{
 		char_truncated_WidthFlag = 1;
