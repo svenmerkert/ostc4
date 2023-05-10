@@ -356,6 +356,10 @@ extern const tText text_array2[];
         TXT2BYTE_BailoutShort,
         TXT2BYTE_LoopShort,
 
+        TXT2BYTE_Set,
+        TXT2BYTE_Clear,
+        TXT2BYTE_Reset,
+
 		TXT2BYTE_END
 };
 

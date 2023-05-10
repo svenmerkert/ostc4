@@ -212,22 +212,20 @@ void tMenuEdit_refresh_live_content(void)
 	 	 case (StMHARD3_Sensor_Detect):
 	 	 case (StMHARD3_Sensor_Info):							refreshFct = refresh_O2Sensors;
 	 	 	 break;
-	 	 case (StMHARD2_Compass_SetCourse & MaskFieldDigit): refreshFct = refresh_CompassEdit;
-	 	 	 break;
-	 	/* case (StMXTRA_CompassHeading & MaskFieldDigit):   StMXTRA_CompassHeading and  StMXTRA_PSCR_O2_Drop share the same menu ID => select function based on divemode */
+		 case (StMHARD2_Compass_SetCourse & MaskFieldDigit):
+             refreshFct = refresh_CompassEdit;
+
+			 break;
+		 case (StMXTRA_CompassHeading & MaskFieldDigit):
+             refreshFct = refresh_CompassHeading;
+
+			 break;
 	 	 case (StMXTRA_PSCR_O2_Drop & MaskFieldDigit):
-														 if(actual_menu_content == MENU_SURFACE)
-														 {
-															 if(settingsGetPointer()->dive_mode != DIVEMODE_PSCR)	/* workaround because PSCR mode is set dynamic */
-															 {
-																 refreshFct = refresh_CO2Data;
-															 }
-														 }
-														 else
-														 {
-															 refreshFct = refresh_CompassHeading;
-														 }
-	 	 	 break;
+            if (settingsGetPointer()->dive_mode != DIVEMODE_PSCR) { /* workaround because PSCR mode is set dynamic */
+                refreshFct = refresh_CO2Data;
+            }
+
+			break;
 	 	 case (StMXTRA_CO2_Sensor & MaskFieldDigit):  refreshFct = refresh_CO2Data;
 	 	 	 break;
 	 	 case (StMSYS4_Info & MaskFieldDigit): refreshFct = &refresh_InformationPage;

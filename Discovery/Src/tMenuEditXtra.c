@@ -27,6 +27,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdbool.h>
+
 #include "tMenuEditXtra.h"
 
 #include "gfx_fonts.h"
@@ -354,23 +356,84 @@ static void openEdit_CO2Sensor()
 }
 #endif
 
-void refresh_CompassHeading(void)
-{
-    uint16_t heading;
-    char text[32];
 
-    text[0] = '\001';
-    text[1] = TXT_2BYTE;
-    text[2] = TXT2BYTE_CompassHeading;
-    text[3] = 0;
+static uint8_t OnAction_CompassHeadingClear(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    stateUsedWrite->diveSettings.compassHeading = 0;
+
+    exitMenuEdit_to_Home_with_Menu_Update();
+
+    return EXIT_TO_HOME;
+}
+
+
+static uint8_t OnAction_CompassHeadingReset(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    stateUsedWrite->diveSettings.compassHeading = settingsGetPointer()->compassBearing;
+
+    exitMenuEdit_to_Home_with_Menu_Update();
+
+    return EXIT_TO_HOME;
+}
+
+
+static void drawCompassHeadingMenu(bool doInitialise)
+{
+    char text[32];
+    snprintf(text, 32, "\001%c%c", TXT_2BYTE, TXT2BYTE_CompassHeading);
     write_topline(text);
 
-    heading = (uint16_t)stateUsed->lifeData.compass_heading;
+    uint16_t heading = (uint16_t)stateUsed->lifeData.compass_heading;
     snprintf(text,32,"\001%03i`",heading);
-    write_label_var(   0, 800, ME_Y_LINE1, &FontT54, text);
+    write_label_var(0, 800, ME_Y_LINE1, &FontT54, text);
 
-    tMenuEdit_refresh_field(StMXTRA_CompassHeading);
+    if (doInitialise) {
+        snprintf(text, 32, "%c%c", TXT_2BYTE, TXT2BYTE_Set);
+        write_field_button(StMXTRA_CompassHeading, 20, 800, ME_Y_LINE2, &FontT48, text);
+    } else {
+        tMenuEdit_refresh_field(StMXTRA_CompassHeading);
+    }
+
+    bool headingIsSet = stateUsed->diveSettings.compassHeading;
+    snprintf(text, 32, "%s%c%c", makeGrey(!headingIsSet), TXT_2BYTE, TXT2BYTE_Clear);
+    if (headingIsSet) {
+        if (doInitialise) {
+            write_field_button(StMXTRA_CompassHeadingClear, 20, 800, ME_Y_LINE3, &FontT48, text);
+        } else {
+            tMenuEdit_refresh_field(StMXTRA_CompassHeadingClear);
+        }
+    } else {
+        write_label_var(20, 800, ME_Y_LINE3, &FontT48, text);
+    }
+
+    int16_t compassBearing = settingsGetPointer()->compassBearing;
+    bool canSetBearing = compassBearing && compassBearing != stateUsed->diveSettings.compassHeading;
+    snprintf(text, 32, "%s%c%c (%03u`)", makeGrey(!canSetBearing), TXT_2BYTE, TXT2BYTE_Reset, compassBearing);
+    if (canSetBearing) {
+        if (doInitialise) {
+            write_field_button(StMXTRA_CompassHeadingReset, 20, 800, ME_Y_LINE4, &FontT48, text);
+        } else {
+            tMenuEdit_refresh_field(StMXTRA_CompassHeadingReset);
+        }
+    } else {
+        write_label_var(20, 800, ME_Y_LINE4, &FontT48, text);
+    }
+
+    if (doInitialise) {
+        setEvent(StMXTRA_CompassHeading, (uint32_t)OnAction_CompassHeading);
+        setEvent(StMXTRA_CompassHeadingClear, (uint32_t)OnAction_CompassHeadingClear);
+        setEvent(StMXTRA_CompassHeadingReset, (uint32_t)OnAction_CompassHeadingReset);
+    }
+
+    write_buttonTextline(TXT2BYTE_ButtonBack, TXT2BYTE_ButtonEnter, TXT2BYTE_ButtonNext);
 }
+
+
+void refresh_CompassHeading(void)
+{
+    drawCompassHeadingMenu(false);
+}
+
 
 void refresh_CO2Data(void)
 {
@@ -391,14 +454,13 @@ void refresh_CO2Data(void)
 
 void openEdit_CompassHeading(void)
 {
-    write_field_button(StMXTRA_CompassHeading,20, 800, ME_Y_LINE4, &FontT48, "Set");
-    setEvent(StMXTRA_CompassHeading,  (uint32_t)OnAction_CompassHeading);
+    drawCompassHeadingMenu(true);
 }
 
 
 uint8_t OnAction_CompassHeading	(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
-	stateUsedWrite->diveSettings.compassHeading = (uint16_t)stateUsed->lifeData.compass_heading;
+	setCompassHeading((uint16_t)stateUsed->lifeData.compass_heading);
     exitMenuEdit_to_Home_with_Menu_Update();
     return EXIT_TO_HOME;
 }
