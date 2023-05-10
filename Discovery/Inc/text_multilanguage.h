@@ -353,6 +353,8 @@ extern const tText text_array2[];
         TXT2BYTE_CcrSummary,
         TXT2BYTE_Setpoint,
         TXT2BYTE_Scrubber,
+        TXT2BYTE_BailoutShort,
+        TXT2BYTE_LoopShort,
 
 		TXT2BYTE_END
 };
