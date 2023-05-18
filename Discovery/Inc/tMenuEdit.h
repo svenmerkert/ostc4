@@ -50,6 +50,11 @@
 #define UPDATE_AND_EXIT_TO_MENU 	(255)
 #define UNSPECIFIC_RETURN			(254)
 
+typedef union {
+    uint32_t uint32;
+    int32_t int32;
+} input_u;
+
 void sendActionToMenuEdit(uint8_t sendAction);
 
 void tMenuEdit_init(void);
@@ -75,7 +80,7 @@ void write_field_udigit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t Xrigh
 void write_field_2digit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint32_t int1,  uint32_t int2,  uint32_t int3,  uint32_t int4);
 void write_field_3digit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint32_t int1,  uint32_t int2,  uint32_t int3,  uint32_t int4);
 void write_field_select(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint8_t int1,  uint8_t int2,  uint8_t int3,  uint8_t int4);
-/*void write_field_sdigit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, int32_t int1,  int32_t int2,  int32_t int3,  int32_t int4);*/
+void write_field_sdigit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, int32_t int1, int32_t int2, int32_t int3, int32_t int4);
 void write_field_button(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text);
 void write_field_symbol(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint8_t int1);
 void write_field_toggle(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint8_t int1,  uint8_t int2);

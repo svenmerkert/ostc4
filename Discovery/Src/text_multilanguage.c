@@ -182,6 +182,12 @@ static uint8_t text_FR_CompassInertia[] = "";
 static uint8_t text_IT_CompassInertia[] = "";
 static uint8_t text_ES_CompassInertia[] = "";
 
+static uint8_t text_EN_CompassDeclination[] = "Compass declination";
+static uint8_t text_DE_CompassDeclination[] = "Kompass Deklination";
+static uint8_t text_FR_CompassDeclination[] = "Déclinaison";
+static uint8_t text_IT_CompassDeclination[] = "Ddeclinazione";
+static uint8_t text_ES_CompassDeclination[] = "Declinación";
+
 
 // Menu SYS1 and Customview header
 static uint8_t text_EN_Compass[] = "Compass";
@@ -1982,6 +1988,7 @@ const tText text_array2[] =
     {(uint8_t)TXT2BYTE_SpecialDiveGasMenuCCR,{text_EN_SpecialDiveGasMenuCCR, text_DE_SpecialDiveGasMenuCCR, text_FR_SpecialDiveGasMenuCCR, text_IT_SpecialDiveGasMenuCCR, text_ES_SpecialDiveGasMenuCCR}},
     {(uint8_t)TXT2BYTE_CompassCalib, 	{text_EN_CompassCalib, text_DE_CompassCalib, text_FR_CompassCalib, text_IT_CompassCalib, text_ES_CompassCalib}},
 	{(uint8_t)TXT2BYTE_CompassInertia,	{text_EN_CompassInertia, text_DE_CompassInertia, text_FR_CompassInertia, text_IT_CompassInertia, text_ES_CompassInertia}},
+	{(uint8_t)TXT2BYTE_CompassDeclination,	{text_EN_CompassDeclination, text_DE_CompassDeclination, text_FR_CompassDeclination, text_IT_CompassDeclination, text_ES_CompassDeclination}},
 	{(uint8_t)TXT2BYTE_UseSensor,		{text_EN_UseSensor, text_DE_UseSensor, text_FR_UseSensor, text_IT_UseSensor, text_ES_UseSensor}},
 	{(uint8_t)TXT2BYTE_AutomaticSP,		{text_EN_AutomaticSP, text_DE_AutomaticSP, text_FR_AutomaticSP, text_IT_AutomaticSP, text_ES_AutomaticSP}},
     {(uint8_t)TXT2BYTE_WarnDecoMissed,  {text_EN_WarnDecoMissed, text_DE_WarnDecoMissed, text_FR_WarnDecoMissed, text_IT_WarnDecoMissed, text_ES_WarnDecoMissed}},

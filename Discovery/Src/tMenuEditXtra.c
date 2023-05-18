@@ -377,17 +377,24 @@ static uint8_t OnAction_CompassHeadingReset(uint32_t editId, uint8_t blockNumber
 }
 
 
-static void drawCompassHeadingMenu(bool doInitialise)
+static void drawCompassHeadingMenu(bool isRefresh)
 {
+    SSettings *settings = settingsGetPointer();
+
     char text[32];
     snprintf(text, 32, "\001%c%c", TXT_2BYTE, TXT2BYTE_CompassHeading);
     write_topline(text);
 
-    uint16_t heading = (uint16_t)stateUsed->lifeData.compass_heading;
+    uint16_t heading;
+    if (settings->compassInertia) {
+        heading = (uint16_t)compass_getCompensated();
+    } else {
+        heading = (uint16_t)stateUsed->lifeData.compass_heading;
+    }
     snprintf(text,32,"\001%03i`",heading);
     write_label_var(0, 800, ME_Y_LINE1, &FontT54, text);
 
-    if (doInitialise) {
+    if (!isRefresh) {
         snprintf(text, 32, "%c%c", TXT_2BYTE, TXT2BYTE_Set);
         write_field_button(StMXTRA_CompassHeading, 20, 800, ME_Y_LINE2, &FontT48, text);
     } else {
@@ -397,7 +404,7 @@ static void drawCompassHeadingMenu(bool doInitialise)
     bool headingIsSet = stateUsed->diveSettings.compassHeading;
     snprintf(text, 32, "%s%c%c", makeGrey(!headingIsSet), TXT_2BYTE, TXT2BYTE_Clear);
     if (headingIsSet) {
-        if (doInitialise) {
+        if (!isRefresh) {
             write_field_button(StMXTRA_CompassHeadingClear, 20, 800, ME_Y_LINE3, &FontT48, text);
         } else {
             tMenuEdit_refresh_field(StMXTRA_CompassHeadingClear);
@@ -406,11 +413,11 @@ static void drawCompassHeadingMenu(bool doInitialise)
         write_label_var(20, 800, ME_Y_LINE3, &FontT48, text);
     }
 
-    int16_t compassBearing = settingsGetPointer()->compassBearing;
+    int16_t compassBearing = settings->compassBearing;
     bool canSetBearing = compassBearing && compassBearing != stateUsed->diveSettings.compassHeading;
     snprintf(text, 32, "%s%c%c (%03u`)", makeGrey(!canSetBearing), TXT_2BYTE, TXT2BYTE_Reset, compassBearing);
     if (canSetBearing) {
-        if (doInitialise) {
+        if (!isRefresh) {
             write_field_button(StMXTRA_CompassHeadingReset, 20, 800, ME_Y_LINE4, &FontT48, text);
         } else {
             tMenuEdit_refresh_field(StMXTRA_CompassHeadingReset);
@@ -419,7 +426,7 @@ static void drawCompassHeadingMenu(bool doInitialise)
         write_label_var(20, 800, ME_Y_LINE4, &FontT48, text);
     }
 
-    if (doInitialise) {
+    if (!isRefresh) {
         setEvent(StMXTRA_CompassHeading, (uint32_t)OnAction_CompassHeading);
         setEvent(StMXTRA_CompassHeadingClear, (uint32_t)OnAction_CompassHeadingClear);
         setEvent(StMXTRA_CompassHeadingReset, (uint32_t)OnAction_CompassHeadingReset);
@@ -431,7 +438,7 @@ static void drawCompassHeadingMenu(bool doInitialise)
 
 void refresh_CompassHeading(void)
 {
-    drawCompassHeadingMenu(false);
+    drawCompassHeadingMenu(true);
 }
 
 
@@ -454,7 +461,7 @@ void refresh_CO2Data(void)
 
 void openEdit_CompassHeading(void)
 {
-    drawCompassHeadingMenu(true);
+    drawCompassHeadingMenu(false);
 }
 
 

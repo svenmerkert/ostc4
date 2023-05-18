@@ -266,6 +266,7 @@
 #define StMHARD2_Compass_ResetCourse	_MB(2,7,2,3,0)
 #define StMHARD2_Compass_Calibrate		_MB(2,7,2,4,0)
 #define StMHARD2_Compass_Inertia		_MB(2,7,2,5,0)
+#define StMHARD2_Compass_Declination	_MB(2,7,2,6,0)
 
 //#define StMHARD2_Exit						_MB(2,7,2,2,0)
 
