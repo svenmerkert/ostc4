@@ -159,8 +159,87 @@ void openEdit_FlipDisplay(void)
     exitMenuEdit_to_Home();
 }
 
+
+static uint8_t togglePlusMinus(uint8_t input)
+{
+    if (input == '+') {
+        return '-';
+    } else {
+        return '+';
+    }
+}
+
+
+static uint8_t OnAction_CompassDeclination(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    SSettings *settings = settingsGetPointer();
+    uint8_t digitContentNew;
+    switch (action) {
+    case ACTION_BUTTON_ENTER:
+
+        return digitContent;
+    case ACTION_BUTTON_ENTER_FINAL:
+        {
+            int32_t compassDeclinationDeg;
+            evaluateNewString(editId, (uint32_t *)&compassDeclinationDeg, NULL, NULL, NULL);
+
+            if (compassDeclinationDeg > 99) {
+                compassDeclinationDeg = 99;
+            } else if (compassDeclinationDeg < -99) {
+                compassDeclinationDeg = -99;
+            }
+
+            settings->compassDeclinationDeg = compassDeclinationDeg;
+
+            tMenuEdit_newInput(editId, ((input_u)compassDeclinationDeg).uint32, 0, 0, 0);
+        }
+
+        break;
+    case ACTION_BUTTON_NEXT:
+        if (digitNumber == 0) {
+            digitContentNew = togglePlusMinus(digitContent);
+        } else {
+            digitContentNew = digitContent + 1;
+            if (digitContentNew > '9') {
+                digitContentNew = '0';
+            }
+        }
+
+        return digitContentNew;
+    case ACTION_BUTTON_BACK:
+        if (digitNumber == 0) {
+            digitContentNew = togglePlusMinus(digitContent);
+        } else {
+            digitContentNew = digitContent - 1;
+            if (digitContentNew < '0') {
+                digitContentNew = '9';
+            }
+        }
+
+        return digitContentNew;
+    }
+
+    return UNSPECIFIC_RETURN;
+}
+
+
+static void showCompassDeclination(SSettings *settings, bool isRefresh)
+{
+    char text[16];
+    snprintf(text, 16, "%c%c:", TXT_2BYTE, TXT2BYTE_CompassDeclination);
+    write_label_var(30, 800, ME_Y_LINE6, &FontT48, text);
+    if (isRefresh) {
+        tMenuEdit_refresh_field(StMHARD2_Compass_Declination);
+    } else {
+        write_field_sdigit(StMHARD2_Compass_Declination, 500, 800, ME_Y_LINE6, &FontT48, "\034###`", settings->compassDeclinationDeg, 0, 0, 0);
+    }
+}
+
+
 void refresh_CompassEdit(void)
 {
+    SSettings *settings = settingsGetPointer();
+
     uint16_t heading;
     char text[32];
     uint8_t textIndex = 0;
@@ -171,7 +250,7 @@ void refresh_CompassEdit(void)
     text[3] = 0;
     write_topline(text);
 
-    if(settingsGetPointer()->compassInertia)
+    if(settings->compassInertia)
     {
     	heading = (uint16_t)compass_getCompensated();
     }
@@ -189,9 +268,11 @@ void refresh_CompassEdit(void)
     text[textIndex++] = TXT2BYTE_CompassInertia;
     text[textIndex++] = ':';
     text[textIndex++] = ' ';
-    text[textIndex++] = '0' + settingsGetPointer()->compassInertia;
+    text[textIndex++] = '0' + settings->compassInertia;
 
     write_label_var(30, 800, ME_Y_LINE5,  &FontT48, text);
+
+    showCompassDeclination(settings, true);
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }
@@ -199,6 +280,8 @@ void refresh_CompassEdit(void)
 
 void openEdit_Compass(void)
 {
+    SSettings *settings = settingsGetPointer();
+
     char text[10];
     uint8_t textIndex = 0;
 
@@ -214,24 +297,28 @@ void openEdit_Compass(void)
     text[1] = TXT2BYTE_SetBearing;
     write_field_button(StMHARD2_Compass_SetCourse,	 30, 800, ME_Y_LINE2,  &FontT48, text);
 
-    text[1] = TXT2BYTE_CompassCalib;
-    write_field_button(StMHARD2_Compass_Calibrate,	 30, 800, ME_Y_LINE3,  &FontT48, text);
-
     text[1] = TXT2BYTE_ResetBearing;
-    write_field_button(StMHARD2_Compass_ResetCourse, 30, 800, ME_Y_LINE4,  &FontT48, text);
+    write_field_button(StMHARD2_Compass_ResetCourse, 30, 800, ME_Y_LINE3,  &FontT48, text);
+
+    text[1] = TXT2BYTE_CompassCalib;
+    write_field_button(StMHARD2_Compass_Calibrate,	 30, 800, ME_Y_LINE4,  &FontT48, text);
 
     text[1] = TXT2BYTE_CompassInertia;
     textIndex = 2;
     text[textIndex++] = ':';
     text[textIndex++] = ' ';
-    text[textIndex++] = '0' + settingsGetPointer()->compassInertia;
+    text[textIndex++] = '0' + settings->compassInertia;
+    text[textIndex++] = 0;
 
     write_field_button(StMHARD2_Compass_Inertia, 30, 800, ME_Y_LINE5,  &FontT48, text);
 
+    showCompassDeclination(settings, false);
+
     setEvent(StMHARD2_Compass_SetCourse,		(uint32_t)OnAction_Bearing);
-    setEvent(StMHARD2_Compass_Calibrate,		(uint32_t)OnAction_Compass);
     setEvent(StMHARD2_Compass_ResetCourse,	(uint32_t)OnAction_BearingClear);
+    setEvent(StMHARD2_Compass_Calibrate,		(uint32_t)OnAction_Compass);
     setEvent(StMHARD2_Compass_Inertia,	(uint32_t)OnAction_InertiaLevel);
+    setEvent(StMHARD2_Compass_Declination, (uint32_t)OnAction_CompassDeclination);
 
     write_buttonTextline(TXT2BYTE_ButtonBack,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonNext);
 }

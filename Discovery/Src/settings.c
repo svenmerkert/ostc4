@@ -89,7 +89,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0025,
+    .header = 0xFFFF0026,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -332,7 +332,8 @@ const SSettings SettingsStandard = {
 	.ext_sensor_map[2] = SENSOR_OPTIC,
 	.ext_sensor_map[3] = SENSOR_NONE,
 	.ext_sensor_map[4] = SENSOR_NONE,
-	.buttonLockActive = 0
+	.buttonLockActive = 0,
+    .compassDeclinationDeg = 0,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -533,6 +534,10 @@ void set_new_settings_missing_in_ext_flash(void)
     				 pSettings->ext_sensor_map[4] = SENSOR_NONE;
     	// no break;
     case 0xFFFF0024: pSettings->buttonLockActive = 0;
+    	// no break;
+    case 0xFFFF0025:
+        pSettings->compassDeclinationDeg = pStandard->compassDeclinationDeg;
+
     	// no break;
     default:
         pSettings->header = pStandard->header;
@@ -1575,6 +1580,16 @@ uint8_t check_and_correct_settings(void)
     if(Settings.buttonLockActive > 1)
     {
         Settings.buttonLockActive = 1;
+        corrections++;
+    }
+
+    if (Settings.compassDeclinationDeg > 99) {
+        Settings.compassDeclinationDeg = 99;
+
+        corrections++;
+    } else if (Settings.compassDeclinationDeg < -99) {
+        Settings.compassDeclinationDeg = -99;
+
         corrections++;
     }
 

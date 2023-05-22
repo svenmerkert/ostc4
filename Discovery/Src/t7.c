@@ -1762,12 +1762,6 @@ uint8_t t7_get_length_of_customtext(void)
 }
 
 
-bool isCompassCalibrated(void)
-{
-    return stateUsed->lifeData.compass_heading != -1;
-}
-
-
 static void t7_CcrSummary(SSettings *settings)
 {
     unsigned numLines = 1; // CCR Mode

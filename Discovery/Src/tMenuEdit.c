@@ -27,6 +27,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdlib.h>
+
 #include "tMenuEdit.h"
 
 #include "externLogbookFlash.h"
@@ -60,7 +62,7 @@ typedef struct
 {
     char orgText[32];
     char newText[32];
-    uint16_t input[4];
+    uint32_t input[4];
     uint16_t coord[3];
     int8_t begin[4], size[4];
     tFont *fontUsed;
@@ -80,6 +82,7 @@ typedef struct
     FIELD_UDIGIT,
     FIELD_2DIGIT,
     FIELD_3DIGIT,
+    FIELD_SDIGIT,
     FIELD_FLOAT,
     FIELD_END
 } SField;
@@ -616,15 +619,15 @@ void enterMenuEditField(void)
     case FIELD_NUMBERS:
         write_buttonTextline(TXT2BYTE_ButtonMinus,TXT2BYTE_ButtonEnter,TXT2BYTE_ButtonPlus);
 
-        if(ident[id].subtype == FIELD_UDIGIT)
-        {
+        switch (ident[id].subtype) {
+        case FIELD_UDIGIT:
             if((newContent >= '0') && (newContent <= '9'))
                 ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
 
             mark_new_digit_of_actual_id_block_and_subBlock();
-        }
-        else if(ident[id].subtype == FIELD_3DIGIT)
-        {
+
+            break;
+        case FIELD_3DIGIT:
             if((newContent >= '0') && (newContent <= '0'+200))
             {
                 split_Content_to_Digit_helper( newContent, &digit100, &digit10, &digit1);
@@ -633,15 +636,25 @@ void enterMenuEditField(void)
                 ident[id].newText[ident[id].begin[block] + 2] = '0' + digit1;
                 mark_new_3digit_of_actual_id_block();
             }
-        }
-        else // FIELD_2DIGIT
-        {
+
+            break;
+        case FIELD_2DIGIT:
             if((newContent >= '0') && (newContent <= '0'+99))
             {
                 ident[id].newText[ident[id].begin[block]] = '0' + (newContent - '0')/10;
                 ident[id].newText[ident[id].begin[block] + 1] = '0' + ((newContent - '0') - (10*((newContent - '0')/10)));
                 mark_new_2digit_of_actual_id_block();
             }
+
+            break;
+        case FIELD_SDIGIT:
+            if ((subBlockPosition == 0 && (newContent == '+' || newContent == '-')) || (subBlockPosition > 0 && newContent >= '0' && newContent <= '9')) {
+                ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
+            }
+
+            mark_new_digit_of_actual_id_block_and_subBlock();
+
+            break;
         }
         break;
     case FIELD_BUTTON:
@@ -758,6 +771,10 @@ void nextMenuEditFieldDigit(void)
     {
         ident[id].newText[ident[id].begin[block] + 0] = '0' + (newContent - '0')/10;
         ident[id].newText[ident[id].begin[block] + 1] = '0' + ((newContent - '0') - (10*((newContent - '0')/10)));
+    } else if (ident[id].maintype == FIELD_NUMBERS && ident[id].subtype == FIELD_SDIGIT && action == ACTION_BUTTON_ENTER && subBlockPosition == 0) {
+        if (newContent == '+' || newContent == '-') {
+            ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
+        }
     }
     else
     if((ident[id].maintype == FIELD_NUMBERS) && (action == ACTION_BUTTON_ENTER) && (newContent >= '0') && (newContent <= '9'))
@@ -813,6 +830,15 @@ uint8_t split_Content_to_Digit_helper(uint8_t inContentAscii, uint8_t *outDigit1
     return CopyContent;
 }
 
+
+static void checkUpdateSDigit(uint8_t newContent)
+{
+    if ((subBlockPosition == 0 && (newContent == '+' || newContent == '-')) || (subBlockPosition > 0 && newContent >= '0' && newContent <= '9')) {
+        ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
+    }
+}
+
+
 void upMenuEditFieldDigit(void)
 {
     uint8_t newContent;
@@ -843,8 +869,11 @@ void upMenuEditFieldDigit(void)
         return;
     }
 
-    if((ident[id].maintype == FIELD_NUMBERS) && (newContent >= '0') && (newContent <= '9'))
+    if (ident[id].maintype == FIELD_NUMBERS && ident[id].subtype == FIELD_SDIGIT) {
+        checkUpdateSDigit(newContent);
+    } else if (ident[id].maintype == FIELD_NUMBERS && newContent >= '0' && newContent <= '9') {
         ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
+    }
 
     mark_new_digit_of_actual_id_block_and_subBlock();
 }
@@ -880,8 +909,11 @@ void downMenuEditFieldDigit(void)
         return;
     }
 
-    if((ident[id].maintype == FIELD_NUMBERS) && (newContent >= '0') && (newContent <= '9'))
+    if (ident[id].maintype == FIELD_NUMBERS && ident[id].subtype == FIELD_SDIGIT) {
+        checkUpdateSDigit(newContent);
+    } else if (ident[id].maintype == FIELD_NUMBERS && newContent >= '0' && newContent <= '9') {
         ident[id].newText[ident[id].begin[block] + subBlockPosition] = newContent;
+    }
 
     mark_new_digit_of_actual_id_block_and_subBlock();
 }
@@ -891,6 +923,8 @@ void evaluateNewString(uint32_t editID, uint32_t *pNewValue1, uint32_t *pNewValu
 {
     if(editID != ident[id].callerID)
         return;
+
+    bool isSigned = ident[id].maintype == FIELD_NUMBERS && ident[id].subtype == FIELD_SDIGIT;
 
     uint8_t i, digitCount, digit;
     uint32_t sum[4], multiplier;
@@ -905,25 +939,41 @@ void evaluateNewString(uint32_t editID, uint32_t *pNewValue1, uint32_t *pNewValu
         for(digitCount = 1; digitCount < ident[id].size[i]; digitCount++)
             multiplier *= 10;
 
+        bool isNegative = false;
         for(digitCount = 0; digitCount < ident[id].size[i]; digitCount++)
         {
             digit = ident[id].newText[ident[id].begin[i] + digitCount];
 
-            if(digit > '0')
-                digit -= '0';
-            else
-                digit = 0;
+            if (isSigned && digitCount == 0) {
+                if (digit == '-') {
+                    isNegative = true;
+                }
+            } else {
+                if(digit > '0')
+                    digit -= '0';
+                else
+                    digit = 0;
 
-            if(digit > 9)
-                digit = 9;
+                if(digit > 9)
+                    digit = 9;
 
-            sum[i] += digit * multiplier;
+                sum[i] += digit * multiplier;
+            }
 
             if(multiplier >= 10)
                 multiplier /= 10;
             else
                 multiplier = 0;
         }
+
+        if (isSigned) {
+            int32_t value = sum[i];
+            if (isNegative) {
+                value = -value;
+            }
+            sum[i] = ((input_u)value).uint32;
+        }
+
         i++;
     }
 
@@ -1180,13 +1230,24 @@ void create_newText_for_actual_Id(void)
         return;
     }
 
+    bool isSigned = ident[id].maintype == FIELD_NUMBERS && ident[id].subtype == FIELD_SDIGIT;
+
     uint8_t i, digitCount;
     uint32_t remainder, digit, divider;
 
     i = 0;
     while( ident[id].size[i] && (i < 4))
     {
-        remainder = ident[id].input[i];
+        bool isNegative = false;
+        if (isSigned) {
+            int32_t value = ((input_u)ident[id].input[i]).int32;
+            if (value < 0) {
+                isNegative = true;
+            }
+            remainder = abs(value);
+        } else {
+            remainder = ident[id].input[i];
+        }
         divider = 1;
 
         for(digitCount = 1; digitCount < ident[id].size[i]; digitCount++)
@@ -1194,13 +1255,18 @@ void create_newText_for_actual_Id(void)
 
         for(digitCount = 0; digitCount < ident[id].size[i]; digitCount++)
         {
-            digit = remainder	/ divider;
-            remainder -= digit * divider;
+            if (isSigned && digitCount == 0) {
+                ident[id].newText[ident[id].begin[i] + digitCount] = isNegative ? '-' : '+';
+            } else {
+                digit = remainder	/ divider;
+                remainder -= digit * divider;
+                if(digit < 10)
+                    ident[id].newText[ident[id].begin[i] + digitCount] = digit + '0';
+                else
+                    ident[id].newText[ident[id].begin[i] + digitCount] = 'x';
+            }
+
             divider /= 10;
-            if(digit < 10)
-                ident[id].newText[ident[id].begin[i] + digitCount] = digit + '0';
-            else
-                ident[id].newText[ident[id].begin[i] + digitCount] = 'x';
         }
         i++;
     }
@@ -1310,11 +1376,12 @@ void write_field_3digit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t Xrigh
     write_field_udigit_and_2digit(FIELD_3DIGIT, editID,XleftGimpStyle,XrightGimpStyle,YtopGimpStyle,Font,text,int1,int2,int3,int4);
 }
 
-/*
-void write_field_sdigit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, int32_t int1,  int32_t int2,  int32_t int3,  int32_t int4)
+
+void write_field_sdigit(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, int32_t int1, int32_t int2, int32_t int3, int32_t int4)
 {
+    write_field_udigit_and_2digit(FIELD_SDIGIT, editID, XleftGimpStyle, XrightGimpStyle, YtopGimpStyle, Font, text, ((input_u)int1).uint32, ((input_u)int2).uint32, ((input_u)int3).uint32, ((input_u)int4).uint32);
 }
-*/
+
 
 void write_field_select(uint32_t editID, uint16_t XleftGimpStyle, uint16_t XrightGimpStyle, uint16_t YtopGimpStyle, const tFont *Font, const char *text, uint8_t int1,  uint8_t int2,  uint8_t int3,  uint8_t int4)
 {

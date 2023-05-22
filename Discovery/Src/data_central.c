@@ -861,6 +861,13 @@ uint8_t isLoopMode(uint8_t Mode)
 	return retVal;
 }
 
+
+bool isCompassCalibrated(void)
+{
+    return stateUsed->lifeData.compass_heading != -1;
+}
+
+
 void setCompassHeading(uint16_t heading)
 {
 

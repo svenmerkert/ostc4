@@ -1096,11 +1096,19 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 		pStateReal->lifeData.surface_time_seconds = (int32_t)dataIn.data[dataIn.boolTimeData].surfacetime_seconds;
 
 		pStateReal->lifeData.compass_heading = dataIn.data[dataIn.boolCompassData].compass_heading;
-		if(settingsGetPointer()->FlipDisplay) /* consider that diver is targeting into the opposite direction */
-		{
-			pStateReal->lifeData.compass_heading -= 180.0;
-			if (pStateReal->lifeData.compass_heading < 0) pStateReal->lifeData.compass_heading +=360.0;
-		}
+        if (pStateReal->lifeData.compass_heading != -1) {
+            if (pSettings->FlipDisplay) { /* consider that diver is targeting into the opposite direction */
+                pStateReal->lifeData.compass_heading -= 180.0;
+            }
+
+            if (pSettings->compassDeclinationDeg != 0) {
+                pStateReal->lifeData.compass_heading = pStateReal->lifeData.compass_heading + pSettings->compassDeclinationDeg - 360.0;
+            }
+
+            while (pStateReal->lifeData.compass_heading < 0) {
+                pStateReal->lifeData.compass_heading += 360.0;
+            }
+        }
 
 		pStateReal->lifeData.compass_roll = dataIn.data[dataIn.boolCompassData].compass_roll;
 		pStateReal->lifeData.compass_pitch = dataIn.data[dataIn.boolCompassData].compass_pitch;

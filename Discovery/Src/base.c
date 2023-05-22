@@ -1051,6 +1051,12 @@ void set_globalState_Menu_Line(uint8_t line)
 }
 
 
+uint8_t get_globalState_Menu_Line(void)
+{
+    return (globalStateID & ~MaskLineFieldDigit) >> 16;
+}
+
+
 void set_globalState(uint32_t newID)
 {
     globalStateID = newID;

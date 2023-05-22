@@ -109,6 +109,7 @@ void set_globalState(uint32_t newID);
 void get_globalStateList(SStateList *output);
 void set_globalState_Menu_Page(uint8_t page);
 void set_globalState_Menu_Line(uint8_t line);
+uint8_t get_globalState_Menu_Line(void);
 void get_idSpecificStateList(uint32_t id, SStateList *output);
 void delayMicros(uint32_t micros);
 void get_RTC_DateTime(RTC_DateTypeDef * sdatestructureget, RTC_TimeTypeDef * stimestructureget);
