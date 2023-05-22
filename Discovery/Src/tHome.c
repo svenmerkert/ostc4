@@ -181,6 +181,16 @@ static void checkSetStateSim(SSettings *settings)
 }
 
 
+static void checkSetStateCompassSim(SSettings *settings)
+{
+    if (settings->design == 7 && t7_isCompassShowing()) {
+        set_globalState(StDBEAR);
+    } else {
+        checkSetStateSim(settings);
+    }
+}
+
+
 void tHomeDiveMenuControl(uint8_t sendAction)
 {
     SSettings *settings = settingsGetPointer();
@@ -277,7 +287,7 @@ void tHomeDiveMenuControl(uint8_t sendAction)
                 break;
             }
 
-            checkSetStateSim(settings);
+            checkSetStateCompassSim(settings);
 
             break;
         case StDBAILOUT:
@@ -287,11 +297,11 @@ void tHomeDiveMenuControl(uint8_t sendAction)
                 break;
             }
 
-            checkSetStateSim(settings);
+            checkSetStateCompassSim(settings);
 
             break;
         case StDSETPOINT:
-            checkSetStateSim(settings);
+            checkSetStateCompassSim(settings);
 
             break;
         case StDSIM1:
@@ -355,6 +365,12 @@ void tHomeDiveMenuControl(uint8_t sendAction)
             break;
 #endif
         case StDBEAR:
+            if (settingsGetPointer()->design == 7) {
+                checkSetStateSim(settings);
+
+                break;
+            }
+
         	if(settingsGetPointer()->design == 5)
         	{
         		set_globalState(StDRAVG);
@@ -500,7 +516,7 @@ void tHomeDiveMenuControl(uint8_t sendAction)
             set_globalState(StD);
 
             break;
-        case StDBEAR: // t5_gauge
+        case StDBEAR: // t5_gauge, t7
             setCompassHeading((uint16_t)stateUsed->lifeData.compass_heading);
             set_globalState(StD);
             break;
