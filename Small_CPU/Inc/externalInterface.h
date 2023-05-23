@@ -46,7 +46,10 @@
 	DETECTION_START,
 	DETECTION_ANALOG1,		/* check ADC channels for connected sensors */
 	DETECTION_ANALOG2,
-	DETECTION_DIGO2,		/* check UART channel for connected DigO2 sensor */
+	DETECTION_UARTMUX,		/* check if a uart multiplexer is present */
+	DETECTION_DIGO2_0,		/* check UART channel for connected DigO2 sensor */
+	DETECTION_DIGO2_1,
+	DETECTION_DIGO2_2,
 #ifdef ENABLE_CO2_SUPPORT
 	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
 #endif
@@ -81,7 +84,7 @@ uint16_t externalInterface_GetCO2Value(void);
 uint16_t externalInterface_GetCO2SignalStrength(void);
 void externalInterface_SetCO2State(uint16_t state);
 uint16_t externalInterface_GetCO2State(void);
-uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct);
+uint8_t externalInterface_GetSensorData(uint8_t sensorId, uint8_t* pDataStruct);
 void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct);
 void externalInface_SetSensorMap(uint8_t* pMap);
 uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap);

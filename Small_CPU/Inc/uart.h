@@ -92,6 +92,8 @@ void UART_HandleCO2Data(void);
 void UART_HandleSentinelData(void);
 #endif
 void UART_HandleDigitalO2(void);
+void UART_MapDigO2_Channel(uint8_t channel, uint8_t muxAddress);
+void UART_SetDigO2_Channel(uint8_t channel);
 uint8_t UART_isDigO2Connected();
 uint8_t UART_isCO2Connected();
 uint8_t UART_isSentinelConnected();

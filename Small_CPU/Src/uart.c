@@ -28,6 +28,7 @@
 
 #define CHUNK_SIZE			(25u)		/* the DMA will handle chunk size transfers */
 #define CHUNKS_PER_BUFFER	(5u)
+#define COMMAND_TX_DELAY	(30u)		/* The time the sensor needs to recover from a invalid command request */
 UART_HandleTypeDef huart1;
 
 DMA_HandleTypeDef  hdma_usart1_rx;
@@ -42,12 +43,14 @@ static uint8_t CO2Connected = 0;						/* Binary indicator if a sensor is connect
 static uint8_t SentinelConnected = 0;					/* Binary indicator if a sensor is connected or not */
 static uint8_t ppO2TargetChannel = 0;					/* The OSTC4 supports three slots for visualization of the ppo2. This one is reserved for the digital sensor */
 
-static SSensorDataDiveO2 sensorDataDiveO2;		/* intermediate storage for additional sensor data */
+static SSensorDataDiveO2 tmpSensorDataDiveO2;			/* intermediate storage for additional sensor data */
 
 char tmpRxBuf[30];
 uint8_t tmpRxIdx = 0;
 
 static uartO2Status_t Comstatus_O2 = UART_O2_INIT;
+static uint8_t activeSensor = 0;
+static uint8_t sensorMapping[MAX_ADC_CHANNEL];			/* The mapping is used to assign the visible sensor channel to the mux address (DiveO2) */
 
 float LED_Level = 0.0;							/* Normalized LED value which may be used as indication for the health status of the sensor */
 float LED_ZeroOffset = 0.0;
@@ -123,6 +126,27 @@ void  MX_USART1_DMA_Init()
   HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);
 }
 
+
+void DigitalO2_SelectSensor(uint8_t channel)
+{
+	uint8_t indexstr[4];
+	uint8_t muxAddress = 0;
+	indexstr[0] = '~';
+	indexstr[1] = '1';
+	indexstr[2] = 0x0D;
+	indexstr[3] = 0x0A;
+
+	if((channel < MAX_ADC_CHANNEL) && (sensorMapping[channel] != 0xff))
+	{
+			muxAddress = sensorMapping[channel];
+	}
+	else
+	{
+		muxAddress = MAX_ADC_CHANNEL;	/* default to mux */
+	}
+	indexstr[1] = '0' + muxAddress;
+	HAL_UART_Transmit(&huart1,indexstr,4,10);
+}
 
 void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
 {
@@ -463,202 +487,277 @@ void UART_HandleDigitalO2(void)
 	static uint8_t cmdLength = 0;
 	static uint8_t cmdString[10];
 	static uint8_t cmdReadIndex = 0;
+	static	uint32_t tickToTX =  0;
+	static uint32_t delayStartTick = 0;
 
+	uint8_t switchChannel = 0;
+	uint8_t index = 0;
 	uint32_t tmpO2 = 0;
 	uint32_t tmpData = 0;
 	uint8_t localRX = rxReadIndex;
 	uint32_t tick =  HAL_GetTick();
 
+	uint8_t *pmap = externalInterface_GetSensorMapPointer(0);
 
-	if(Comstatus_O2 == UART_O2_INIT)
+	/* The channel switch will cause the sensor to respond with an error message. */
+	/* The sensor needs ~30ms to recover before he is ready to receive the next command => transmission delay needed */
+	if((tickToTX) && (time_elapsed_ms(delayStartTick,tick) >= tickToTX ))
 	{
-		memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
-		memset((char*) &sensorDataDiveO2, 0, sizeof(sensorDataDiveO2));
-		externalInterface_SetSensorData(0,(uint8_t*)&sensorDataDiveO2);
-
-		lastAlive = 0;
-		curAlive = 0;
-
-		Comstatus_O2 = UART_O2_CHECK;
-		DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
 		HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
-
-		rxState = O2RX_CONFIRM;
-		cmdReadIndex = 0;
-		lastO2ReqTick = tick;
-
-		UART_StartDMA_Receiption();
+		tickToTX = 0;
 	}
-	if(time_elapsed_ms(lastO2ReqTick,tick) > 1000)		/* repeat request once per second */
+	else
 	{
-		lastO2ReqTick = tick;
-		if(Comstatus_O2 == UART_O2_IDLE)				/* cyclic request of o2 value */
+		if(Comstatus_O2 == UART_O2_INIT)
 		{
-			Comstatus_O2 = UART_O2_REQ_RAW;
+			memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
+			memset((char*) &tmpSensorDataDiveO2, 0, sizeof(tmpSensorDataDiveO2));
+			externalInterface_SetSensorData(0,(uint8_t*)&tmpSensorDataDiveO2);
+
+			lastAlive = 0;
+			curAlive = 0;
+
+			Comstatus_O2 = UART_O2_CHECK;
+			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
+			DigitalO2_SelectSensor(activeSensor);
+			if(activeSensor < MAX_ADC_CHANNEL)
+			{
+				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
+			}
+			delayStartTick = tick;
+			tickToTX = COMMAND_TX_DELAY;
+
 			rxState = O2RX_CONFIRM;
+			cmdReadIndex = 0;
+			lastO2ReqTick = tick;
+
+			UART_StartDMA_Receiption();
 		}
-		DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
-
-		HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
-	}
-
-	while((rxBuffer[localRX]!=0))
-	{
-
-		lastReceiveTick = tick;
-		switch(rxState)
+		if(time_elapsed_ms(lastO2ReqTick,tick) > 1000)		/* repeat request once per second */
 		{
-			case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
-								{
-									cmdReadIndex = 0;
-								}
-								if(rxBuffer[localRX] == cmdString[cmdReadIndex])
-							    {
-								cmdReadIndex++;
-								if(cmdReadIndex == cmdLength - 1)
-								{
-									digO2Connected = 1;
-									tmpRxIdx = 0;
-									memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
-									switch (Comstatus_O2)
-									{
-											case UART_O2_CHECK:	Comstatus_O2 = UART_O2_REQ_ID;
-																rxState = O2RX_CONFIRM;
-																DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
-																HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
-												break;
-											case UART_O2_REQ_ID: rxState = O2RX_GETNR;
-												break;
-											case UART_O2_REQ_INFO: rxState = O2RX_GETTYPE;
-												break;
-											case UART_O2_REQ_RAW:
-											case UART_O2_REQ_O2:	rxState = O2RX_GETO2;
-												break;
-											default:	Comstatus_O2 = UART_O2_IDLE;
-														rxState = O2RX_IDLE;
-													break;
-									}
-								}
-						  	}
-				break;
+			lastO2ReqTick = tick;
+			index = activeSensor;
+			if(Comstatus_O2 == UART_O2_IDLE)				/* cyclic request of o2 value */
+			{
+				if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
+				{
+					if(activeSensor < MAX_ADC_CHANNEL)
+					{
+						do
+						{
+							index++;
+							if(index == MAX_ADC_CHANNEL)
+							{
+								index = 0;
+							}
+							if(pmap[index] == SENSOR_DIGO2)
+							{
+								activeSensor = index;
+								switchChannel = 1;
+								break;
+							}
+						} while(index != activeSensor);
+					}
+				}
 
-			case O2RX_GETSTATUS:
-			case O2RX_GETTEMP:
-			case O2RX_GETTYPE:
-			case O2RX_GETVERSION:
-			case O2RX_GETCHANNEL:
-			case O2RX_GETSUBSENSORS:
-			case O2RX_GETO2:
-			case O2RX_GETNR:
-			case O2RX_GETDPHI:
-			case O2RX_INTENSITY:
-			case O2RX_AMBIENTLIGHT:
-			case O2RX_PRESSURE:
-			case O2RX_HUMIDITY:
-								if(rxBuffer[localRX] != 0x0D)
-								{
-									if(rxBuffer[localRX] != ' ')
+				Comstatus_O2 = UART_O2_REQ_RAW;
+				rxState = O2RX_CONFIRM;
+			}
+			if(switchChannel)
+			{
+				delayStartTick = tick;
+				DigitalO2_SelectSensor(activeSensor);
+				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
+				tickToTX = COMMAND_TX_DELAY;
+				if(tmpSensorDataDiveO2.sensorId == 0)
+				{
+					Comstatus_O2 = UART_O2_REQ_ID;
+				}
+			}
+			else
+			{
+				HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
+			}
+			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
+		}
+
+		while((rxBuffer[localRX]!=0))
+		{
+			lastReceiveTick = tick;
+			switch(rxState)
+			{
+				case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
 									{
-										tmpRxBuf[tmpRxIdx++] = rxBuffer[localRX];
+										cmdReadIndex = 0;
 									}
-									else
+									if(rxBuffer[localRX] == cmdString[cmdReadIndex])
 									{
-										if(tmpRxIdx != 0)
+									cmdReadIndex++;
+									if(cmdReadIndex == cmdLength - 1)
+									{
+										digO2Connected = 1;
+										tmpRxIdx = 0;
+										memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
+										switch (Comstatus_O2)
 										{
-											switch(rxState)
-											{
-												case O2RX_GETCHANNEL:	StringToInt(tmpRxBuf,&tmpData);
-																		rxState = O2RX_GETVERSION;
+												case UART_O2_CHECK:	Comstatus_O2 = UART_O2_IDLE;
+													break;
+												case UART_O2_REQ_ID: rxState = O2RX_GETNR;
+													break;
+												case UART_O2_REQ_INFO: rxState = O2RX_GETTYPE;
+													break;
+												case UART_O2_REQ_RAW:
+												case UART_O2_REQ_O2:	rxState = O2RX_GETO2;
+													break;
+												default:	Comstatus_O2 = UART_O2_IDLE;
+															rxState = O2RX_IDLE;
 														break;
-												case O2RX_GETVERSION:	StringToInt(tmpRxBuf,&tmpData);
-																		rxState = O2RX_GETSUBSENSORS;
-														break;
-												case O2RX_GETTYPE: 		StringToInt(tmpRxBuf,&tmpData);
-																		rxState = O2RX_GETCHANNEL;
-														break;
-
-												case O2RX_GETO2: 		StringToInt(tmpRxBuf,&tmpO2);
-																		setExternalInterfaceChannel(ppO2TargetChannel,(float)(tmpO2 / 10000.0));
-																		rxState = O2RX_GETTEMP;
-													break;
-												case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.temperature);
-																		rxState = O2RX_GETSTATUS;
-													break;
-												case O2RX_GETSTATUS:	StringToInt(tmpRxBuf,&sensorDataDiveO2.status);				/* raw data cycle */
-																		rxState = O2RX_GETDPHI;
-													break;
-												case O2RX_GETDPHI:		/* ignored to save memory and most likly irrelevant for diver */
-																		rxState = O2RX_INTENSITY;
-																									break;
-												case O2RX_INTENSITY:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.intensity);				/* raw data cycle */
-																		rxState = O2RX_AMBIENTLIGHT;
-																									break;
-												case O2RX_AMBIENTLIGHT:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.ambient);				/* raw data cycle */
-																		rxState = O2RX_PRESSURE;
-																									break;
-												case O2RX_PRESSURE:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.pressure);					/* raw data cycle */
-																		rxState = O2RX_HUMIDITY;
-																									break;
-												default:
-													break;
-											}
-											memset((char*) tmpRxBuf, 0, tmpRxIdx);
-											tmpRxIdx = 0;
 										}
 									}
 								}
-								else
-								{
-									switch (rxState)
-									{
-										case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&sensorDataDiveO2.status);
-																	externalInterface_SetSensorData(1,(uint8_t*)&sensorDataDiveO2);
-																	Comstatus_O2 = UART_O2_IDLE;
-																	rxState = O2RX_IDLE;
-												break;
-										case O2RX_GETSUBSENSORS:	StringToInt(tmpRxBuf,&tmpData);
-																	Comstatus_O2 = UART_O2_IDLE;
-																	rxState = O2RX_IDLE;
-												break;
-										case O2RX_HUMIDITY:	StringToInt(tmpRxBuf,(uint32_t*)&sensorDataDiveO2.humidity);				/* raw data cycle */
-																	externalInterface_SetSensorData(1,(uint8_t*)&sensorDataDiveO2);
-																	Comstatus_O2 = UART_O2_IDLE;
-																	rxState = O2RX_IDLE;
-																							break;
-										case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&sensorDataDiveO2.sensorId);
-											/* no break */
-										default:		Comstatus_O2 = UART_O2_IDLE;
-														rxState = O2RX_IDLE;
-											break;
-									}
-								}
 					break;
-			default:				rxState = O2RX_IDLE;
-				break;
 
+				case O2RX_GETSTATUS:
+				case O2RX_GETTEMP:
+				case O2RX_GETTYPE:
+				case O2RX_GETVERSION:
+				case O2RX_GETCHANNEL:
+				case O2RX_GETSUBSENSORS:
+				case O2RX_GETO2:
+				case O2RX_GETNR:
+				case O2RX_GETDPHI:
+				case O2RX_INTENSITY:
+				case O2RX_AMBIENTLIGHT:
+				case O2RX_PRESSURE:
+				case O2RX_HUMIDITY:
+									if(rxBuffer[localRX] != 0x0D)
+									{
+										if(rxBuffer[localRX] != ' ')		/* the following data entities are placed within the data stream => no need to store data at the end */
+										{
+											tmpRxBuf[tmpRxIdx++] = rxBuffer[localRX];
+										}
+										else
+										{
+											if(tmpRxIdx != 0)
+											{
+												switch(rxState)
+												{
+													case O2RX_GETCHANNEL:	StringToInt(tmpRxBuf,&tmpData);
+																			rxState = O2RX_GETVERSION;
+															break;
+													case O2RX_GETVERSION:	StringToInt(tmpRxBuf,&tmpData);
+																			rxState = O2RX_GETSUBSENSORS;
+															break;
+													case O2RX_GETTYPE: 		StringToInt(tmpRxBuf,&tmpData);
+																			rxState = O2RX_GETCHANNEL;
+															break;
+
+													case O2RX_GETO2: 		StringToInt(tmpRxBuf,&tmpO2);
+																			setExternalInterfaceChannel(activeSensor,(float)(tmpO2 / 10000.0));
+																			rxState = O2RX_GETTEMP;
+														break;
+													case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.temperature);
+																			rxState = O2RX_GETSTATUS;
+														break;
+													case O2RX_GETSTATUS:	StringToInt(tmpRxBuf,&tmpSensorDataDiveO2.status);				/* raw data cycle */
+																			rxState = O2RX_GETDPHI;
+														break;
+													case O2RX_GETDPHI:		/* ignored to save memory and most likly irrelevant for diver */
+																			rxState = O2RX_INTENSITY;
+																										break;
+													case O2RX_INTENSITY:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.intensity);				/* raw data cycle */
+																			rxState = O2RX_AMBIENTLIGHT;
+																										break;
+													case O2RX_AMBIENTLIGHT:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.ambient);				/* raw data cycle */
+																			rxState = O2RX_PRESSURE;
+																										break;
+													case O2RX_PRESSURE:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.pressure);					/* raw data cycle */
+																			rxState = O2RX_HUMIDITY;
+																										break;
+													default:
+														break;
+												}
+												memset((char*) tmpRxBuf, 0, tmpRxIdx);
+												tmpRxIdx = 0;
+											}
+										}
+									}
+									else
+									{							/* the following data items are the last of a sensor respond => store temporal data */
+										switch (rxState)
+										{
+											case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&tmpSensorDataDiveO2.status);
+																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		Comstatus_O2 = UART_O2_IDLE;
+																		rxState = O2RX_IDLE;
+													break;
+											case O2RX_GETSUBSENSORS:	StringToInt(tmpRxBuf,&tmpData);
+																		Comstatus_O2 = UART_O2_IDLE;
+																		rxState = O2RX_IDLE;
+													break;
+											case O2RX_HUMIDITY:			StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.humidity);				/* raw data cycle */
+																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		Comstatus_O2 = UART_O2_IDLE;
+																		rxState = O2RX_IDLE;
+													break;
+											case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&tmpSensorDataDiveO2.sensorId);
+																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		index = activeSensor;
+
+																		if(switchChannel == 0)
+																		{
+																			Comstatus_O2 = UART_O2_IDLE;
+																			rxState = O2RX_IDLE;
+																		}
+												break;
+											default:		Comstatus_O2 = UART_O2_IDLE;
+															rxState = O2RX_IDLE;
+												break;
+										}
+									}
+						break;
+				default:				rxState = O2RX_IDLE;
+					break;
+
+			}
+			rxBuffer[localRX] = 0;
+			localRX++;
+			rxReadIndex++;
+			if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
+			{
+				localRX = 0;
+				rxReadIndex = 0;
+			}
 		}
-		rxBuffer[localRX] = 0;
-		localRX++;
-		rxReadIndex++;
-		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
+
+		if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
 		{
-			localRX = 0;
-			rxReadIndex = 0;
+			digO2Connected = 0;
+			if(curAlive == lastAlive)
+			{
+				setExternalInterfaceChannel(ppO2TargetChannel,0.0);
+			}
+			lastAlive = curAlive;
+		}
+		if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
+		{
+			UART_StartDMA_Receiption();
 		}
 	}
+}
 
-	if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
+void UART_SetDigO2_Channel(uint8_t channel)
+{
+	if(channel <= MAX_ADC_CHANNEL)
 	{
-		digO2Connected = 0;
-		if(curAlive == lastAlive)
-		{
-			setExternalInterfaceChannel(ppO2TargetChannel,0.0);
-		}
-		lastAlive = curAlive;
+		activeSensor = channel;
 	}
-	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
+}
+void UART_MapDigO2_Channel(uint8_t channel, uint8_t muxAddress)
+{
+	if((channel < MAX_ADC_CHANNEL) && (muxAddress < MAX_ADC_CHANNEL))
 	{
-		UART_StartDMA_Receiption();
+		sensorMapping[channel] = muxAddress;
 	}
 }
 

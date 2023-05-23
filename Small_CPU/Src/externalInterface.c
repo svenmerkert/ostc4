@@ -67,8 +67,8 @@ static uint16_t externalCO2Value;
 static uint16_t externalCO2SignalStrength;
 static uint16_t  externalCO2Status = 0;
 
-static uint8_t sensorDataId = 0;
-static SSensorDataDiveO2 sensorDataDiveO2;
+static uint8_t lastSensorDataId = 0;
+static SSensorDataDiveO2 sensorDataDiveO2[MAX_ADC_CHANNEL];
 static externalInterfaceAutoDetect_t externalAutoDetect = DETECTION_OFF;
 static externalInterfaceSensorType SensorMap[EXT_INTERFACE_SENSOR_CNT] ={ SENSOR_OPTIC, SENSOR_OPTIC, SENSOR_OPTIC, SENSOR_NONE, SENSOR_NONE};
 static externalInterfaceSensorType tmpSensorMap[EXT_INTERFACE_SENSOR_CNT];
@@ -331,7 +331,11 @@ void externalInterface_SwitchUART(uint8_t protocol)
 		case (EXT_INTERFACE_UART_CO2 >> 8):
 		case (EXT_INTERFACE_UART_O2 >> 8):
 		case (EXT_INTERFACE_UART_SENTINEL >> 8):
-				if((externalAutoDetect <= DETECTION_START) || ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2))
+				if((externalAutoDetect <= DETECTION_START)
+															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_0))
+															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_1))
+															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_2))
+															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_UARTMUX))
 #ifdef ENABLE_CO2_SUPPORT
 															|| ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
 #endif
@@ -340,7 +344,7 @@ void externalInterface_SwitchUART(uint8_t protocol)
 #endif
 					)
 				{
-					sensorDataId = 0;
+					lastSensorDataId = 0;
 					externalUART_Protocol = protocol;
 					MX_USART1_UART_DeInit();
 					if( protocol != 0)
@@ -404,29 +408,34 @@ uint16_t externalInterface_GetCO2State(void)
 }
 
 
-uint8_t externalInterface_GetSensorData(uint8_t* pDataStruct)
+uint8_t externalInterface_GetSensorData(uint8_t sensorId, uint8_t* pDataStruct)
 {
-
-	if((pDataStruct != NULL) && sensorDataId != 0)
+	uint8_t localId = sensorId;
+	if(localId == 0)
 	{
-		memcpy(pDataStruct, &sensorDataDiveO2, sizeof(sensorDataDiveO2));
+		localId = lastSensorDataId;
 	}
-	return sensorDataId;
+
+	if((pDataStruct != NULL) && (localId > 0) && (localId <= MAX_ADC_CHANNEL))
+	{
+		memcpy(pDataStruct, &sensorDataDiveO2[localId-1], sizeof(SSensorDataDiveO2));
+	}
+	return localId;
 }
 
 void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct)
 {
 	if(pDataStruct != NULL)
 	{
-		if(dataId != 0)
+		if((dataId != 0) && (dataId <= MAX_ADC_CHANNEL))
 		{
-			memcpy(&sensorDataDiveO2, pDataStruct, sizeof(sensorDataDiveO2));
+			memcpy(&sensorDataDiveO2[dataId-1], pDataStruct, sizeof(SSensorDataDiveO2));
 		}
 		else
 		{
 			memset(&sensorDataDiveO2,0,sizeof(sensorDataDiveO2));
 		}
-		sensorDataId = dataId;
+		lastSensorDataId = dataId;
 	}
 }
 
@@ -455,7 +464,9 @@ uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap)
 
 void externalInterface_AutodetectSensor()
 {
-	static uint8_t	sensorIndex = 0;
+	static uint8_t tmpMuxMapping[MAX_ADC_CHANNEL];
+	static uint8_t sensorIndex = 0;
+	static uint8_t uartMuxChannel = 0;
 	uint8_t index = 0;
 
 	if(externalAutoDetect != DETECTION_OFF)
@@ -463,12 +474,18 @@ void externalInterface_AutodetectSensor()
 		switch(externalAutoDetect)
 		{
 			case DETECTION_INIT:	sensorIndex = 0;
+									uartMuxChannel = 0;
 									tmpSensorMap[0] = SENSOR_OPTIC;
 									tmpSensorMap[1] = SENSOR_OPTIC;
 									tmpSensorMap[2] = SENSOR_OPTIC;
 									tmpSensorMap[3] = SENSOR_NONE;
 									tmpSensorMap[4] = SENSOR_NONE;
 
+									for(index = 0; index < MAX_ADC_CHANNEL; index++)
+									{
+										UART_MapDigO2_Channel(index,index);		/* request all addresses */
+										tmpMuxMapping[index] = 0xff;
+									}
 									if(externalInterfacePresent)
 									{
 										externalInterface_SwitchPower33(0);
@@ -504,10 +521,22 @@ void externalInterface_AutodetectSensor()
 											tmpSensorMap[sensorIndex++] = SENSOR_NONE;
 										}
 									}
-									externalAutoDetect = DETECTION_DIGO2;
+									externalAutoDetect = DETECTION_UARTMUX;
 									externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+									UART_SetDigO2_Channel(3);
 				break;
-			case DETECTION_DIGO2:	if(UART_isDigO2Connected())
+			case DETECTION_UARTMUX:  	if(UART_isDigO2Connected())
+										{
+											uartMuxChannel = 1;
+										}
+										externalAutoDetect = DETECTION_DIGO2_0;
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+										UART_SetDigO2_Channel(0);
+										
+				break;
+			case DETECTION_DIGO2_0:
+			case DETECTION_DIGO2_1: 
+			case DETECTION_DIGO2_2: if(UART_isDigO2Connected())
 									{
 										for(index = 0; index < 3; index++)	/* lookup a channel which may be used by digO2 */
 										{
@@ -523,14 +552,28 @@ void externalInterface_AutodetectSensor()
 										else
 										{
 											tmpSensorMap[index] = SENSOR_DIGO2;
+											tmpMuxMapping[index] = externalAutoDetect - DETECTION_DIGO2_0;
 										}
-
 										UART_setTargetChannel(index);
+
 										/* tmpSensorMap[sensorIndex++] = SENSOR_DIGO2; */
+									}
+									if(uartMuxChannel)
+									{
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+										UART_SetDigO2_Channel(uartMuxChannel);
+										uartMuxChannel++;
+									}
+									else
+									{
+										externalAutoDetect = DETECTION_DIGO2_2; /* skip detection of other serial sensors */
 									}
 									externalAutoDetect++;
 #ifdef ENABLE_CO2_SUPPORT
-									externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+									if(externalAutoDetect == DETECTION_CO2)
+									{
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+									}
 				break;
 			case DETECTION_CO2:		if(UART_isCO2Connected())
 									{
@@ -554,8 +597,11 @@ void externalInterface_AutodetectSensor()
 									externalAutoDetect++;
 #endif
 #ifdef ENABLE_SENTINEL_MODE
-									externalInterface_SwitchUART(EXT_INTERFACE_UART_SENTINEL >> 8);
-									UART_StartDMA_Receiption();
+									if(externalAutoDetect == DETECTION_SENTINEL)
+									{
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_SENTINEL >> 8);
+										UART_StartDMA_Receiption();
+									}
 				break;
 
 			case DETECTION_SENTINEL:
@@ -571,29 +617,19 @@ void externalInterface_AutodetectSensor()
 									externalAutoDetect++;
 #endif
 				break;
-			case DETECTION_DONE:	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
+			case DETECTION_DONE:	if(uartMuxChannel)
 									{
-										if(tmpSensorMap[index] != SENSOR_NONE)
-										{
-											break;
-										}
+										tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] = SENSOR_MUX;
 									}
-
-									if(index != EXT_INTERFACE_SENSOR_CNT)		/* return default sensor map if no sensor at all has been detected */
+									for(index = 0; index < MAX_ADC_CHANNEL; index++)
 									{
-										while(sensorIndex < EXT_INTERFACE_SENSOR_CNT)
-										{
-											tmpSensorMap[sensorIndex++] = SENSOR_NONE;
-										}
+										UART_MapDigO2_Channel(index,tmpMuxMapping[index]);
 									}
-									else
-									{
-										tmpSensorMap[0] = SENSOR_OPTIC;
-										tmpSensorMap[1] = SENSOR_OPTIC;
-										tmpSensorMap[2] = SENSOR_OPTIC;
-									}
-									memcpy(SensorMap, tmpSensorMap, sizeof(tmpSensorMap));
 									externalAutoDetect = DETECTION_OFF;
+									externalInterface_SwitchUART(0);
+									UART_SetDigO2_Channel(0);
+									memcpy(SensorMap, tmpSensorMap, sizeof(tmpSensorMap));
+
 				break;
 			default:
 				break;
