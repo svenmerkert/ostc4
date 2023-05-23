@@ -173,7 +173,7 @@ typedef struct
 typedef struct
 {
 	/* from Small CPU */
-	uint8_t extIf_sensor_data[32]; /* The external sensor may contain a 64 bit ID. It has been placed at the beginning of the structure to avoid problems in alignment */
+	uint8_t extIf_sensor_data[3][32]; /* The external sensor may contain a 64 bit ID. It has been placed at the beginning of the structure to avoid problems in alignment */
 	uint8_t extIf_sensor_map[EXT_INTERFACE_SENSOR_CNT];
 
 	int32_t dive_time_seconds;
@@ -434,6 +434,7 @@ typedef enum
 	 SENSOR_SENTINEL,
 	 SENSOR_TYPE_O2_END,
 	 SENSOR_CO2,
+	 SENSOR_MUX,
 	 SENSOR_END
 } externalInterfaceSensorType;
 

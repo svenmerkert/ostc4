@@ -994,9 +994,10 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 	{
 
 		pStateReal->lifeData.extIf_sensor_Id = dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].externalInterface_SensorID;
-		if(pStateReal->lifeData.extIf_sensor_Id != 0)
+		if((pStateReal->lifeData.extIf_sensor_Id != 0) && (pStateReal->lifeData.extIf_sensor_Id <= 3))
 		{
-			memcpy(pStateReal->lifeData.extIf_sensor_data, dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_data, 32);
+
+			memcpy(pStateReal->lifeData.extIf_sensor_data[pStateReal->lifeData.extIf_sensor_Id-1], dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_data, 32);
 		}
 		memcpy(pStateReal->lifeData.extIf_sensor_map, dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_map, EXT_INTERFACE_SENSOR_CNT);
 
