@@ -26,9 +26,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-#define CHUNK_SIZE			(25u)		/* the DMA will handle chunk size transfers */
-#define CHUNKS_PER_BUFFER	(5u)
-#define COMMAND_TX_DELAY	(30u)		/* The time the sensor needs to recover from a invalid command request */
+#define CHUNK_SIZE				(25u)		/* the DMA will handle chunk size transfers */
+#define CHUNKS_PER_BUFFER		(5u)
+#define COMMAND_TX_DELAY		(30u)		/* The time the sensor needs to recover from a invalid command request */
+#define REQUEST_INT_SENSOR_MS	(1500)		/* Minimum time interval for cyclic sensor data requests per sensor */
 UART_HandleTypeDef huart1;
 
 DMA_HandleTypeDef  hdma_usart1_rx;
@@ -41,7 +42,6 @@ static uint8_t dmaActive;								/* Indicator if DMA reception needs to be start
 static uint8_t digO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
 static uint8_t CO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
 static uint8_t SentinelConnected = 0;					/* Binary indicator if a sensor is connected or not */
-static uint8_t ppO2TargetChannel = 0;					/* The OSTC4 supports three slots for visualization of the ppo2. This one is reserved for the digital sensor */
 
 static SSensorDataDiveO2 tmpSensorDataDiveO2;			/* intermediate storage for additional sensor data */
 
@@ -50,7 +50,7 @@ uint8_t tmpRxIdx = 0;
 
 static uartO2Status_t Comstatus_O2 = UART_O2_INIT;
 static uint8_t activeSensor = 0;
-static uint8_t sensorMapping[MAX_ADC_CHANNEL];			/* The mapping is used to assign the visible sensor channel to the mux address (DiveO2) */
+static uint8_t sensorMapping[MAX_MUX_CHANNEL];			/* The mapping is used to assign the visible sensor channel to the mux address (DiveO2) */
 
 float LED_Level = 0.0;							/* Normalized LED value which may be used as indication for the health status of the sensor */
 float LED_ZeroOffset = 0.0;
@@ -136,15 +136,15 @@ void DigitalO2_SelectSensor(uint8_t channel)
 	indexstr[2] = 0x0D;
 	indexstr[3] = 0x0A;
 
-	if((channel < MAX_ADC_CHANNEL) && (sensorMapping[channel] != 0xff))
+	/* Lookup mux address mapped to the provided channel. If no mapping is found the the MUX itself will be selected */
+	for(muxAddress = 0; muxAddress < MAX_MUX_CHANNEL; muxAddress++)
 	{
-			muxAddress = sensorMapping[channel];
+		if(sensorMapping[muxAddress] == channel)
+		{
+			break;
+		}
 	}
-	else
-	{
-		muxAddress = MAX_ADC_CHANNEL;	/* default to mux */
-	}
-	indexstr[1] = '0' + muxAddress;
+	indexstr[1] = muxAddress;
 	HAL_UART_Transmit(&huart1,indexstr,4,10);
 }
 
@@ -489,6 +489,9 @@ void UART_HandleDigitalO2(void)
 	static uint8_t cmdReadIndex = 0;
 	static	uint32_t tickToTX =  0;
 	static uint32_t delayStartTick = 0;
+	static uint16_t requestIntervall = 0;
+	static uint8_t	retryRequest = 1;
+	static uint8_t lastComState = 0;
 
 	uint8_t switchChannel = 0;
 	uint8_t index = 0;
@@ -520,7 +523,7 @@ void UART_HandleDigitalO2(void)
 			Comstatus_O2 = UART_O2_CHECK;
 			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
 			DigitalO2_SelectSensor(activeSensor);
-			if(activeSensor < MAX_ADC_CHANNEL)
+			if(activeSensor < MAX_MUX_CHANNEL)
 			{
 				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
 			}
@@ -531,22 +534,55 @@ void UART_HandleDigitalO2(void)
 			cmdReadIndex = 0;
 			lastO2ReqTick = tick;
 
+			requestIntervall = 0;
+			for(index = 0; index < MAX_MUX_CHANNEL; index++)
+			{
+				if(pmap[index] == SENSOR_DIGO2)
+				{
+					requestIntervall++;
+				}
+			}
+			if(requestIntervall != 0)
+			{
+				requestIntervall = REQUEST_INT_SENSOR_MS / requestIntervall;
+			}
+			else
+			{
+				requestIntervall = REQUEST_INT_SENSOR_MS;
+			}
 			UART_StartDMA_Receiption();
 		}
-		if(time_elapsed_ms(lastO2ReqTick,tick) > 1000)		/* repeat request once per second */
+		if(time_elapsed_ms(lastO2ReqTick,tick) > requestIntervall)		/* repeat request or iterate to next sensor */
 		{
 			lastO2ReqTick = tick;
 			index = activeSensor;
-			if(Comstatus_O2 == UART_O2_IDLE)				/* cyclic request of o2 value */
+			if(lastComState == Comstatus_O2)
 			{
+				if(retryRequest)
+				{
+					retryRequest = 0;
+				}
+				else			/* no answer even repeating the request => abort request */
+				{
+					if(Comstatus_O2 == UART_O2_REQ_RAW)
+					{
+						setExternalInterfaceChannel(activeSensor,0.0);
+					}
+					Comstatus_O2 = UART_O2_IDLE;
+				}
+			}
+			lastComState = Comstatus_O2;
+			if(Comstatus_O2 == UART_O2_IDLE)							/* cyclic request of o2 value */
+			{
+				retryRequest = 1;
 				if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
 				{
-					if(activeSensor < MAX_ADC_CHANNEL)
+					if(activeSensor < MAX_MUX_CHANNEL)
 					{
 						do
 						{
 							index++;
-							if(index == MAX_ADC_CHANNEL)
+							if(index == MAX_MUX_CHANNEL)
 							{
 								index = 0;
 							}
@@ -559,7 +595,6 @@ void UART_HandleDigitalO2(void)
 						} while(index != activeSensor);
 					}
 				}
-
 				Comstatus_O2 = UART_O2_REQ_RAW;
 				rxState = O2RX_CONFIRM;
 			}
@@ -735,7 +770,13 @@ void UART_HandleDigitalO2(void)
 			digO2Connected = 0;
 			if(curAlive == lastAlive)
 			{
-				setExternalInterfaceChannel(ppO2TargetChannel,0.0);
+				for(index = 0; index < MAX_ADC_CHANNEL; index++)
+				{
+					if(pmap[index] == SENSOR_DIGO2)
+					{
+						setExternalInterfaceChannel(index,0.0);
+					}
+				}
 			}
 			lastAlive = curAlive;
 		}
@@ -748,16 +789,16 @@ void UART_HandleDigitalO2(void)
 
 void UART_SetDigO2_Channel(uint8_t channel)
 {
-	if(channel <= MAX_ADC_CHANNEL)
+	if(channel <= MAX_MUX_CHANNEL)
 	{
 		activeSensor = channel;
 	}
 }
 void UART_MapDigO2_Channel(uint8_t channel, uint8_t muxAddress)
 {
-	if((channel < MAX_ADC_CHANNEL) && (muxAddress < MAX_ADC_CHANNEL))
+	if(((channel < MAX_ADC_CHANNEL) || (channel == 0xff)) && (muxAddress < MAX_MUX_CHANNEL))
 	{
-		sensorMapping[channel] = muxAddress;
+		sensorMapping[muxAddress] = channel;
 	}
 }
 
@@ -772,11 +813,6 @@ uint8_t UART_isCO2Connected()
 uint8_t UART_isSentinelConnected()
 {
 	return SentinelConnected;
-}
-
-void UART_setTargetChannel(uint8_t channel)
-{
-		ppO2TargetChannel = channel;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)

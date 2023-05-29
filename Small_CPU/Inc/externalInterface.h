@@ -32,6 +32,7 @@
 
 
 #define MAX_ADC_CHANNEL		(3u)		/* number of channels to be read */
+#define MAX_MUX_CHANNEL		(4u)		/* number of channels provided by the UART multiplexer */
 #define EXTERNAL_ADC_NO_DATA	0xFF
 
 #define EXT33V_CONTROL_PIN				GPIO_PIN_7	/* PortC */
@@ -50,6 +51,7 @@
 	DETECTION_DIGO2_0,		/* check UART channel for connected DigO2 sensor */
 	DETECTION_DIGO2_1,
 	DETECTION_DIGO2_2,
+	DETECTION_DIGO2_3,
 #ifdef ENABLE_CO2_SUPPORT
 	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
 #endif

@@ -335,6 +335,7 @@ void externalInterface_SwitchUART(uint8_t protocol)
 															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_0))
 															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_1))
 															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_2))
+															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_3))
 															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_UARTMUX))
 #ifdef ENABLE_CO2_SUPPORT
 															|| ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
@@ -464,10 +465,11 @@ uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap)
 
 void externalInterface_AutodetectSensor()
 {
-	static uint8_t tmpMuxMapping[MAX_ADC_CHANNEL];
+	static uint8_t tmpMuxMapping[MAX_MUX_CHANNEL];
 	static uint8_t sensorIndex = 0;
 	static uint8_t uartMuxChannel = 0;
 	uint8_t index = 0;
+	uint8_t index2 = 0;
 
 	if(externalAutoDetect != DETECTION_OFF)
 	{
@@ -486,6 +488,8 @@ void externalInterface_AutodetectSensor()
 										UART_MapDigO2_Channel(index,index);		/* request all addresses */
 										tmpMuxMapping[index] = 0xff;
 									}
+									UART_MapDigO2_Channel(3,4);
+
 									if(externalInterfacePresent)
 									{
 										externalInterface_SwitchPower33(0);
@@ -523,7 +527,7 @@ void externalInterface_AutodetectSensor()
 									}
 									externalAutoDetect = DETECTION_UARTMUX;
 									externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
-									UART_SetDigO2_Channel(3);
+									UART_SetDigO2_Channel(MAX_MUX_CHANNEL);
 				break;
 			case DETECTION_UARTMUX:  	if(UART_isDigO2Connected())
 										{
@@ -536,7 +540,9 @@ void externalInterface_AutodetectSensor()
 				break;
 			case DETECTION_DIGO2_0:
 			case DETECTION_DIGO2_1: 
-			case DETECTION_DIGO2_2: if(UART_isDigO2Connected())
+			case DETECTION_DIGO2_2:
+			case DETECTION_DIGO2_3:
+									if(UART_isDigO2Connected())
 									{
 										for(index = 0; index < 3; index++)	/* lookup a channel which may be used by digO2 */
 										{
@@ -552,11 +558,12 @@ void externalInterface_AutodetectSensor()
 										else
 										{
 											tmpSensorMap[index] = SENSOR_DIGO2;
-											tmpMuxMapping[index] = externalAutoDetect - DETECTION_DIGO2_0;
+											tmpMuxMapping[externalAutoDetect - DETECTION_DIGO2_0] = index;
 										}
-										UART_setTargetChannel(index);
-
-										/* tmpSensorMap[sensorIndex++] = SENSOR_DIGO2; */
+									}
+									else
+									{
+										UART_MapDigO2_Channel(0xff, externalAutoDetect - DETECTION_DIGO2_0);
 									}
 									if(uartMuxChannel)
 									{
@@ -566,7 +573,7 @@ void externalInterface_AutodetectSensor()
 									}
 									else
 									{
-										externalAutoDetect = DETECTION_DIGO2_2; /* skip detection of other serial sensors */
+										externalAutoDetect = DETECTION_DIGO2_3; /* skip detection of other serial sensors */
 									}
 									externalAutoDetect++;
 #ifdef ENABLE_CO2_SUPPORT
@@ -621,9 +628,14 @@ void externalInterface_AutodetectSensor()
 									{
 										tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] = SENSOR_MUX;
 									}
-									for(index = 0; index < MAX_ADC_CHANNEL; index++)
+									index2 = 0;	/* used for target channel */
+									for(index = 0; index < MAX_MUX_CHANNEL; index++)
 									{
-										UART_MapDigO2_Channel(index,tmpMuxMapping[index]);
+										if(tmpMuxMapping[index] != 0xff)
+										{
+											UART_MapDigO2_Channel(index2, index);
+											index2++;
+										}
 									}
 									externalAutoDetect = DETECTION_OFF;
 									externalInterface_SwitchUART(0);
@@ -664,7 +676,6 @@ void externalInterface_ExecuteCmd(uint16_t Cmd)
 														break;
 													}
 												}
-												UART_setTargetChannel(index); /* if no slot for digO2 is found then the function will be called with an invalid parameter causing the overwrite function to fail */
 											}
 			break;
 		default:
