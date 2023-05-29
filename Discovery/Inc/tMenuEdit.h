@@ -94,7 +94,7 @@ void resetEnterPressedToStateBeforeButtonAction(void);
 
 void setBackMenu(uint32_t inputFunctionCall, uint8_t functionCallParameter, uint8_t gotoMenuEditField);
 void exitMenuEdit_to_BackMenu(void);
-
+void exitMenuEdit(uint8_t writeSettingsIfEnterPressed);
 void startEdit(void);
 void exitEditWithUpdate(void);
 void exitMenuEdit_to_Home(void);

@@ -29,7 +29,7 @@
 #define TINFO_SENSOR_H
 
 /* Exported functions --------------------------------------------------------*/
-void openInfo_Sensor(void);
+void openInfo_Sensor(uint8_t sensorId);
 void refreshInfo_Sensor(GFX_DrawCfgScreen s);
 void sendActionToInfoSensor(uint8_t sendAction);
 

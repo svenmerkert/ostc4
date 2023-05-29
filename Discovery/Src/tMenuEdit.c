@@ -129,7 +129,6 @@ void downMenuEditFieldDigit(void);
 
 void draw_tMEcursorNewDesign(void);
 
-void exitMenuEdit(uint8_t writeSettingsIfEnterPressed);
 uint8_t split_Content_to_Digit_helper(uint8_t inContentAscii, uint8_t *outDigit100, uint8_t *outDigit10, uint8_t *outDigit1);
 
 /* Exported functions --------------------------------------------------------*/
@@ -348,8 +347,19 @@ void exitMenuEdit_to_InfoCompassCalibration(void)
 
 void exitMenuEdit_to_InfoSensor(void)
 {
+	uint32_t globState = get_globalState();
+
     exitMenuEdit(1);
-    openInfo_Sensor();
+	switch(globState)
+	{
+	 	 case (StMHARD3_O2_Sensor3): openInfo_Sensor(3);
+			break;
+	 	 case (StMHARD3_O2_Sensor2): openInfo_Sensor(2);
+	 	 	 break;
+	 	 default:
+	 	 case (StMHARD3_O2_Sensor1): openInfo_Sensor(1);
+	 	 	 break;
+	}
 }
 
 
