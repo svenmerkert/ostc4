@@ -180,7 +180,7 @@ void test_O2_sensor_values_outOfBounds(int8_t * outOfBouds1, int8_t * outOfBouds
 
         if(sensorActive[index])
         {
-        	if(((stateUsed->lifeData.extIf_sensor_map[index] == SENSOR_DIGO2) && (((SSensorDataDiveO2*)(stateUsed->lifeData.extIf_sensor_data))->status & DVO2_FATAL_ERROR))
+        	if(((stateUsed->lifeData.extIf_sensor_map[index] == SENSOR_DIGO2) && (((SSensorDataDiveO2*)(stateUsed->lifeData.extIf_sensor_data[index]))->status & DVO2_FATAL_ERROR))
         			|| ((stateUsed->lifeData.extIf_sensor_map[index] != SENSOR_DIGO2)
         					&& (((stateUsed->lifeData.sensorVoltage_mV[index] < MIN_SENSOR_VOLTAGE_MV) || (stateUsed->lifeData.sensorVoltage_mV[index] > MAX_SENSOR_VOLTAGE_MV)))))
 			{
