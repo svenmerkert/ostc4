@@ -469,7 +469,6 @@ void externalInterface_AutodetectSensor()
 	static uint8_t sensorIndex = 0;
 	static uint8_t uartMuxChannel = 0;
 	uint8_t index = 0;
-	uint8_t index2 = 0;
 
 	if(externalAutoDetect != DETECTION_OFF)
 	{
@@ -488,7 +487,7 @@ void externalInterface_AutodetectSensor()
 										UART_MapDigO2_Channel(index,index);		/* request all addresses */
 										tmpMuxMapping[index] = 0xff;
 									}
-									UART_MapDigO2_Channel(3,4);
+									UART_MapDigO2_Channel(2,3);
 
 									if(externalInterfacePresent)
 									{
@@ -559,6 +558,10 @@ void externalInterface_AutodetectSensor()
 										{
 											tmpSensorMap[index] = SENSOR_DIGO2;
 											tmpMuxMapping[externalAutoDetect - DETECTION_DIGO2_0] = index;
+											if(externalAutoDetect == DETECTION_DIGO2_2 )	/* special handling needed because channel is used twice during mux detection */
+											{
+												UART_MapDigO2_Channel(0xff, externalAutoDetect - DETECTION_DIGO2_0);
+											}
 										}
 									}
 									else
@@ -569,7 +572,10 @@ void externalInterface_AutodetectSensor()
 									{
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
 										UART_SetDigO2_Channel(uartMuxChannel);
-										uartMuxChannel++;
+										if(uartMuxChannel < MAX_ADC_CHANNEL - 1)
+										{
+											uartMuxChannel++;
+										}
 									}
 									else
 									{
@@ -628,18 +634,29 @@ void externalInterface_AutodetectSensor()
 									{
 										tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] = SENSOR_MUX;
 									}
-									index2 = 0;	/* used for target channel */
+
 									for(index = 0; index < MAX_MUX_CHANNEL; index++)
 									{
-										if(tmpMuxMapping[index] != 0xff)
-										{
-											UART_MapDigO2_Channel(index2, index);
-											index2++;
-										}
+										UART_MapDigO2_Channel(tmpMuxMapping[index], index);
 									}
+
 									externalAutoDetect = DETECTION_OFF;
 									externalInterface_SwitchUART(0);
 									UART_SetDigO2_Channel(0);
+									for(index = 0; index < MAX_ADC_CHANNEL; index++)
+									{
+										if(tmpSensorMap[index] != SENSOR_NONE)
+										{
+											break;
+										}
+									}
+
+									if(index == MAX_ADC_CHANNEL)		/* return default sensor map if no sensor at all has been detected */
+									{
+										tmpSensorMap[0] = SENSOR_OPTIC;
+										tmpSensorMap[1] = SENSOR_OPTIC;
+										tmpSensorMap[2] = SENSOR_OPTIC;
+									}
 									memcpy(SensorMap, tmpSensorMap, sizeof(tmpSensorMap));
 
 				break;

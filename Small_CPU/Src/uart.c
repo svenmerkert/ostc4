@@ -158,9 +158,9 @@ void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
 					break;
 		case UART_O2_REQ_ID: 	*cmdLength = snprintf((char*)cmdString, 10, "#IDNR");
 			break;
-		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
+		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#MOXY");
 			break;
-		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
+		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#MRAW");
 			break;
 		default: *cmdLength = 0;
 			break;
@@ -478,7 +478,7 @@ void UART_HandleSentinelData(void)
 void UART_HandleDigitalO2(void)
 {
 	static uint32_t lastO2ReqTick = 0;
-
+	static uint8_t errorStr[] = "#ERRO";
 	static uartO2RxState_t rxState = O2RX_IDLE;
 	static uint32_t lastReceiveTick = 0;
 	static uint8_t lastAlive = 0;
@@ -487,13 +487,15 @@ void UART_HandleDigitalO2(void)
 	static uint8_t cmdLength = 0;
 	static uint8_t cmdString[10];
 	static uint8_t cmdReadIndex = 0;
+	static uint8_t errorReadIndex = 0;
 	static	uint32_t tickToTX =  0;
 	static uint32_t delayStartTick = 0;
 	static uint16_t requestIntervall = 0;
 	static uint8_t	retryRequest = 1;
 	static uint8_t lastComState = 0;
+	static uint8_t respondErrorDetected = 0;
+	static uint8_t switchChannel = 0;
 
-	uint8_t switchChannel = 0;
 	uint8_t index = 0;
 	uint32_t tmpO2 = 0;
 	uint32_t tmpData = 0;
@@ -532,7 +534,11 @@ void UART_HandleDigitalO2(void)
 
 			rxState = O2RX_CONFIRM;
 			cmdReadIndex = 0;
+			errorReadIndex = 0;
+			respondErrorDetected = 0;
+			digO2Connected = 0;
 			lastO2ReqTick = tick;
+			switchChannel = 1;
 
 			requestIntervall = 0;
 			for(index = 0; index < MAX_MUX_CHANNEL; index++)
@@ -556,7 +562,7 @@ void UART_HandleDigitalO2(void)
 		{
 			lastO2ReqTick = tick;
 			index = activeSensor;
-			if(lastComState == Comstatus_O2)
+			if((lastComState == Comstatus_O2) && (Comstatus_O2 != UART_O2_IDLE))
 			{
 				if(retryRequest)
 				{
@@ -577,6 +583,7 @@ void UART_HandleDigitalO2(void)
 				retryRequest = 1;
 				if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
 				{
+					switchChannel = 0;
 					if(activeSensor < MAX_MUX_CHANNEL)
 					{
 						do
@@ -586,7 +593,7 @@ void UART_HandleDigitalO2(void)
 							{
 								index = 0;
 							}
-							if(pmap[index] == SENSOR_DIGO2)
+							if((pmap[index] == SENSOR_DIGO2) && (index != activeSensor))
 							{
 								activeSensor = index;
 								switchChannel = 1;
@@ -600,6 +607,7 @@ void UART_HandleDigitalO2(void)
 			}
 			if(switchChannel)
 			{
+				switchChannel = 0;
 				delayStartTick = tick;
 				DigitalO2_SelectSensor(activeSensor);
 				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
@@ -624,13 +632,46 @@ void UART_HandleDigitalO2(void)
 				case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
 									{
 										cmdReadIndex = 0;
+										errorReadIndex = 0;
+									}
+									if(errorReadIndex < sizeof(errorStr)-1)
+									{
+										if(rxBuffer[localRX] == errorStr[errorReadIndex])
+										{
+											errorReadIndex++;
+										}
+										else
+										{
+											errorReadIndex = 0;
+										}
+									}
+									else
+									{
+										respondErrorDetected = 1;
 									}
 									if(rxBuffer[localRX] == cmdString[cmdReadIndex])
 									{
 									cmdReadIndex++;
 									if(cmdReadIndex == cmdLength - 1)
 									{
-										digO2Connected = 1;
+										if((activeSensor == MAX_MUX_CHANNEL))
+										{
+											if(respondErrorDetected)
+											{
+												digO2Connected = 0;		/* the multiplexer mirrors the incoming message and does not generate an error information => no mux connected */
+											}
+											else
+											{
+												digO2Connected = 1;
+											}
+										}
+										else							/* handle sensors which should respond with an error message after channel switch */
+										{
+											if(respondErrorDetected)
+											{
+												digO2Connected = 1;
+											}
+										}
 										tmpRxIdx = 0;
 										memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
 										switch (Comstatus_O2)
@@ -738,12 +779,8 @@ void UART_HandleDigitalO2(void)
 											case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&tmpSensorDataDiveO2.sensorId);
 																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
 																		index = activeSensor;
-
-																		if(switchChannel == 0)
-																		{
-																			Comstatus_O2 = UART_O2_IDLE;
-																			rxState = O2RX_IDLE;
-																		}
+																		Comstatus_O2 = UART_O2_IDLE;
+																		rxState = O2RX_IDLE;
 												break;
 											default:		Comstatus_O2 = UART_O2_IDLE;
 															rxState = O2RX_IDLE;
