@@ -158,9 +158,9 @@ void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
 					break;
 		case UART_O2_REQ_ID: 	*cmdLength = snprintf((char*)cmdString, 10, "#IDNR");
 			break;
-		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#MOXY");
+		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
 			break;
-		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#MRAW");
+		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
 			break;
 		default: *cmdLength = 0;
 			break;
