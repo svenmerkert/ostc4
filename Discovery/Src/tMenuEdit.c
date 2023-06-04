@@ -352,12 +352,12 @@ void exitMenuEdit_to_InfoSensor(void)
     exitMenuEdit(1);
 	switch(globState)
 	{
-	 	 case (StMHARD3_O2_Sensor3): openInfo_Sensor(3);
+	 	 case (StMHARD3_O2_Sensor3): openInfo_Sensor(2);
 			break;
-	 	 case (StMHARD3_O2_Sensor2): openInfo_Sensor(2);
+	 	 case (StMHARD3_O2_Sensor2): openInfo_Sensor(1);
 	 	 	 break;
 	 	 default:
-	 	 case (StMHARD3_O2_Sensor1): openInfo_Sensor(1);
+	 	 case (StMHARD3_O2_Sensor1): openInfo_Sensor(0);
 	 	 	 break;
 	}
 }

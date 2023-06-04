@@ -87,7 +87,7 @@ uint16_t externalInterface_GetCO2SignalStrength(void);
 void externalInterface_SetCO2State(uint16_t state);
 uint16_t externalInterface_GetCO2State(void);
 uint8_t externalInterface_GetSensorData(uint8_t sensorId, uint8_t* pDataStruct);
-void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct);
+void externalInterface_SetSensorData(uint8_t sensorId, uint8_t* pDataStruct);
 void externalInface_SetSensorMap(uint8_t* pMap);
 uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap);
 void externalInterface_AutodetectSensor(void);

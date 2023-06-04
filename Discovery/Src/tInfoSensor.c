@@ -52,17 +52,17 @@ void openInfo_Sensor(uint8_t sensorId)
     set_globalState(StISENINFO);
     switch (activeSensorId)
     {
-    	case 3: setBackMenu((uint32_t)openEdit_O2Sensors,0,3);
+    	case 2: setBackMenu((uint32_t)openEdit_O2Sensors,0,3);
     		break;
-    	case 2: setBackMenu((uint32_t)openEdit_O2Sensors,0,2);
+    	case 1: setBackMenu((uint32_t)openEdit_O2Sensors,0,2);
     	    		break;
     	default:
-    	case 1: setBackMenu((uint32_t)openEdit_O2Sensors,0,1);
+    	case 0: setBackMenu((uint32_t)openEdit_O2Sensors,0,1);
     	    		break;
     }
 
     sensorActive = 1;
-    if(pSettings->ppo2sensors_deactivated & (1 << (activeSensorId - 1)))
+    if(pSettings->ppo2sensors_deactivated & (1 << (activeSensorId)))
     {
     	sensorActive = 0;
     }
@@ -71,14 +71,14 @@ void openInfo_Sensor(uint8_t sensorId)
 
 uint8_t OnAction_Sensor(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
-	if(settingsGetPointer()->ppo2sensors_deactivated & (1 << (activeSensorId - 1)))
+	if(settingsGetPointer()->ppo2sensors_deactivated & (1 << (activeSensorId)))
 	{
-		settingsGetPointer()->ppo2sensors_deactivated &= ~(1 << (activeSensorId - 1));
+		settingsGetPointer()->ppo2sensors_deactivated &= ~(1 << (activeSensorId));
 		tMenuEdit_set_on_off(editId, 1);
 	}
 	else
 	{
-		settingsGetPointer()->ppo2sensors_deactivated |= (1 << (activeSensorId - 1));
+		settingsGetPointer()->ppo2sensors_deactivated |= (1 << (activeSensorId));
 		tMenuEdit_set_on_off(editId, 0);
 	}
     return UPDATE_DIVESETTINGS;
@@ -155,11 +155,11 @@ void refreshInfo_Sensor(GFX_DrawCfgScreen s)
 	text[2] = ' ';
 	text[3] = TXT_Information;
 	text[4] = ' ';
-	text[5] = '0' + activeSensorId;
+	text[5] = '1' + activeSensorId;
 	text[6] = 0;
 	tInfo_write_content_simple(  30, 340, ME_Y_LINE_BASE, &FontT48, text, CLUT_MenuPageHardware);
 
-    pDiveO2Data = (SSensorDataDiveO2*)&stateRealGetPointer()->lifeData.extIf_sensor_data[activeSensorId-1];
+    pDiveO2Data = (SSensorDataDiveO2*)&stateRealGetPointer()->lifeData.extIf_sensor_data[activeSensorId];
 
     strIndex = snprintf(text,32,"ID: ");
     if(pDiveO2Data->sensorId != 0)
@@ -201,9 +201,9 @@ void refreshInfo_Sensor(GFX_DrawCfgScreen s)
     *textPointer++ = ' ';
     *textPointer++ = TXT_2BYTE;
     *textPointer++ = TXT2BYTE_O2IFDigital;
-    *textPointer++ = '0' + activeSensorId;
+    *textPointer++ = '1' + activeSensorId;
 
-    snprintf(textPointer, 20,": %01.2f, %01.1f mV",  pStateReal->lifeData.ppO2Sensor_bar[activeSensorId - 1], pStateReal->lifeData.sensorVoltage_mV[activeSensorId - 1]);
+    snprintf(textPointer, 20,": %01.2f, %01.1f mV",  pStateReal->lifeData.ppO2Sensor_bar[activeSensorId], pStateReal->lifeData.sensorVoltage_mV[activeSensorId]);
 
     tInfo_write_content_simple(  30, 340, ME_Y_LINE6, &FontT48, text, CLUT_Font020);
 
@@ -218,14 +218,14 @@ void sendActionToInfoSensor(uint8_t sendAction)
     		exitMenuEdit_to_BackMenu();
     			break;
 
-    	case ACTION_BUTTON_ENTER:    	if(settingsGetPointer()->ppo2sensors_deactivated & (1 << (activeSensorId - 1)))
+    	case ACTION_BUTTON_ENTER:    	if(settingsGetPointer()->ppo2sensors_deactivated & (1 << (activeSensorId)))
 										{
-    										settingsGetPointer()->ppo2sensors_deactivated &= ~(uint8_t)(1 << (activeSensorId - 1));
+    										settingsGetPointer()->ppo2sensors_deactivated &= ~(uint8_t)(1 << (activeSensorId));
 											sensorActive = 1;
 										}
 										else
 										{
-											settingsGetPointer()->ppo2sensors_deactivated |= (uint8_t)(1 << (activeSensorId - 1));
+											settingsGetPointer()->ppo2sensors_deactivated |= (uint8_t)(1 << (activeSensorId));
 											sensorActive = 0;
 										}
     		break;

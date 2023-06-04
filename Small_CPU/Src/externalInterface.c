@@ -412,31 +412,36 @@ uint16_t externalInterface_GetCO2State(void)
 uint8_t externalInterface_GetSensorData(uint8_t sensorId, uint8_t* pDataStruct)
 {
 	uint8_t localId = sensorId;
-	if(localId == 0)
+	if(localId == 0xFF)
 	{
 		localId = lastSensorDataId;
 	}
 
-	if((pDataStruct != NULL) && (localId > 0) && (localId <= MAX_ADC_CHANNEL))
+	if((pDataStruct != NULL) && (localId <= MAX_ADC_CHANNEL))
 	{
-		memcpy(pDataStruct, &sensorDataDiveO2[localId-1], sizeof(SSensorDataDiveO2));
+		memcpy(pDataStruct, &sensorDataDiveO2[localId], sizeof(SSensorDataDiveO2));
+	}
+	else
+	{
+		localId = 0xFF;
 	}
 	return localId;
 }
 
-void externalInterface_SetSensorData(uint8_t dataId, uint8_t* pDataStruct)
+void externalInterface_SetSensorData(uint8_t sensorId, uint8_t* pDataStruct)
 {
 	if(pDataStruct != NULL)
 	{
-		if((dataId != 0) && (dataId <= MAX_ADC_CHANNEL))
+		if((sensorId != 0xFF) && (sensorId < MAX_ADC_CHANNEL))
 		{
-			memcpy(&sensorDataDiveO2[dataId-1], pDataStruct, sizeof(SSensorDataDiveO2));
+			memcpy(&sensorDataDiveO2[sensorId], pDataStruct, sizeof(SSensorDataDiveO2));
+			lastSensorDataId = sensorId;
 		}
 		else
 		{
 			memset(&sensorDataDiveO2,0,sizeof(sensorDataDiveO2));
+			lastSensorDataId = 0xFF;
 		}
-		lastSensorDataId = dataId;
 	}
 }
 
@@ -642,7 +647,16 @@ void externalInterface_AutodetectSensor()
 
 									externalAutoDetect = DETECTION_OFF;
 									externalInterface_SwitchUART(0);
-									UART_SetDigO2_Channel(0);
+
+
+									for(index = 0; index < MAX_ADC_CHANNEL; index++)
+									{
+										if(tmpSensorMap[index] == SENSOR_DIGO2) /* set Channel to first valid entry */
+										{
+											UART_SetDigO2_Channel(index);
+											break;
+										}
+									}
 									for(index = 0; index < MAX_ADC_CHANNEL; index++)
 									{
 										if(tmpSensorMap[index] != SENSOR_NONE)
