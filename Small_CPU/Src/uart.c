@@ -26,6 +26,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+#define BUFFER_NODATA			(7u)		/* The read function needs a byte which indecated that no data for processing is available.*/
+											/* This byte shall never appear in a normal data steam */
+
 #define CHUNK_SIZE				(25u)		/* the DMA will handle chunk size transfers */
 #define CHUNKS_PER_BUFFER		(5u)
 #define COMMAND_TX_DELAY		(30u)		/* The time the sensor needs to recover from a invalid command request */
@@ -83,7 +86,7 @@ void MX_USART1_UART_Init(void)
 
   MX_USART1_DMA_Init();
 
-  memset(rxBuffer,0,sizeof(rxBuffer));
+  memset(rxBuffer,BUFFER_NODATA,sizeof(rxBuffer));
   rxReadIndex = 0;
   lastCmdIndex = 0;
   rxWriteIndex = 0;
@@ -515,21 +518,22 @@ void UART_HandleDigitalO2(void)
 	{
 		if(Comstatus_O2 == UART_O2_INIT)
 		{
-			memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
+			memset((char*)&rxBuffer[rxWriteIndex],(int)BUFFER_NODATA, sizeof(rxBuffer));
 			memset((char*) &tmpSensorDataDiveO2, 0, sizeof(tmpSensorDataDiveO2));
-			externalInterface_SetSensorData(0,(uint8_t*)&tmpSensorDataDiveO2);
+			externalInterface_SetSensorData(0xFF,(uint8_t*)&tmpSensorDataDiveO2);
 
 			lastAlive = 0;
 			curAlive = 0;
 
 			Comstatus_O2 = UART_O2_CHECK;
+			lastComState = UART_O2_IDLE;
 			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
-			DigitalO2_SelectSensor(activeSensor);
+
 			if(activeSensor < MAX_MUX_CHANNEL)
 			{
-				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
+				externalInterface_GetSensorData(activeSensor, (uint8_t*)&tmpSensorDataDiveO2);
 			}
-			delayStartTick = tick;
+
 			tickToTX = COMMAND_TX_DELAY;
 
 			rxState = O2RX_CONFIRM;
@@ -537,7 +541,6 @@ void UART_HandleDigitalO2(void)
 			errorReadIndex = 0;
 			respondErrorDetected = 0;
 			digO2Connected = 0;
-			lastO2ReqTick = tick;
 			switchChannel = 1;
 
 			requestIntervall = 0;
@@ -557,9 +560,11 @@ void UART_HandleDigitalO2(void)
 				requestIntervall = REQUEST_INT_SENSOR_MS;
 			}
 			UART_StartDMA_Receiption();
+			lastO2ReqTick = tick + requestIntervall + 1;
 		}
 		if(time_elapsed_ms(lastO2ReqTick,tick) > requestIntervall)		/* repeat request or iterate to next sensor */
 		{
+			respondErrorDetected = 0;
 			lastO2ReqTick = tick;
 			index = activeSensor;
 			if((lastComState == Comstatus_O2) && (Comstatus_O2 != UART_O2_IDLE))
@@ -583,7 +588,6 @@ void UART_HandleDigitalO2(void)
 				retryRequest = 1;
 				if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
 				{
-					switchChannel = 0;
 					if(activeSensor < MAX_MUX_CHANNEL)
 					{
 						do
@@ -600,57 +604,62 @@ void UART_HandleDigitalO2(void)
 								break;
 							}
 						} while(index != activeSensor);
+						externalInterface_GetSensorData(activeSensor, (uint8_t*)&tmpSensorDataDiveO2);
 					}
 				}
-				Comstatus_O2 = UART_O2_REQ_RAW;
-				rxState = O2RX_CONFIRM;
+				if((activeSensor != MAX_MUX_CHANNEL) && (tmpSensorDataDiveO2.sensorId == 0))
+				{
+					Comstatus_O2 = UART_O2_REQ_ID;
+				}
+				else
+				{
+					Comstatus_O2 = UART_O2_REQ_RAW;
+				}
 			}
+			rxState = O2RX_CONFIRM;
 			if(switchChannel)
 			{
 				switchChannel = 0;
 				delayStartTick = tick;
 				DigitalO2_SelectSensor(activeSensor);
-				externalInterface_GetSensorData(activeSensor + 1, (uint8_t*)&tmpSensorDataDiveO2);
 				tickToTX = COMMAND_TX_DELAY;
-				if(tmpSensorDataDiveO2.sensorId == 0)
-				{
-					Comstatus_O2 = UART_O2_REQ_ID;
-				}
 			}
 			else
 			{
+				tickToTX = 0;
 				HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
 			}
 			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
 		}
-
-		while((rxBuffer[localRX]!=0))
+	}
+	while((rxBuffer[localRX] != BUFFER_NODATA))
+	{
+		lastReceiveTick = tick;
+		switch(rxState)
 		{
-			lastReceiveTick = tick;
-			switch(rxState)
-			{
-				case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
+			case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
+								{
+									cmdReadIndex = 0;
+									errorReadIndex = 0;
+								}
+								if(errorReadIndex < sizeof(errorStr)-1)
+								{
+									if(rxBuffer[localRX] == errorStr[errorReadIndex])
 									{
-										cmdReadIndex = 0;
-										errorReadIndex = 0;
-									}
-									if(errorReadIndex < sizeof(errorStr)-1)
-									{
-										if(rxBuffer[localRX] == errorStr[errorReadIndex])
-										{
-											errorReadIndex++;
-										}
-										else
-										{
-											errorReadIndex = 0;
-										}
+										errorReadIndex++;
 									}
 									else
 									{
-										respondErrorDetected = 1;
+										errorReadIndex = 0;
 									}
-									if(rxBuffer[localRX] == cmdString[cmdReadIndex])
-									{
+								}
+								else
+								{
+									respondErrorDetected = 1;
+									errorReadIndex = 0;
+								}
+								if(rxBuffer[localRX] == cmdString[cmdReadIndex])
+								{
 									cmdReadIndex++;
 									if(cmdReadIndex == cmdLength - 1)
 									{
@@ -674,9 +683,11 @@ void UART_HandleDigitalO2(void)
 										}
 										tmpRxIdx = 0;
 										memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
+										cmdReadIndex = 0;
 										switch (Comstatus_O2)
 										{
 												case UART_O2_CHECK:	Comstatus_O2 = UART_O2_IDLE;
+																	rxState = O2RX_IDLE;
 													break;
 												case UART_O2_REQ_ID: rxState = O2RX_GETNR;
 													break;
@@ -690,6 +701,10 @@ void UART_HandleDigitalO2(void)
 														break;
 										}
 									}
+								}
+								else
+								{
+									cmdReadIndex = 0;
 								}
 					break;
 
@@ -763,7 +778,7 @@ void UART_HandleDigitalO2(void)
 										switch (rxState)
 										{
 											case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&tmpSensorDataDiveO2.status);
-																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
 																		Comstatus_O2 = UART_O2_IDLE;
 																		rxState = O2RX_IDLE;
 													break;
@@ -772,12 +787,12 @@ void UART_HandleDigitalO2(void)
 																		rxState = O2RX_IDLE;
 													break;
 											case O2RX_HUMIDITY:			StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.humidity);				/* raw data cycle */
-																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
 																		Comstatus_O2 = UART_O2_IDLE;
 																		rxState = O2RX_IDLE;
 													break;
 											case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&tmpSensorDataDiveO2.sensorId);
-																		externalInterface_SetSensorData(activeSensor+1,(uint8_t*)&tmpSensorDataDiveO2);
+																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
 																		index = activeSensor;
 																		Comstatus_O2 = UART_O2_IDLE;
 																		rxState = O2RX_IDLE;
@@ -791,36 +806,35 @@ void UART_HandleDigitalO2(void)
 				default:				rxState = O2RX_IDLE;
 					break;
 
-			}
-			rxBuffer[localRX] = 0;
-			localRX++;
-			rxReadIndex++;
-			if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
-			{
-				localRX = 0;
-				rxReadIndex = 0;
-			}
 		}
-
-		if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
+		rxBuffer[localRX] = BUFFER_NODATA;
+		localRX++;
+		rxReadIndex++;
+		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
 		{
-			digO2Connected = 0;
-			if(curAlive == lastAlive)
+			localRX = 0;
+			rxReadIndex = 0;
+		}
+	}
+
+	if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
+	{
+		digO2Connected = 0;
+		if(curAlive == lastAlive)
+		{
+			for(index = 0; index < MAX_ADC_CHANNEL; index++)
 			{
-				for(index = 0; index < MAX_ADC_CHANNEL; index++)
+				if(pmap[index] == SENSOR_DIGO2)
 				{
-					if(pmap[index] == SENSOR_DIGO2)
-					{
-						setExternalInterfaceChannel(index,0.0);
-					}
+					setExternalInterfaceChannel(index,0.0);
 				}
 			}
-			lastAlive = curAlive;
 		}
-		if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
-		{
-			UART_StartDMA_Receiption();
-		}
+		lastAlive = curAlive;
+	}
+	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
+	{
+		UART_StartDMA_Receiption();
 	}
 }
 
@@ -862,11 +876,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     	{
     		rxWriteIndex = 0;
     	}
-    	if((rxWriteIndex / CHUNK_SIZE) != (rxReadIndex / CHUNK_SIZE))	/* start next transfer if we did not catch up with read index */
+    	if((rxWriteIndex / CHUNK_SIZE) != (rxReadIndex / CHUNK_SIZE) || (rxWriteIndex == rxReadIndex))	/* start next transfer if we did not catch up with read index */
     	{
-    		if(externalInterface_isEnabledPower33())
+    		if(externalInterface_GetUARTProtocol() != 0)
     		{
-    			memset((char*)&rxBuffer[rxWriteIndex],(int)0,CHUNK_SIZE);
 				UART_StartDMA_Receiption();
     		}
     	}
