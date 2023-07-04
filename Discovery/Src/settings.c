@@ -27,7 +27,6 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include <string.h>
-#include <stdbool.h>
 
 #include "settings.h"
 #include "firmwareEraseProgram.h" // for HARDWAREDATA_ADDRESS
@@ -334,6 +333,7 @@ const SSettings SettingsStandard = {
 	.ext_sensor_map[4] = SENSOR_NONE,
 	.buttonLockActive = 0,
     .compassDeclinationDeg = 0,
+    .delaySetpointLow = false,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -537,6 +537,7 @@ void set_new_settings_missing_in_ext_flash(void)
     	// no break;
     case 0xFFFF0025:
         pSettings->compassDeclinationDeg = pStandard->compassDeclinationDeg;
+        pSettings->delaySetpointLow = pStandard->delaySetpointLow;
 
     	// no break;
     default:
@@ -589,6 +590,52 @@ void set_settings_button_to_factory_with_individual_buttonBalance(void)
     }
 
     settingsHelperButtonSens_keepPercentageValues(buttonResponsiveness, settingsGetPointer()->ButtonResponsiveness);
+}
+
+
+bool checkAndFixSetpointSettings(void)
+{
+    SSettings *settings = settingsGetPointer();
+
+    bool fixed = false;
+    if (settings->autoSetpoint) {
+        SSetpointLine *setpointLow = &settings->setpoint[SETPOINT_INDEX_AUTO_LOW];
+        if (setpointLow->setpoint_cbar >= 100) {
+            setpointLow->setpoint_cbar = 70;
+
+            fixed = true;
+        }
+        if (setpointLow->depth_meter == 0 || setpointLow->depth_meter > 100) {
+            setpointLow->depth_meter = 2;
+
+            fixed = true;
+        }
+        SSetpointLine *setpointHigh = &settings->setpoint[SETPOINT_INDEX_AUTO_HIGH];
+        if (setpointHigh->setpoint_cbar <= setpointLow->setpoint_cbar) {
+            setpointHigh->setpoint_cbar = 130;
+
+            fixed = true;
+        }
+        if (setpointHigh->depth_meter <= setpointLow->depth_meter) {
+            setpointHigh->depth_meter = setpointLow->depth_meter + 6;
+
+            fixed = true;
+        }
+
+        SSetpointLine *setpointDeco = &settings->setpoint[SETPOINT_INDEX_AUTO_DECO];
+        if (setpointDeco->note.ub.active) {
+            if (setpointDeco->setpoint_cbar == setpointHigh->setpoint_cbar || setpointDeco->setpoint_cbar == setpointLow->setpoint_cbar) {
+                setpointDeco->setpoint_cbar = 10 * (setpointHigh->setpoint_cbar / 10) - 10;
+                if (setpointDeco->setpoint_cbar == setpointLow->setpoint_cbar) {
+                    setpointDeco->setpoint_cbar += 5;
+                }
+
+                fixed = true;
+            }
+        }
+    }
+
+    return fixed;
 }
 
 
@@ -766,51 +813,11 @@ uint8_t check_and_correct_settings(void)
             Settings.setpoint[i].depth_meter = 250;
             corrections++;
         }
-        if(Settings.setpoint[i].note.ub.deco)
-        {
-            if(Settings.setpoint[i].note.ub.active != 1)
-            {
-                Settings.setpoint[i].note.ub.active = 1;
-                corrections++;
-            }
-            if(Settings.setpoint[i].note.ub.travel == 1)
-            {
-                Settings.setpoint[i].note.ub.travel = 0;
-                corrections++;
-            }
-        }
-        if(Settings.setpoint[i].note.ub.travel)
-        {
-            if(Settings.setpoint[i].note.ub.active != 1)
-            {
-                Settings.setpoint[i].note.ub.active = 1;
-                corrections++;
-            }
-            if(Settings.setpoint[i].note.ub.deco == 1)
-            {
-                Settings.setpoint[i].note.ub.deco = 0;
-                corrections++;
-            }
-        }
-        if(Settings.setpoint[i].note.ub.first)
-        {
-            if(Settings.setpoint[i].note.ub.active != 1)
-            {
-                Settings.setpoint[i].note.ub.active = 1;
-                corrections++;
-            }
-            if(Settings.setpoint[i].note.ub.travel == 1)
-            {
-                Settings.setpoint[i].note.ub.travel = 0;
-                corrections++;
-            }
-            if(Settings.setpoint[i].note.ub.deco == 1)
-            {
-                Settings.setpoint[i].note.ub.deco = 0;
-                corrections++;
-            }
-        }
     }	// for(int i=1; i<=NUM_GASES;i++)
+
+    if (checkAndFixSetpointSettings()) {
+        corrections++;
+    }
 
 /*	uint8_t CCR_Mode;
  */
@@ -3070,4 +3077,3 @@ inline uint8_t isSettingsWarning()
 {
 	return settingsWarning;
 }
-

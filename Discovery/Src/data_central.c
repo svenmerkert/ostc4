@@ -409,8 +409,6 @@ void copyVpmRepetetiveDataToSim(void)
 }
 
 
-
-
 void updateSetpointStateUsed(void)
 {
 	if(!isLoopMode(stateUsed->diveSettings.diveMode))
@@ -470,6 +468,9 @@ void setActualGasFirst(SLifeData *lifeData)
 		}
 	}
 	setActualGas(lifeData, gasId, setpoint_cbar);
+
+    lifeData->setpointDecoActivated = false;
+    lifeData->setpointLowDelayed = false;
 }
 
 void setActualGasAir(SLifeData *lifeData)
@@ -874,4 +875,17 @@ void setCompassHeading(uint16_t heading)
     // if heading == 0 set compassHeading to 360, because compassHeading == 0 means 'off'
 
     stateUsedWrite->diveSettings.compassHeading =  ((heading - 360) % 360) + 360;
+}
+
+
+const SDecoinfo *getDecoInfo(void)
+{
+    const SDecoinfo *decoInfo;
+    if (stateUsed->diveSettings.deco_type.ub.standard == GF_MODE) {
+        decoInfo = &stateUsed->decolistBuehlmann;
+    } else {
+        decoInfo = &stateUsed->decolistVPM;
+    }
+
+    return decoInfo;
 }

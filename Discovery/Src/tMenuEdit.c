@@ -573,7 +573,6 @@ void enterMenuEditField(void)
     block = 0;
     subBlockPosition = 0;
 
-
     if(ident[id].maintype == FIELD_NUMBERS)
     {
         change_CLUT_entry(CLUT_MenuEditLineSelected, CLUT_MenuEditCursor);
@@ -668,10 +667,9 @@ void enterMenuEditField(void)
         }
         break;
     case FIELD_BUTTON:
-        set_globalState(menuID);
-        break;
     case FIELD_ON_OFF:
         set_globalState(menuID);
+
         break;
     case FIELD_SYMBOL:
         ident[id].input[0] += 1;
@@ -680,6 +678,10 @@ void enterMenuEditField(void)
         ident[id].newText[0] = ident[id].orgText[ident[id].input[0]];
         write_content_of_actual_Id();
         set_globalState(menuID);
+        break;
+    case FIELD_SELECT:
+        write_buttonTextline(TXT2BYTE_ButtonMinus, TXT2BYTE_ButtonEnter, TXT2BYTE_ButtonPlus);
+
         break;
     }
 }
@@ -726,6 +728,15 @@ void exitMenuEditField(void)
 
 }
 
+
+static void startNextEdit(void)
+{
+    EnterPressed = 1;
+    nextMenuEditField();
+    enterMenuEditField();
+}
+
+
 void nextMenuEditFieldDigit(void)
 {
     uint8_t action;
@@ -766,6 +777,12 @@ void nextMenuEditFieldDigit(void)
         if((newContent == EXIT_TO_HOME) || (newContent == UPDATE_AND_EXIT_TO_HOME))
         {
             exitMenuEdit_to_Home();
+            return;
+        }
+
+        if (newContent == EXIT_TO_NEXT_MENU) {
+            startNextEdit();
+
             return;
         }
     }
@@ -1675,6 +1692,7 @@ void startEdit(void)
     helperGotoMenuEditField(0);
     enterMenuEditField();
 }
+
 
 void exitEditWithUpdate(void)
 {

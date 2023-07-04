@@ -1762,6 +1762,16 @@ uint8_t t7_get_length_of_customtext(void)
 }
 
 
+static bool setpointIsActive(SSettings *settings, unsigned setpointIndex)
+{
+    if (settings->autoSetpoint && setpointIndex == SETPOINT_INDEX_AUTO_DECO) {
+        return settings->setpoint[setpointIndex].note.ub.active;
+    }
+
+    return true;
+}
+
+
 static void t7_CcrSummary(SSettings *settings)
 {
     unsigned numLines = 1; // CCR Mode
@@ -1790,31 +1800,27 @@ static void t7_CcrSummary(SSettings *settings)
     unsigned offset;
     SSetpointLine *setpointsToShow[MAX_NUM_SUMMARY_LINES - 1] = { NULL };
     if (settings->CCR_Mode == CCRMODE_FixedSetpoint || settings->fallbackToFixedSetpoint) {
-        // Add setpoint at start of dive
         offset = numLines;
-        i = 1;
-        while (i <= NUM_GASES) {
-            if (settings->setpoint[i].note.ub.active && settings->setpoint[i].note.ub.first) {
-                setpointsToShow[numLines - offset] = &settings->setpoint[i];
-                numLines++;
-
-                break;
-            }
-
-            i++;
-        }
-
         if (settings->autoSetpoint) {
+            setpointsToShow[numLines++ - offset] = &settings->setpoint[SETPOINT_INDEX_AUTO_LOW];
+            setpointsToShow[numLines++ - offset] = &settings->setpoint[SETPOINT_INDEX_AUTO_HIGH];
+            if (setpointIsActive(settings, SETPOINT_INDEX_AUTO_DECO)) {
+                setpointsToShow[numLines++ - offset] = &settings->setpoint[SETPOINT_INDEX_AUTO_DECO];
+            }
+        } else {
+            // Add setpoint at start of dive
             i = 1;
-            while (i <= NUM_GASES && numLines < MAX_NUM_SUMMARY_LINES) {
-                if (settings->setpoint[i].note.ub.active && !settings->setpoint[i].note.ub.first && settings->setpoint[i].depth_meter) {
+            while (i <= NUM_GASES) {
+                if (setpointIsActive(settings, i) && settings->setpoint[i].note.ub.first) {
                     setpointsToShow[numLines - offset] = &settings->setpoint[i];
                     numLines++;
+
+                    break;
                 }
 
                 i++;
             }
-        } else {
+
             showManualSetpoints = true;
         }
     }
@@ -1842,7 +1848,7 @@ static void t7_CcrSummary(SSettings *settings)
         }
         i = 2;
         while (i <= NUM_GASES && numLines < MAX_NUM_SUMMARY_LINES) {
-            if (settings->setpoint[i].note.ub.active && !settings->setpoint[i].note.ub.first) {
+            if (setpointIsActive(settings, i) && !settings->setpoint[i].note.ub.first) {
                 setpointsToShow[numLines - offset] = &settings->setpoint[i];
                 numLines++;
             }
@@ -1879,7 +1885,11 @@ static void t7_CcrSummary(SSettings *settings)
     while (setpointsToShow[i] != NULL && i < MAX_NUM_SUMMARY_LINES - 1) {
         heading[headingIndex++] = '\n';
         heading[headingIndex++] = '\r';
-        if (i == 0) {
+        if (settings->autoSetpoint) {
+            heading[headingIndex++] = TXT_2BYTE;
+            heading[headingIndex++] = TXT2BYTE_SetpointShort;
+            headingIndex += printSetpointName(&heading[headingIndex], i + 1, settings, true);
+        } else if (i == 0) {
             heading[headingIndex++] = TXT_2BYTE;
             heading[headingIndex++] = TXT2BYTE_Setpoint;
         }
@@ -1888,8 +1898,9 @@ static void t7_CcrSummary(SSettings *settings)
         data[dataIndex++] = '\r';
         data[dataIndex++] = '\t';
         dataIndex += snprintf(&data[dataIndex], 10, "\020%01.2f", setpointsToShow[i]->setpoint_cbar / 100.0);
-        if (settings->autoSetpoint) {
-            dataIndex += snprintf(&data[dataIndex], 10, "\016\016 %um\017", setpointsToShow[i]->depth_meter);
+        if (setpointsToShow[i]->depth_meter && !(settings->autoSetpoint && i + 1 == SETPOINT_INDEX_AUTO_DECO)) {
+            bool setpointDelayed = settings->autoSetpoint && i + 1 == SETPOINT_INDEX_AUTO_LOW && settings->delaySetpointLow;
+            dataIndex += snprintf(&data[dataIndex], 10, "\016\016 %um%s\017", setpointsToShow[i]->depth_meter, setpointDelayed ? "(d)" : "");
         }
 
         i++;
@@ -2448,13 +2459,7 @@ void t7_refresh_customview(void)
         snprintf(text,100,"\032\f\001 %c%c", TXT_2BYTE, TXT2BYTE_Decolist);
         GFX_write_string(&FontT42,&t7cH,text,0);
 
-        const SDecoinfo * pDecoinfo;
         uint8_t depthNext, depthLast, depthSecond, depthInc;
-
-        if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
-            pDecoinfo = &stateUsed->decolistBuehlmann;
-        else
-            pDecoinfo = &stateUsed->decolistVPM;
 
         depthLast 		= (uint8_t)(stateUsed->diveSettings.last_stop_depth_bar * 10);
         depthSecond 	= (uint8_t)(stateUsed->diveSettings.input_second_to_last_stop_depth_bar * 10);
@@ -2467,6 +2472,7 @@ void t7_refresh_customview(void)
             depthInc 		= (uint8_t)unit_depth_integer(depthInc);
         }
 
+        const SDecoinfo * pDecoinfo = getDecoInfo();
         for(start=DECOINFO_STRUCT_MAX_STOPS-1; start>0; start--)
             if(pDecoinfo->output_stop_length_seconds[start]) break;
         start -= 6;
@@ -2538,7 +2544,6 @@ void t7_refresh_divemode(void)
     SDivetime SafetyStopTime = {0,0,0,0};
     SDivetime TimeoutTime = {0,0,0,0};
     uint8_t  customview_warnings = 0;
-    const SDecoinfo * pDecoinfo;
 
 	SSettings* pSettings;
 	pSettings = settingsGetPointer();
@@ -2559,11 +2564,7 @@ void t7_refresh_divemode(void)
     TimeoutTime.Minutes = TimeoutTime.Total / 60;
     TimeoutTime.Seconds = TimeoutTime.Total - (TimeoutTime.Minutes * 60);
 
-    if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
-        pDecoinfo = &stateUsed->decolistBuehlmann;
-    else
-        pDecoinfo = &stateUsed->decolistVPM;
-
+    const SDecoinfo * pDecoinfo = getDecoInfo();
     if(pDecoinfo->output_time_to_surface_seconds)
     {
         tHome_findNextStop(pDecoinfo->output_stop_length_seconds, &nextstopDepthMeter, &nextstopLengthSeconds);

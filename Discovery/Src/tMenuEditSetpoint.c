@@ -33,6 +33,7 @@
 #include "gfx_fonts.h"
 #include "tMenuEdit.h"
 #include "unit.h"
+#include "tHome.h"
 
 /* Private types -------------------------------------------------------------*/
 typedef struct
@@ -67,15 +68,72 @@ void checkSwitchToLoop(void)
 }
 
 
+static uint8_t OnAction_SP_SetpointActive (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
+{
+    switch (action) {
+    case ACTION_BUTTON_ENTER:
+
+        return digitContent;
+    case ACTION_BUTTON_ENTER_FINAL:
+
+        checkAndFixSetpointSettings();
+
+        return UPDATE_AND_EXIT_TO_MENU;
+    case ACTION_BUTTON_NEXT:
+    case ACTION_BUTTON_BACK:
+        editSetpointPage.pSetpointLine[editSetpointPage.spID].note.ub.active = (editSetpointPage.pSetpointLine[editSetpointPage.spID].note.ub.active + 1) % 2;
+
+        tMenuEdit_newInput(editId, editSetpointPage.pSetpointLine[editSetpointPage.spID].note.ub.active, 0, 0, 0);
+
+        return UNSPECIFIC_RETURN;
+    default:
+
+        break;
+    }
+
+    return EXIT_TO_MENU;
+}
+
+
+int printSetpointName(char *text, uint8_t setpointId, SSettings *settings, bool useSmallFont)
+{
+    int charsPrinted = 0;
+    if (settings->autoSetpoint) {
+        switch (setpointId) {
+        case SETPOINT_INDEX_AUTO_LOW:
+            charsPrinted = snprintf(text, 10, "%s%c%c%s", useSmallFont ? "\016\016" : "", TXT_2BYTE, TXT2BYTE_SetpointLow, useSmallFont ? "\017" : "");
+
+            break;
+        case SETPOINT_INDEX_AUTO_HIGH:
+            charsPrinted = snprintf(text, 10, "%s%c%c%s", useSmallFont ? "\016\016" : "", TXT_2BYTE, TXT2BYTE_SetpointHigh, useSmallFont ? "\017" : "");
+
+            break;
+        case SETPOINT_INDEX_AUTO_DECO:
+            charsPrinted = snprintf(text, 10, "%s%c%c%s", useSmallFont ? "\016\016" : "", TXT_2BYTE, TXT2BYTE_SetpointDeco, useSmallFont ? "\017" : "");
+
+            break;
+        default:
+
+            break;
+        }
+    } else {
+        charsPrinted = snprintf(text, 10, "%d", setpointId);
+    }
+
+    return charsPrinted;
+}
+
+
 void openEdit_Setpoint(uint8_t line)
 {
+	SSettings *settings = settingsGetPointer();
+
     uint8_t useSensorSubMenu = 0;
     char text[20];
     uint8_t sensorActive[3];
 
     /* dive mode */
-    if(actual_menu_content != MENU_SURFACE)
-    {
+    if (actual_menu_content != MENU_SURFACE) {
         uint8_t setpointCbar, actualGasID;
         setpointCbar = 100;
 
@@ -90,48 +148,33 @@ void openEdit_Setpoint(uint8_t line)
             actualGasID = stateUsedWrite->lifeData.actualGas.GasIdInSettings;
 
         // setpointCbar, CCR_Mode and sensor menu
-        if((line < 6) && (stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR))		/* setpoints inactive in PSCR mode */
-        {
+        if (line < 6 && stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR) {
+            /* setpoints inactive in PSCR mode */
+
+            if (settings->autoSetpoint && line > SETPOINT_INDEX_AUTO_DECO) {
+                return;
+            }
+
             setpointCbar = stateUsedWrite->diveSettings.setpoint[line].setpoint_cbar;
             stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_FixedSetpoint;
-
-            // BetterSetpoint warning only once
-            if(actualBetterSetpointId() == line)
-            {
-                uint8_t depth;
-                depth = stateUsedWrite->diveSettings.setpoint[line].depth_meter;
-                // BetterSetpoint warning only once -> clear active
-                for(int i=0; i<=NUM_GASES; i++)
-                {
-                	stateUsedWrite->diveSettings.setpoint[i].note.ub.first = 0;
-                    if(stateUsedWrite->diveSettings.setpoint[i].depth_meter <= depth)
-                    	stateUsedWrite->diveSettings.setpoint[i].note.ub.active = 0;
-                }
-                stateUsedWrite->diveSettings.setpoint[line].note.ub.first = 1;
-            }
-        }
-        else	/* menu item not pointing to setpoint selection => use sensor or ppo2 simulation */
-        {
-        	if((stateUsedWrite->diveSettings.diveMode == DIVEMODE_PSCR) && (line == 2))
+        } else if (stateUsedWrite->diveSettings.diveMode == DIVEMODE_PSCR && line == 2) {
+            /* menu item not pointing to setpoint selection => use sensor or ppo2 simulation */
+            stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Simulation;
+		} else if (line == 6) {
+            /* => use sensor */
+			if(stateUsedWrite->diveSettings.CCR_Mode != CCRMODE_Sensors)
 			{
-        		stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Simulation;
+				/* setpoint_cbar will be written by updateSetpointStateUsed() in main.c loop */
+				setpointCbar = 255;
+				stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Sensors;
 			}
-			else	/* => use sensor */
+			else
 			{
-				if(stateUsedWrite->diveSettings.CCR_Mode != CCRMODE_Sensors)
-				{
-					/* setpoint_cbar will be written by updateSetpointStateUsed() in main.c loop */
-					setpointCbar = 255;
-					stateUsedWrite->diveSettings.CCR_Mode = CCRMODE_Sensors;
-				}
-				else
-				{
-					useSensorSubMenu = 1;
-				}
+				useSensorSubMenu = 1;
 			}
         }
 
-        setActualGas_DM(&stateUsedWrite->lifeData,actualGasID,setpointCbar);
+        setActualGas_DM(&stateUsedWrite->lifeData,actualGasID, setpointCbar);
 
         checkSwitchToLoop();
 
@@ -193,89 +236,65 @@ void openEdit_Setpoint(uint8_t line)
             setEvent(StMSP_Sensor2, (uint32_t)OnAction_SP_DM_Sensor2);
             setEvent(StMSP_Sensor3, (uint32_t)OnAction_SP_DM_Sensor3);
         }
-        return;
-    }
-    else
-    {
+    } else {
         /* surface mode */
-        uint8_t spId, setpoint_cbar, sp_high, depthDeco, first;
-        // uint8_t active,
+        uint8_t spId, setpoint_cbar, depthDeco, first;
         char text[70];
         uint8_t textPointer;
         uint16_t y_line;
 
-        if(line < 6)
-        {
+        if ((!settings->autoSetpoint && line <= 5) || line <= SETPOINT_INDEX_AUTO_DECO) {
 			set_globalState_Menu_Line(line);
 
 			resetMenuEdit(CLUT_MenuPageGasSP);
 
 			spId = line;
 			editSetpointPage.spID = spId;
-			SSettings *data = settingsGetPointer();
-			editSetpointPage.pSetpointLine = data->setpoint;
+			editSetpointPage.pSetpointLine = settings->setpoint;
 
 			setpoint_cbar = editSetpointPage.pSetpointLine[spId].setpoint_cbar;
 			depthDeco = editSetpointPage.pSetpointLine[spId].depth_meter;
-			//active = editSetpointPage.pSetpointLine[spId].note.ub.active;
 			first = editSetpointPage.pSetpointLine[spId].note.ub.first;
 
-			sp_high = setpoint_cbar / 100;
+			uint8_t setpointBar = setpoint_cbar / 100;
 
-			strcpy(text, "\001" "Setpoint #0 X");
-			text[11] += spId;
-			text[13] = TXT_Setpoint_Edit;
+			textPointer = snprintf(text, 20, "\001%c%c ", TXT_2BYTE, TXT2BYTE_Setpoint);
+            textPointer += printSetpointName(&text[textPointer], line, settings, false);
+            snprintf(&text[textPointer], 20, " %c", TXT_Setpoint_Edit);
 			write_topline(text);
-
 
 			y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
 
-			textPointer = 0;
-			text[textPointer++] = 'S';
-			text[textPointer++] = 'P';
-			text[textPointer++] = '0' + spId;
-			text[textPointer++] = ' ';
-			text[textPointer++] = ' ';
+			textPointer = snprintf(text, 4, "%c%c", TXT_2BYTE, TXT2BYTE_SetpointShort);
+            textPointer += printSetpointName(&text[textPointer], line, settings, true);
+            textPointer += snprintf(&text[textPointer], 60, "  %s*        \016\016 bar\017", first ? "" : "\177");
 
-			if(first == 0)
-				strcpy(&text[textPointer++],"\177");
+            if (settings->autoSetpoint && line == SETPOINT_INDEX_AUTO_DECO) {
+                textPointer += snprintf(&text[textPointer], 4, "\n\r");
+			    write_label_var(20, 800, y_line, &FontT48, text);
 
-			textPointer += snprintf(&text[textPointer], 60,\
-				"* "
-				"       "
-				"\016\016"
-				" bar"
-				"\017"
-				"\034"
-				"   "
-				"\016\016"
-				" "
-				"\017"
-				"           "
-				"\016\016"
-				"meter"
-				"\017"
-				"\035"
-				"\n\r"
-			);
-			write_label_var(  20, 800, y_line, &FontT48, text);
+			    write_field_udigit(StMSP_ppo2_setting, 160, 800, y_line, &FontT48, "#.##", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), settings->setpoint[line].note.ub.active, 0);
 
-			write_field_udigit(StMSP_ppo2_setting,	160, 800, y_line, &FontT48, "#.##            ###", (uint32_t)sp_high, (uint32_t)(setpoint_cbar - (100 * sp_high)), depthDeco, 0);
-			setEvent(StMSP_ppo2_setting,	(uint32_t)OnAction_SP_Setpoint);
+                snprintf(text, 60, "\034        \035%c%c\n\r", TXT_2BYTE, TXT2BYTE_Enabled);
+			    write_label_var(20, 800, y_line + ME_Y_LINE_STEP, &FontT48, text);
+                write_field_select(StMSP_Active, 160, 800, y_line + ME_Y_LINE_STEP, &FontT48, "#", settings->setpoint[line].note.ub.active, 0, 0, 0);
+            } else {
+                textPointer += snprintf(&text[textPointer], 40, "\034   \016\016 \017           \016\016meter\017\035\n\r");
+			    write_label_var(20, 800, y_line, &FontT48, text);
+			    write_field_udigit(StMSP_ppo2_setting,	160, 800, y_line, &FontT48, "#.##            ###", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), depthDeco, 0);
+            }
+			setEvent(StMSP_ppo2_setting, (uint32_t)OnAction_SP_Setpoint);
+			setEvent(StMSP_Active, (uint32_t)OnAction_SP_SetpointActive);
 			startEdit();
-		}
-        else
-        {
-            SSettings *pSettings = settingsGetPointer();
+		} else if (line == 5) {
+            settings->delaySetpointLow = !settings->delaySetpointLow;
 
-            if(pSettings->autoSetpoint == 0)
-            {
-                pSettings->autoSetpoint = 1;
-            }
-            else
-            {
-                pSettings->autoSetpoint = 0;
-            }
+            exitMenuEdit_to_Menu_with_Menu_Update_do_not_write_settings_for_this_only();
+        } else if (line == 6) {
+            settings->autoSetpoint = (settings->autoSetpoint + 1) % 2;
+
+            checkAndFixSetpointSettings();
+
             exitMenuEdit_to_Menu_with_Menu_Update_do_not_write_settings_for_this_only();
         }
     }
@@ -283,6 +302,8 @@ void openEdit_Setpoint(uint8_t line)
 
 static uint8_t OnAction_SP_Setpoint(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
+	SSettings *settings = settingsGetPointer();
+
     int8_t digitContentNew;
     uint32_t new_integer_part, new_fractional_part, new_cbar, newDepth;
 
@@ -306,12 +327,22 @@ static uint8_t OnAction_SP_Setpoint(uint32_t editId, uint8_t blockNumber, uint8_
 
         editSetpointPage.pSetpointLine[editSetpointPage.spID].setpoint_cbar = new_cbar;
 
-        if(newDepth > 255)
-            newDepth = 255;
+        if (settings->autoSetpoint && editSetpointPage.spID == SETPOINT_INDEX_AUTO_DECO) {
+            tMenuEdit_newInput(editId, new_integer_part, new_fractional_part, newDepth, 0);
 
-        editSetpointPage.pSetpointLine[editSetpointPage.spID].depth_meter = newDepth;
+            checkAndFixSetpointSettings();
 
-        return UPDATE_AND_EXIT_TO_MENU;
+            return EXIT_TO_NEXT_MENU;
+        } else {
+            if (newDepth > 255) {
+                newDepth = 255;
+            }
+
+            editSetpointPage.pSetpointLine[editSetpointPage.spID].depth_meter = newDepth;
+            checkAndFixSetpointSettings();
+
+            return UPDATE_AND_EXIT_TO_MENU;
+        }
     }
 
     if(action == ACTION_BUTTON_NEXT)
@@ -340,24 +371,10 @@ static uint8_t OnAction_SP_Setpoint(uint32_t editId, uint8_t blockNumber, uint8_
 void openEdit_DiveSelectBetterSetpoint(bool useLastDiluent)
 {
     uint8_t spId;
-    uint8_t depth;
 
     if(stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR)		/* no setpoints in PSCR mode */
     {
 		spId = actualBetterSetpointId();
-
-		depth = stateUsedWrite->diveSettings.setpoint[spId].depth_meter;
-
-		// BetterSetpoint warning only once -> clear active
-		for(int i=0; i<=NUM_GASES; i++)
-		{
-			stateUsedWrite->diveSettings.setpoint[i].note.ub.first = 0;
-			if(stateUsedWrite->diveSettings.setpoint[i].depth_meter <= depth)
-				stateUsedWrite->diveSettings.setpoint[i].note.ub.active = 0;
-		}
-
-		// new setpoint
-		stateUsedWrite->diveSettings.setpoint[spId].note.ub.first = 1;
 
         uint8_t gasId;
         if (useLastDiluent) {
@@ -375,12 +392,36 @@ void openEdit_DiveSelectBetterSetpoint(bool useLastDiluent)
 bool findSwitchToSetpoint(void)
 {
     uint8_t setpointLowId = getSetpointLowId();
+    uint8_t setpointLowCBar = 0;
+    if (setpointLowId) {
+        setpointLowCBar = stateUsed->diveSettings.setpoint[setpointLowId].setpoint_cbar;
+    }
+
     uint8_t setpointHighId = getSetpointHighId();
+    uint8_t setpointHighCBar = 0;
+    if (setpointHighId) {
+        setpointHighCBar = stateUsed->diveSettings.setpoint[setpointHighId].setpoint_cbar;
+    }
+
+    uint8_t setpointDecoId = getSetpointDecoId();
+    uint8_t setpointDecoCBar = 0;
+    if (setpointDecoId) {
+        setpointDecoCBar = stateUsed->diveSettings.setpoint[setpointDecoId].setpoint_cbar;
+    }
+    uint8_t nextDecoStopDepthM;
+    uint16_t nextDecoStopTimeRemainingS;
+    const SDecoinfo *decoInfo = getDecoInfo();
+    tHome_findNextStop(decoInfo->output_stop_length_seconds, &nextDecoStopDepthM, &nextDecoStopTimeRemainingS);
+
     uint8_t setpointCurrentCbar = stateUsed->lifeData.actualGas.setPoint_cbar;
-    if (setpointLowId && setpointCurrentCbar != stateUsed->diveSettings.setpoint[setpointLowId].setpoint_cbar && ((!setpointHighId || setpointCurrentCbar == stateUsed->diveSettings.setpoint[setpointHighId].setpoint_cbar) || stateUsed->lifeData.depth_meter < stateUsed->diveSettings.setpoint[setpointLowId].depth_meter)) {
-        switchToSetpointCbar = stateUsed->diveSettings.setpoint[setpointLowId].setpoint_cbar;
-    } else if (setpointHighId && setpointCurrentCbar != stateUsed->diveSettings.setpoint[setpointHighId].setpoint_cbar) {
-        switchToSetpointCbar = stateUsed->diveSettings.setpoint[setpointHighId].setpoint_cbar;
+
+    // We cycle SPdeco => SPhigh => SPlow => SPdeco when we have a decompression obligation
+    if (setpointDecoCBar && setpointCurrentCbar != setpointDecoCBar && nextDecoStopDepthM && setpointCurrentCbar != setpointHighCBar) {
+        switchToSetpointCbar = setpointDecoCBar;
+    } else if (setpointLowCBar && setpointCurrentCbar != setpointLowCBar && (!setpointHighCBar || setpointCurrentCbar == setpointHighCBar || stateUsed->lifeData.depth_meter < stateUsed->diveSettings.setpoint[setpointLowId].depth_meter)) {
+        switchToSetpointCbar = setpointLowCBar;
+    } else if (setpointHighCBar && setpointCurrentCbar != setpointHighCBar) {
+        switchToSetpointCbar = setpointHighCBar;
     } else {
         // We don't have a setpoint to switch to
         switchToSetpointCbar = 0;

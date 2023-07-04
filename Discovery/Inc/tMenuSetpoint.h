@@ -34,6 +34,5 @@
 
 /* Exported functions --------------------------------------------------------*/
 
-uint32_t tMSP_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext);
-
+uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext);
 #endif /* TMENU_SETPOINT_H */

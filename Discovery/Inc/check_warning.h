@@ -44,4 +44,5 @@ void reset_debounce_warning_fallback();
 
 uint8_t getSetpointHighId(void);
 uint8_t getSetpointLowId(void);
+uint8_t getSetpointDecoId(void);
 #endif // CHECK_WARNING_H

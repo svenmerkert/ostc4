@@ -358,6 +358,13 @@ extern const tText text_array2[];
         TXT2BYTE_LoopShort,
         TXT2BYTE_SetpointShort,
 
+        TXT2BYTE_SetpointLow,
+        TXT2BYTE_SetpointHigh,
+        TXT2BYTE_SetpointDeco,
+        TXT2BYTE_SetpointDelayed,
+
+        TXT2BYTE_Enabled,
+
         TXT2BYTE_Set,
         TXT2BYTE_Clear,
         TXT2BYTE_Reset,

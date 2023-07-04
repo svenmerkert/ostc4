@@ -258,19 +258,9 @@ void t3_miniLiveLogProfile(void)
     char text[TEXTSIZE];
     point_t start, stop;
     uint16_t diveMinutes = 0;
-    const SDecoinfo * pDecoinfo;
 
 	SSettings* pSettings;
 	pSettings = settingsGetPointer();
-
-    if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
-    {
-        pDecoinfo = &stateUsed->decolistBuehlmann;
-    }
-    else
-    {
-        pDecoinfo = &stateUsed->decolistVPM;
-    }
 
    	wintemp.top = 479 - BigFontSeperationTopBottom + 5;
    	wintemp.bottom = 479 - 5;
@@ -333,6 +323,7 @@ void t3_miniLiveLogProfile(void)
     	wasDecoDive = 0;
     }
 
+    const SDecoinfo * pDecoinfo = getDecoInfo();
     if((pDecoinfo->output_time_to_surface_seconds) || (wasDecoDive))		/* draw deco data first => will be overlayed by all other informations */
     {
     	wasDecoDive = 1;
@@ -920,11 +911,7 @@ void t3_basics_refresh_customview(float depth, uint8_t tX_selection_customview, 
 	pSettings = settingsGetPointer();
 
     // CVIEW_T3_Decostop and CVIEW_T3_TTS
-    const SDecoinfo * pDecoinfo;
-    if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
-        pDecoinfo = &stateUsed->decolistBuehlmann;
-    else
-        pDecoinfo = &stateUsed->decolistVPM;
+    const SDecoinfo * pDecoinfo = getDecoInfo();
 
     // CVIEW_T3_Decostop
     uint16_t 	nextstopLengthSeconds = 0;
@@ -1687,12 +1674,6 @@ uint8_t t3_change_customview(uint8_t action)
 
 void t3_basics_change_customview(uint8_t *tX_selection_customview,const uint8_t *tX_customviews, uint8_t action)
 {
-    const SDecoinfo * pDecoinfo;
-    if(stateUsed->diveSettings.deco_type.ub.standard == GF_MODE)
-        pDecoinfo = &stateUsed->decolistBuehlmann;
-    else
-        pDecoinfo = &stateUsed->decolistVPM;
-
     uint8_t curViewIdx = 0xff;
     uint8_t index = 0;
     uint8_t indexOverrun = 0;
@@ -1762,6 +1743,7 @@ void t3_basics_change_customview(uint8_t *tX_selection_customview,const uint8_t 
 		{
 			if(settingsGetPointer()->MotionDetection != MOTION_DETECT_SECTOR)		/* no hiding in case of active sector view option (fixed mapping would change during dive) */
 			{
+                const SDecoinfo * pDecoinfo = getDecoInfo();
 				/* Skip TTS if value is 0 */
 				if((tX_customviews[index] == CVIEW_T3_TTS) && (!pDecoinfo->output_time_to_surface_seconds))
 				{

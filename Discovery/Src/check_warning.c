@@ -39,10 +39,13 @@
 #include "settings.h"
 #include "decom.h"
 #include "tCCR.h"
+#include "tHome.h"
 
 
 #define DEBOUNCE_FALLBACK_TIME_MS	(5000u)		/* set warning after 5 seconds of pending error condition */
 
+#define SETPOINT_DECO_START_RANGE_M 3.0
+#define SWITCH_DEPTH_LOW_MINIMUM_M 1.0
 
 /* Private variables with access ----------------------------------------------*/
 static uint8_t betterGasId = 0;
@@ -289,6 +292,12 @@ static int8_t check_BetterGas(SDiveState *diveState)
 
 uint8_t getSetpointLowId(void)
 {
+    SSettings *settings = settingsGetPointer();
+
+    if (settings->autoSetpoint) {
+        return SETPOINT_INDEX_AUTO_LOW;
+    }
+
     uint8_t setpointLowId = 0;
     uint8_t setpointLowDepthM = UINT8_MAX;
     for (unsigned i = 1; i <= NUM_GASES; i++) {
@@ -304,6 +313,12 @@ uint8_t getSetpointLowId(void)
 
 uint8_t getSetpointHighId(void)
 {
+    SSettings *settings = settingsGetPointer();
+
+    if (settings->autoSetpoint) {
+        return SETPOINT_INDEX_AUTO_HIGH;
+    }
+
     uint8_t setpointHighId = 0;
     uint8_t setpointHighDepthM = 0;
     for (unsigned i = 1; i <= NUM_GASES; i++) {
@@ -314,6 +329,18 @@ uint8_t getSetpointHighId(void)
     }
 
     return setpointHighId;
+}
+
+
+uint8_t getSetpointDecoId(void)
+{
+    SSettings *settings = settingsGetPointer();
+
+    if (settings->autoSetpoint && stateUsed->diveSettings.setpoint[SETPOINT_INDEX_AUTO_DECO].note.ub.active) {
+        return SETPOINT_INDEX_AUTO_DECO;
+    }
+
+    return 0;
 }
 
 
@@ -332,24 +359,70 @@ static int8_t check_BetterSetpoint(SDiveState *diveState)
     SSettings *settings = settingsGetPointer();
 
     float currentDepthM = diveState->lifeData.depth_meter;
-    if (settings->dive_mode == DIVEMODE_CCR && diveState->lifeData.lastSetpointChangeDepthM != currentDepthM) {
-        float lastChangeDepthM = diveState->lifeData.lastSetpointChangeDepthM;
+    float lastChangeDepthM = diveState->lifeData.lastSetpointChangeDepthM;
+    if (settings->dive_mode == DIVEMODE_CCR && lastChangeDepthM != currentDepthM) {
         bool descending = currentDepthM > lastChangeDepthM;
-        uint8_t setpointLowId = getSetpointLowId();
-        uint8_t setpointHighId = getSetpointHighId();
         uint8_t betterSetpointIdLocal = 0;
-        uint8_t betterSetpointSwitchDepthM = descending ? 0 : UINT8_MAX;
 
-        for (unsigned i = 1; i <= NUM_GASES; i++) {
-            uint8_t switchDepthM = diveState->diveSettings.setpoint[i].depth_meter;
-            if (!switchDepthM || (descending && i == setpointLowId) || (!descending && i == setpointHighId)) {
-                continue;
+        if (settings->autoSetpoint) {
+            bool decoSetpointEnabled = diveState->diveSettings.setpoint[SETPOINT_INDEX_AUTO_DECO].note.ub.active;
+            const SDecoinfo *decoInfo = getDecoInfo();
+            uint8_t nextDecoStopDepthM;
+            uint16_t nextDecoStopTimeRemainingS;
+            tHome_findNextStop(decoInfo->output_stop_length_seconds, &nextDecoStopDepthM, &nextDecoStopTimeRemainingS);
+
+            if (decoSetpointEnabled && nextDecoStopDepthM && currentDepthM < nextDecoStopDepthM + SETPOINT_DECO_START_RANGE_M && !diveState->lifeData.setpointDecoActivated) {
+                betterSetpointIdLocal = SETPOINT_INDEX_AUTO_DECO;
+                diveState->lifeData.setpointDecoActivated = true;
             }
 
-            if ((descending && lastChangeDepthM < switchDepthM && switchDepthM < currentDepthM && switchDepthM > betterSetpointSwitchDepthM)
-                || (!descending && lastChangeDepthM > switchDepthM && switchDepthM > currentDepthM && switchDepthM <= betterSetpointSwitchDepthM)) {
-                betterSetpointIdLocal = i;
-                betterSetpointSwitchDepthM = switchDepthM;
+            if (descending) {
+                uint8_t switchDepthHighM = diveState->diveSettings.setpoint[SETPOINT_INDEX_AUTO_HIGH].depth_meter;
+
+                if (lastChangeDepthM < switchDepthHighM && switchDepthHighM < currentDepthM && !diveState->lifeData.setpointDecoActivated) {
+                    betterSetpointIdLocal = SETPOINT_INDEX_AUTO_HIGH;
+                }
+            } else {
+                uint8_t switchDepthLowM = diveState->diveSettings.setpoint[SETPOINT_INDEX_AUTO_LOW].depth_meter;
+
+                if (lastChangeDepthM > SWITCH_DEPTH_LOW_MINIMUM_M && SWITCH_DEPTH_LOW_MINIMUM_M > currentDepthM) {
+                    // Avoid draining the oxygen supply by surfacing with a setpoint >= 1.0
+                    betterSetpointIdLocal = SETPOINT_INDEX_AUTO_LOW;
+                    diveState->lifeData.setpointLowDelayed = false;
+                } else if (lastChangeDepthM > switchDepthLowM && switchDepthLowM > currentDepthM) {
+                    if (nextDecoStopDepthM && settings->delaySetpointLow) {
+                        diveState->lifeData.setpointLowDelayed = true;
+                    } else {
+                        betterSetpointIdLocal = SETPOINT_INDEX_AUTO_LOW;
+                    }
+                }
+            }
+
+            if (!nextDecoStopDepthM) {
+                // Update the state when the decompression obligation ends
+                diveState->lifeData.setpointDecoActivated = false;
+
+                if (diveState->lifeData.setpointLowDelayed) {
+                    betterSetpointIdLocal = SETPOINT_INDEX_AUTO_LOW;
+                    diveState->lifeData.setpointLowDelayed = false;
+                }
+            }
+        } else {
+            uint8_t setpointLowId = getSetpointLowId();
+            uint8_t setpointHighId = getSetpointHighId();
+            uint8_t betterSetpointSwitchDepthM = descending ? 0 : UINT8_MAX;
+
+            for (unsigned i = 1; i <= NUM_GASES; i++) {
+                uint8_t switchDepthM = diveState->diveSettings.setpoint[i].depth_meter;
+                if (!switchDepthM || (descending && i == setpointLowId) || (!descending && i == setpointHighId)) {
+                    continue;
+                }
+
+                if ((descending && lastChangeDepthM < switchDepthM && switchDepthM < currentDepthM && switchDepthM > betterSetpointSwitchDepthM)
+                    || (!descending && lastChangeDepthM > switchDepthM && switchDepthM > currentDepthM && switchDepthM <= betterSetpointSwitchDepthM)) {
+                    betterSetpointIdLocal = i;
+                    betterSetpointSwitchDepthM = switchDepthM;
+                }
             }
         }
 

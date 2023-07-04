@@ -28,6 +28,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "tMenu.h"
+#include "tMenuEditSetpoint.h"
 #include "tMenuSetpoint.h"
 #include "unit.h"
 
@@ -35,17 +36,16 @@
 
 /* Exported functions --------------------------------------------------------*/
 
-uint32_t tMSP_refresh(uint8_t line,
-                      char *text,
-                      uint16_t *tab,
-                      char *subtext)
+uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext)
 {
+    SSettings *settings = settingsGetPointer();
+
     const SSetpointLine * pSetpointLine;
 
-    uint8_t textPointer, setpoint_cbar, sp_high, depthUp, first; //  active
+    uint8_t textPointer, setpoint_cbar, depthUp, first;
 
     if(actual_menu_content == MENU_SURFACE)
-        pSetpointLine = settingsGetPointer()->setpoint;
+        pSetpointLine = settings->setpoint;
     else
         pSetpointLine = stateUsed->diveSettings.setpoint;
 
@@ -57,78 +57,50 @@ uint32_t tMSP_refresh(uint8_t line,
     {
 		for(int spId=1;spId<=NUM_GASES;spId++)
 		{
-			if(line && (line != spId))
-			{
-					first = pSetpointLine[spId].note.ub.first;
-					if(first == 0)
-					{
-						strcpy(&text[textPointer],
-							"\t"
-							"\177"
-							"*"
-							"\n\r"
-						);
-						textPointer += 5;
-					}
-					else
-					{
-						strcpy(&text[textPointer],"\n\r");
-						textPointer += 2;
-					}
-			}
-			else
-			{
-				setpoint_cbar = pSetpointLine[spId].setpoint_cbar;
-				depthUp = pSetpointLine[spId].depth_meter;
-				//active = pSetpointLine[spId].note.ub.active;
-				first = pSetpointLine[spId].note.ub.first;
+            if (settings->autoSetpoint) {
+                if (actual_menu_content == MENU_SURFACE && spId == 5) {
+                    textPointer += snprintf(&text[textPointer], 40, "\020%c%c\016\016%c%c\017 %c%c\002%c\n\r", TXT_2BYTE, TXT2BYTE_SetpointShort, TXT_2BYTE, TXT2BYTE_SetpointLow, TXT_2BYTE, TXT2BYTE_SetpointDelayed, settings->delaySetpointLow ? '\005' : '\006');
+                    continue;
+                } else if (spId > SETPOINT_INDEX_AUTO_DECO) {
+                    textPointer += snprintf(&text[textPointer], 3, "\n\r");
 
-				strcpy(&text[textPointer],"\020"); // if(active) always active
-				textPointer += 1;
+                    continue;
+                }
+            }
 
-				sp_high = setpoint_cbar / 100;
+			setpoint_cbar = pSetpointLine[spId].setpoint_cbar;
+			depthUp = pSetpointLine[spId].depth_meter;
+			first = pSetpointLine[spId].note.ub.first;
 
-				text[textPointer++] = 'S';
-				text[textPointer++] = 'P';
-				text[textPointer++] = '0' + spId;
-				text[textPointer++] = '\t';
+            if (settings->autoSetpoint && spId == SETPOINT_INDEX_AUTO_DECO  && !pSetpointLine[spId].note.ub.active) {
+			    strcpy(&text[textPointer++],"\031");
+            } else {
+			    strcpy(&text[textPointer++],"\020");
+            }
 
-				if((first == 0) || (actual_menu_content != MENU_SURFACE))
-					strcpy(&text[textPointer++],"\177");
+			uint8_t setpointBar = setpoint_cbar / 100;
 
-				char color = '\031';
-				if(depthUp)
-					color = '\020';
+            textPointer += snprintf(&text[textPointer], 4, "%c%c", TXT_2BYTE, TXT2BYTE_SetpointShort);
+            textPointer += printSetpointName(&text[textPointer], spId, settings, true);
+			text[textPointer++] = '\t';
 
-				textPointer += snprintf(&text[textPointer], 57,
-					"* "
-					"%u.%02u"
-					"\016\016"
-					" bar"
-					"\017"
-					"\034"
-					"   "
-					"\016\016"
-					" "
-					"\017"
-					"%c"
-					"%3u"
-					"\016\016"
-					" %c%c"
-					"\017"
-					"\035"
-					"\n\r",
-					sp_high, setpoint_cbar - (100 * sp_high),
-					color,
-					unit_depth_integer(depthUp),
-					unit_depth_char1(),
-					unit_depth_char2()
-				);
-			}
+			if (first == 0 || actual_menu_content != MENU_SURFACE) {
+				strcpy(&text[textPointer++],"\177");
+            }
+
+			textPointer += snprintf(&text[textPointer], 40, "* %u.%02u\016\016 bar\017\034   \016\016 \017", setpointBar, setpoint_cbar - (100 * setpointBar));
+            if (!settings->autoSetpoint || spId < SETPOINT_INDEX_AUTO_DECO) {
+			    char color = '\031';
+			    if(depthUp)
+				    color = '\020';
+
+			    textPointer += snprintf(&text[textPointer], 40, "%c%3u\016\016 %c%c\017\035\n\r", color, unit_depth_integer(depthUp), unit_depth_char1(), unit_depth_char2());
+            } else {
+			    textPointer += snprintf(&text[textPointer], 3, "\n\r");
+            }
 		}
     }
-    if((actual_menu_content != MENU_SURFACE) /*&& (line == 0)*/)
-    {
+    if (actual_menu_content != MENU_SURFACE) {
         text[textPointer++] = '\020';
         text[textPointer++] = TXT_2BYTE;
         text[textPointer++] = TXT2BYTE_UseSensor;
@@ -138,7 +110,7 @@ uint32_t tMSP_refresh(uint8_t line,
 
         if(stateUsed->diveSettings.diveMode == DIVEMODE_PSCR)
         {
-        	textPointer += snprintf(&text[textPointer], 20,"\020%c", TXT_SimPpo2);
+            textPointer += snprintf(&text[textPointer], 20,"\020%c", TXT_SimPpo2);
         }
         text[textPointer++] = 0;
     }
@@ -148,7 +120,7 @@ uint32_t tMSP_refresh(uint8_t line,
         text[textPointer++] = TXT_2BYTE;
         text[textPointer++] = TXT2BYTE_AutomaticSP;
         text[textPointer++] = '\002';
-        if(settingsGetPointer()->autoSetpoint)
+        if (settings->autoSetpoint)
                     text[textPointer++] = '\005';
                 else
                     text[textPointer++] = '\006';

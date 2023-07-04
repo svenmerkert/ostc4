@@ -557,7 +557,7 @@ void tM_build_pages(void)
     id = tMCG_refresh(0, text, &tabPosition, subtext);
     tM_build_page(id, text, tabPosition, subtext);
 
-    id = tMSP_refresh(0, text, &tabPosition, subtext);
+    id = tMSP_refresh(text, &tabPosition, subtext);
     tM_build_page(id, text, tabPosition, subtext);
 
     id = tMXtra_refresh(0, text, &tabPosition, subtext);
@@ -675,7 +675,7 @@ void updateSpecificMenu(uint32_t id)
         update_content_with_new_frame(page, text, tabPosition, subtext);
         break;
     case StMSP:
-        tMSP_refresh(0, text, &tabPosition, subtext);
+        tMSP_refresh(text, &tabPosition, subtext);
         update_content_with_new_frame(page, text, tabPosition, subtext);
         break;
     default:
@@ -710,7 +710,7 @@ void updateMenu(void)
         update_content_with_new_frame(page, text, tabPosition, subtext);
         break;
     case StMSP:
-        tMSP_refresh(0, text, &tabPosition, subtext);
+        tMSP_refresh(text, &tabPosition, subtext);
         update_content_with_new_frame(page, text, tabPosition, subtext);
         break;
     case StMXTRA:

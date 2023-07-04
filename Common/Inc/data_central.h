@@ -214,6 +214,8 @@ typedef struct
 
 	uint8_t lastDiluent_GasIdInSettings;
     float lastSetpointChangeDepthM;
+    bool setpointDecoActivated;
+    bool setpointLowDelayed;
 
 	/* calculated by DataEX_copy_to_LifeData()
 			bottle_bar array size is made like this to have multiples of 32bit
@@ -506,4 +508,6 @@ uint8_t isLoopMode(uint8_t Mode);
 
 bool isCompassCalibrated(void);
 void setCompassHeading(uint16_t heading);
+
+const SDecoinfo *getDecoInfo(void);
 #endif // DATA_CENTRAL_H

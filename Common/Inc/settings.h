@@ -27,6 +27,9 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 // From Common/Inc:
 #include "FirmwareData.h"
 
@@ -38,8 +41,6 @@
 #include "stm32f4xx_hal_rtc.h"
 
 #include "configuration.h"
-
-#include <stdint.h>
 
 
 #define NUM_GASES 5
@@ -86,7 +87,7 @@
 
 #define UART_MAX_PROTOCOL		(2u)
 
-#define FUTURE_SPARE_SIZE		(3u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
+#define FUTURE_SPARE_SIZE		(2u)		/* Applied for reuse of old, not used, scooter block (was 32 bytes)*/
 
 typedef enum
 {
@@ -168,6 +169,13 @@ typedef struct
 	RTC_DateTypeDef lastDive;
 } SScrubberData;
 
+enum {
+    SETPOINT_INDEX_CUSTOM = 0,
+    SETPOINT_INDEX_AUTO_LOW,
+    SETPOINT_INDEX_AUTO_HIGH,
+    SETPOINT_INDEX_AUTO_DECO,
+};
+
 
 /* SSettings
 	 * gas[0] and setpoint[0] are the special ones configurable during the dive
@@ -237,7 +245,8 @@ typedef struct
 	SScrubberData scrubberData[2];
 	uint8_t ext_sensor_map[5];
 	uint8_t buttonLockActive;										/* redefined in 0xFFFF0025 */
-	int8_t compassDeclinationDeg;										/* redefined in 0xFFFF0026 */
+	int8_t compassDeclinationDeg;
+    uint8_t delaySetpointLow;                                         /* redefined in 0xFFFF0026 */
 	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
 	// new in 0xFFFF0006
 	uint8_t ppo2sensors_deactivated;
@@ -373,4 +382,5 @@ uint8_t settingsHelperButtonSens_translate_hwOS_values_to_percentage(uint8_t inp
 void reset_SettingWarning();
 uint8_t isSettingsWarning();
 
+bool checkAndFixSetpointSettings(void);
 #endif // SETTINGS_H

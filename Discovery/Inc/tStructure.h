@@ -181,10 +181,8 @@
 
 /* PAGE 3 EDIT FIELD CONTENT */
 #define StMSP_ppo2_setting	_MB(2,3,255,1,0)
-#define StMSP_Depth					_MB(2,3,255,2,0)
 #define StMSP_Active				_MB(2,3,255,3,0)
-#define StMSP_First					_MB(2,3,255,4,0)
-#define StMSP_Select				_MB(2,3,255,5,0)
+
 #define StMSP_Sensor1				_MB(2,3,255,6,0)
 #define StMSP_Sensor2				_MB(2,3,255,7,0)
 #define StMSP_Sensor3				_MB(2,3,255,8,0)

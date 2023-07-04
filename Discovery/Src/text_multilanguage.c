@@ -1847,6 +1847,36 @@ static uint8_t text_FR_SetpointShort[] = "SP";
 static uint8_t text_IT_SetpointShort[] = "SP";
 static uint8_t text_ES_SetpointShort[] = "SP";
 
+static uint8_t text_EN_SetpointLow[] = "low";
+static uint8_t text_DE_SetpointLow[] = "tief";
+static uint8_t text_FR_SetpointLow[] = "low";
+static uint8_t text_IT_SetpointLow[] = "low";
+static uint8_t text_ES_SetpointLow[] = "low";
+
+static uint8_t text_EN_SetpointHigh[] = "high";
+static uint8_t text_DE_SetpointHigh[] = "hoch";
+static uint8_t text_FR_SetpointHigh[] = "high";
+static uint8_t text_IT_SetpointHigh[] = "high";
+static uint8_t text_ES_SetpointHigh[] = "high";
+
+static uint8_t text_EN_SetpointDeco[] = "deco";
+static uint8_t text_DE_SetpointDeco[] = "deko";
+static uint8_t text_FR_SetpointDeco[] = "deco";
+static uint8_t text_IT_SetpointDeco[] = "deco";
+static uint8_t text_ES_SetpointDeco[] = "deco";
+
+static uint8_t text_EN_SetpointDelayed[] = "delayed until deco clear";
+static uint8_t text_DE_SetpointDelayed[] = "erst wenn Deko beendet";
+static uint8_t text_FR_SetpointDelayed[] = "delayed until deco clear";
+static uint8_t text_IT_SetpointDelayed[] = "delayed until deco clear";
+static uint8_t text_ES_SetpointDelayed[] = "delayed until deco clear";
+
+static uint8_t text_EN_Enabled[] = "enabled";
+static uint8_t text_DE_Enabled[] = "aktiv";
+static uint8_t text_FR_Enabled[] = "activé";
+static uint8_t text_IT_Enabled[] = "abilitato";
+static uint8_t text_ES_Enabled[] = "activado";
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -2119,6 +2149,13 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_BailoutShort, 	{text_EN_BailoutShort, text_DE_BailoutShort, text_FR_BailoutShort, text_IT_BailoutShort, text_ES_BailoutShort}},
 	{(uint8_t)TXT2BYTE_LoopShort, 	{text_EN_LoopShort, text_DE_LoopShort, text_FR_LoopShort, text_IT_LoopShort, text_ES_LoopShort}},
 	{(uint8_t)TXT2BYTE_SetpointShort, 	{text_EN_SetpointShort, text_DE_SetpointShort, text_FR_SetpointShort, text_IT_SetpointShort, text_ES_SetpointShort}},
+
+	{(uint8_t)TXT2BYTE_SetpointLow, 	{text_EN_SetpointLow, text_DE_SetpointLow, text_FR_SetpointLow, text_IT_SetpointLow, text_ES_SetpointLow}},
+	{(uint8_t)TXT2BYTE_SetpointHigh, 	{text_EN_SetpointHigh, text_DE_SetpointHigh, text_FR_SetpointHigh, text_IT_SetpointHigh, text_ES_SetpointHigh}},
+	{(uint8_t)TXT2BYTE_SetpointDeco, 	{text_EN_SetpointDeco, text_DE_SetpointDeco, text_FR_SetpointDeco, text_IT_SetpointDeco, text_ES_SetpointDeco}},
+	{(uint8_t)TXT2BYTE_SetpointDelayed, 	{text_EN_SetpointDelayed, text_DE_SetpointDelayed, text_FR_SetpointDelayed, text_IT_SetpointDelayed, text_ES_SetpointDelayed}},
+
+	{(uint8_t)TXT2BYTE_Enabled, 	{text_EN_Enabled, text_DE_Enabled, text_FR_Enabled, text_IT_Enabled, text_ES_Enabled}},
 
 	{(uint8_t)TXT2BYTE_Set, 	{text_EN_Set, text_DE_Set, text_FR_Set, text_IT_Set, text_ES_Set}},
 	{(uint8_t)TXT2BYTE_Clear, 	{text_EN_Clear, text_DE_Clear, text_FR_Clear, text_IT_Clear, text_ES_Clear}},
