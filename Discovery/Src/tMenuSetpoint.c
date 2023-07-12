@@ -58,8 +58,13 @@ uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext)
 		for(int spId=1;spId<=NUM_GASES;spId++)
 		{
             if (settings->autoSetpoint) {
-                if (actual_menu_content == MENU_SURFACE && spId == 5) {
-                    textPointer += snprintf(&text[textPointer], 40, "\020%c%c\016\016%c%c\017 %c%c\002%c\n\r", TXT_2BYTE, TXT2BYTE_SetpointShort, TXT_2BYTE, TXT2BYTE_SetpointLow, TXT_2BYTE, TXT2BYTE_SetpointDelayed, settings->delaySetpointLow ? '\005' : '\006');
+                if (spId == 5) {
+                    if (actual_menu_content == MENU_SURFACE) {
+                        textPointer += snprintf(&text[textPointer], 40, "\020%c%c\016\016%c%c\017 %c%c\002%c\n\r", TXT_2BYTE, TXT2BYTE_SetpointShort, TXT_2BYTE, TXT2BYTE_SetpointLow, TXT_2BYTE, TXT2BYTE_SetpointDelayed, settings->delaySetpointLow ? '\005' : '\006');
+                    } else {
+                        textPointer += snprintf(&text[textPointer], 40, "\020%c%c %c%c\n\r", TXT_2BYTE, TXT2BYTE_Custom, TXT_2BYTE, TXT2BYTE_Setpoint);
+                    }
+
                     continue;
                 } else if (spId > SETPOINT_INDEX_AUTO_DECO) {
                     textPointer += snprintf(&text[textPointer], 3, "\n\r");

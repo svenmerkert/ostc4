@@ -1877,6 +1877,12 @@ static uint8_t text_FR_Enabled[] = "activé";
 static uint8_t text_IT_Enabled[] = "abilitato";
 static uint8_t text_ES_Enabled[] = "activado";
 
+static uint8_t text_EN_Custom[] = "Custom";
+static uint8_t text_DE_Custom[] = "Benützer";
+static uint8_t text_FR_Custom[] = "Custom";
+static uint8_t text_IT_Custom[] = "Custom";
+static uint8_t text_ES_Custom[] = "Custom";
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -2156,6 +2162,7 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_SetpointDelayed, 	{text_EN_SetpointDelayed, text_DE_SetpointDelayed, text_FR_SetpointDelayed, text_IT_SetpointDelayed, text_ES_SetpointDelayed}},
 
 	{(uint8_t)TXT2BYTE_Enabled, 	{text_EN_Enabled, text_DE_Enabled, text_FR_Enabled, text_IT_Enabled, text_ES_Enabled}},
+	{(uint8_t)TXT2BYTE_Custom, 	{text_EN_Custom, text_DE_Custom, text_FR_Custom, text_IT_Custom, text_ES_Custom}},
 
 	{(uint8_t)TXT2BYTE_Set, 	{text_EN_Set, text_DE_Set, text_FR_Set, text_IT_Set, text_ES_Set}},
 	{(uint8_t)TXT2BYTE_Clear, 	{text_EN_Clear, text_DE_Clear, text_FR_Clear, text_IT_Clear, text_ES_Clear}},

@@ -364,6 +364,7 @@ extern const tText text_array2[];
         TXT2BYTE_SetpointDelayed,
 
         TXT2BYTE_Enabled,
+        TXT2BYTE_Custom,
 
         TXT2BYTE_Set,
         TXT2BYTE_Clear,

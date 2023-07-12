@@ -98,7 +98,9 @@ static uint8_t OnAction_SP_SetpointActive (uint32_t editId, uint8_t blockNumber,
 int printSetpointName(char *text, uint8_t setpointId, SSettings *settings, bool useSmallFont)
 {
     int charsPrinted = 0;
-    if (settings->autoSetpoint) {
+    if (setpointId == 0) {
+        charsPrinted = snprintf(text, 10, "%s%c%c%s", useSmallFont ? "\016\016" : "", TXT_2BYTE, TXT2BYTE_Custom, useSmallFont ? "\017" : "");
+    } else if (settings->autoSetpoint) {
         switch (setpointId) {
         case SETPOINT_INDEX_AUTO_LOW:
             charsPrinted = snprintf(text, 10, "%s%c%c%s", useSmallFont ? "\016\016" : "", TXT_2BYTE, TXT2BYTE_SetpointLow, useSmallFont ? "\017" : "");
@@ -124,34 +126,97 @@ int printSetpointName(char *text, uint8_t setpointId, SSettings *settings, bool 
 }
 
 
+static void changeSetpoint(uint8_t setpointCbar)
+{
+    uint8_t actualGasID;
+    if (!isLoopMode(stateUsedWrite->diveSettings.diveMode)) {
+        actualGasID = stateUsedWrite->lifeData.lastDiluent_GasIdInSettings;
+        if (actualGasID <= NUM_OFFSET_DILUENT || actualGasID > NUM_GASES + NUM_OFFSET_DILUENT) {
+            actualGasID = NUM_OFFSET_DILUENT + 1;
+        }
+    } else {
+        actualGasID = stateUsedWrite->lifeData.actualGas.GasIdInSettings;
+    }
+
+    setActualGas_DM(&stateUsedWrite->lifeData, actualGasID, setpointCbar);
+
+    checkSwitchToLoop();
+
+    clear_warning_fallback();
+}
+
+
+static void startSetpointEdit(uint8_t line, uint8_t setpointId)
+{
+    SSettings *settings = settingsGetPointer();
+
+	set_globalState_Menu_Line(line);
+
+	resetMenuEdit(CLUT_MenuPageGasSP);
+
+	editSetpointPage.spID = setpointId;
+	editSetpointPage.pSetpointLine = settings->setpoint;
+
+	uint8_t setpoint_cbar = editSetpointPage.pSetpointLine[setpointId].setpoint_cbar;
+	uint8_t depthDeco = editSetpointPage.pSetpointLine[setpointId].depth_meter;
+	uint8_t first = editSetpointPage.pSetpointLine[setpointId].note.ub.first;
+
+	uint8_t setpointBar = setpoint_cbar / 100;
+
+    char text[70];
+
+    uint8_t textPointer = snprintf(text, 20, "\001%c%c ", TXT_2BYTE, TXT2BYTE_Setpoint);
+    textPointer += printSetpointName(&text[textPointer], setpointId, settings, false);
+    snprintf(&text[textPointer], 20, " %c", TXT_Setpoint_Edit);
+	write_topline(text);
+
+	uint16_t y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
+
+	textPointer = snprintf(text, 4, "%c%c", TXT_2BYTE, TXT2BYTE_SetpointShort);
+    textPointer += printSetpointName(&text[textPointer], setpointId, settings, true);
+    textPointer += snprintf(&text[textPointer], 60, "  %s*        \016\016 bar\017", first ? "" : "\177");
+
+    if ((settings->autoSetpoint && setpointId == SETPOINT_INDEX_AUTO_DECO) || setpointId == 0) {
+        textPointer += snprintf(&text[textPointer], 4, "\n\r");
+	    write_label_var(20, 800, y_line, &FontT48, text);
+
+	    write_field_udigit(StMSP_ppo2_setting, 160, 800, y_line, &FontT48, "#.##", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), 0, 0);
+
+        if (settings->autoSetpoint && setpointId == SETPOINT_INDEX_AUTO_DECO) {
+            snprintf(text, 60, "\034        \035%c%c\n\r", TXT_2BYTE, TXT2BYTE_Enabled);
+	        write_label_var(20, 800, y_line + ME_Y_LINE_STEP, &FontT48, text);
+            write_field_select(StMSP_Active, 160, 800, y_line + ME_Y_LINE_STEP, &FontT48, "#", settings->setpoint[setpointId].note.ub.active, 0, 0, 0);
+        }
+    } else {
+        textPointer += snprintf(&text[textPointer], 40, "\034   \016\016 \017           \016\016meter\017\035\n\r");
+	    write_label_var(20, 800, y_line, &FontT48, text);
+	    write_field_udigit(StMSP_ppo2_setting,	160, 800, y_line, &FontT48, "#.##            ###", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), depthDeco, 0);
+    }
+	setEvent(StMSP_ppo2_setting, (uint32_t)OnAction_SP_Setpoint);
+	setEvent(StMSP_Active, (uint32_t)OnAction_SP_SetpointActive);
+
+	startEdit();
+}
+
+
 void openEdit_Setpoint(uint8_t line)
 {
-	SSettings *settings = settingsGetPointer();
-
-    uint8_t useSensorSubMenu = 0;
-    char text[20];
-    uint8_t sensorActive[3];
+    SSettings *settings = settingsGetPointer();
 
     /* dive mode */
     if (actual_menu_content != MENU_SURFACE) {
-        uint8_t setpointCbar, actualGasID;
-        setpointCbar = 100;
+	    SSettings *settings = settingsGetPointer();
 
-        // actualGasID
-        if(!isLoopMode(stateUsedWrite->diveSettings.diveMode))
-        {
-            actualGasID = stateUsedWrite->lifeData.lastDiluent_GasIdInSettings;
-            if((actualGasID <= NUM_OFFSET_DILUENT) || (actualGasID > NUM_GASES + NUM_OFFSET_DILUENT))
-                actualGasID = NUM_OFFSET_DILUENT + 1;
-        }
-        else
-            actualGasID = stateUsedWrite->lifeData.actualGas.GasIdInSettings;
-
-        // setpointCbar, CCR_Mode and sensor menu
+        uint8_t setpointCbar = 100;
+        uint8_t useSensorSubMenu = 0;
         if (line < 6 && stateUsedWrite->diveSettings.diveMode != DIVEMODE_PSCR) {
             /* setpoints inactive in PSCR mode */
 
             if (settings->autoSetpoint && line > SETPOINT_INDEX_AUTO_DECO) {
+                if (line == 5) {
+                    startSetpointEdit(line, 0);
+                }
+
                 return;
             }
 
@@ -174,11 +239,7 @@ void openEdit_Setpoint(uint8_t line)
 			}
         }
 
-        setActualGas_DM(&stateUsedWrite->lifeData,actualGasID, setpointCbar);
-
-        checkSwitchToLoop();
-
-        clear_warning_fallback();
+        changeSetpoint(setpointCbar);
 
         if(!useSensorSubMenu)
         {
@@ -189,11 +250,14 @@ void openEdit_Setpoint(uint8_t line)
             set_globalState_Menu_Line(line);
             resetMenuEdit(CLUT_MenuPageGasSP);
 
+            char text[20];
+
             text[0] = '\001';
             text[1] = TXT_o2Sensors;
             text[2] = 0;
             write_topline(text);
 
+            uint8_t sensorActive[3];
             if(stateUsedWrite->diveSettings.ppo2sensors_deactivated & 1)
             {
             	snprintf (text,20,"Sensor 1");
@@ -238,54 +302,8 @@ void openEdit_Setpoint(uint8_t line)
         }
     } else {
         /* surface mode */
-        uint8_t spId, setpoint_cbar, depthDeco, first;
-        char text[70];
-        uint8_t textPointer;
-        uint16_t y_line;
-
         if ((!settings->autoSetpoint && line <= 5) || line <= SETPOINT_INDEX_AUTO_DECO) {
-			set_globalState_Menu_Line(line);
-
-			resetMenuEdit(CLUT_MenuPageGasSP);
-
-			spId = line;
-			editSetpointPage.spID = spId;
-			editSetpointPage.pSetpointLine = settings->setpoint;
-
-			setpoint_cbar = editSetpointPage.pSetpointLine[spId].setpoint_cbar;
-			depthDeco = editSetpointPage.pSetpointLine[spId].depth_meter;
-			first = editSetpointPage.pSetpointLine[spId].note.ub.first;
-
-			uint8_t setpointBar = setpoint_cbar / 100;
-
-			textPointer = snprintf(text, 20, "\001%c%c ", TXT_2BYTE, TXT2BYTE_Setpoint);
-            textPointer += printSetpointName(&text[textPointer], line, settings, false);
-            snprintf(&text[textPointer], 20, " %c", TXT_Setpoint_Edit);
-			write_topline(text);
-
-			y_line = ME_Y_LINE_BASE + (line * ME_Y_LINE_STEP);
-
-			textPointer = snprintf(text, 4, "%c%c", TXT_2BYTE, TXT2BYTE_SetpointShort);
-            textPointer += printSetpointName(&text[textPointer], line, settings, true);
-            textPointer += snprintf(&text[textPointer], 60, "  %s*        \016\016 bar\017", first ? "" : "\177");
-
-            if (settings->autoSetpoint && line == SETPOINT_INDEX_AUTO_DECO) {
-                textPointer += snprintf(&text[textPointer], 4, "\n\r");
-			    write_label_var(20, 800, y_line, &FontT48, text);
-
-			    write_field_udigit(StMSP_ppo2_setting, 160, 800, y_line, &FontT48, "#.##", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), settings->setpoint[line].note.ub.active, 0);
-
-                snprintf(text, 60, "\034        \035%c%c\n\r", TXT_2BYTE, TXT2BYTE_Enabled);
-			    write_label_var(20, 800, y_line + ME_Y_LINE_STEP, &FontT48, text);
-                write_field_select(StMSP_Active, 160, 800, y_line + ME_Y_LINE_STEP, &FontT48, "#", settings->setpoint[line].note.ub.active, 0, 0, 0);
-            } else {
-                textPointer += snprintf(&text[textPointer], 40, "\034   \016\016 \017           \016\016meter\017\035\n\r");
-			    write_label_var(20, 800, y_line, &FontT48, text);
-			    write_field_udigit(StMSP_ppo2_setting,	160, 800, y_line, &FontT48, "#.##            ###", (uint32_t)setpointBar, (uint32_t)(setpoint_cbar - (100 * setpointBar)), depthDeco, 0);
-            }
-			setEvent(StMSP_ppo2_setting, (uint32_t)OnAction_SP_Setpoint);
-			setEvent(StMSP_Active, (uint32_t)OnAction_SP_SetpointActive);
-			startEdit();
+            startSetpointEdit(line, line);
 		} else if (line == 5) {
             settings->delaySetpointLow = !settings->delaySetpointLow;
 
@@ -299,6 +317,7 @@ void openEdit_Setpoint(uint8_t line)
         }
     }
 }
+
 
 static uint8_t OnAction_SP_Setpoint(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
@@ -333,6 +352,10 @@ static uint8_t OnAction_SP_Setpoint(uint32_t editId, uint8_t blockNumber, uint8_
             checkAndFixSetpointSettings();
 
             return EXIT_TO_NEXT_MENU;
+        } else if (editSetpointPage.spID == 0) {
+            changeSetpoint(new_cbar);
+
+            return UPDATE_AND_EXIT_TO_HOME;
         } else {
             if (newDepth > 255) {
                 newDepth = 255;
