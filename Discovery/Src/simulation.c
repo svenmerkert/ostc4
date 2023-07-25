@@ -133,7 +133,7 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     static _Bool two_second = 0;
     static float lastPressure_bar = 0;
 
-    if (sim_aim_time_minutes * 60 <= pDiveState->lifeData.dive_time_seconds) {
+    if (sim_aim_time_minutes && sim_aim_time_minutes * 60 <= pDiveState->lifeData.dive_time_seconds) {
         simulation_set_aim_depth(0);
     }
 
@@ -429,6 +429,7 @@ SDecoinfo* simulation_decoplaner(uint16_t depth_meter, uint16_t intervall_time_m
 
     //Going down / descent
     simulation_set_aim_depth(depth_meter);
+    sim_aim_time_minutes = 0;
     for(int i = 0; i < 60 * dive_time_minutes; i++)
     {
         simulation_UpdateLifeData(0);
