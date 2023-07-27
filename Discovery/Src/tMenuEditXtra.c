@@ -624,7 +624,7 @@ static uint8_t OnAction_PSCRO2Drop(uint32_t editId, uint8_t blockNumber, uint8_t
         pSettings->pscr_o2_drop = newO2Drop;
 
         tMenuEdit_newInput(editId, newO2Drop, 0, 0, 0);
-        digitContentNew = UNSPECIFIC_RETURN;
+        digitContentNew = UPDATE_DIVESETTINGS;
     }
     if(action == ACTION_BUTTON_NEXT)
     {
@@ -665,7 +665,7 @@ static uint8_t OnAction_PSCRLungRation(uint32_t editId, uint8_t blockNumber, uin
         pSettings->pscr_lung_ratio = newLungRatio;
 
         tMenuEdit_newInput(editId, newLungRatio, 0, 0, 0);
-        digitContentNew = UNSPECIFIC_RETURN;
+        digitContentNew = UPDATE_DIVESETTINGS;
     }
     if(action == ACTION_BUTTON_NEXT)
     {
