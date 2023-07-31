@@ -20,19 +20,18 @@
   */ 
 /* Includes ------------------------------------------------------------------*/
 #include "uart.h"
+#include "uartProtocol_O2.h"
 #include "externalInterface.h"
 #include "data_exchange.h"
 #include <string.h>	/* memset */
 
 /* Private variables ---------------------------------------------------------*/
 
-#define BUFFER_NODATA			(7u)		/* The read function needs a byte which indecated that no data for processing is available.*/
-											/* This byte shall never appear in a normal data steam */
+
 
 #define CHUNK_SIZE				(25u)		/* the DMA will handle chunk size transfers */
 #define CHUNKS_PER_BUFFER		(5u)
-#define COMMAND_TX_DELAY		(30u)		/* The time the sensor needs to recover from a invalid command request */
-#define REQUEST_INT_SENSOR_MS	(1500)		/* Minimum time interval for cyclic sensor data requests per sensor */
+
 UART_HandleTypeDef huart1;
 
 DMA_HandleTypeDef  hdma_usart1_rx;
@@ -42,23 +41,22 @@ static uint8_t rxWriteIndex;							/* Index of the data item which is analysed *
 static uint8_t rxReadIndex;								/* Index at which new data is stared */
 static uint8_t lastCmdIndex;							/* Index of last command which has not been completly received */
 static uint8_t dmaActive;								/* Indicator if DMA reception needs to be started */
-static uint8_t digO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
+
 static uint8_t CO2Connected = 0;						/* Binary indicator if a sensor is connected or not */
 static uint8_t SentinelConnected = 0;					/* Binary indicator if a sensor is connected or not */
 
-static SSensorDataDiveO2 tmpSensorDataDiveO2;			/* intermediate storage for additional sensor data */
 
-char tmpRxBuf[30];
-uint8_t tmpRxIdx = 0;
 
-static uartO2Status_t Comstatus_O2 = UART_O2_INIT;
-static uint8_t activeSensor = 0;
-static uint8_t sensorMapping[MAX_MUX_CHANNEL];			/* The mapping is used to assign the visible sensor channel to the mux address (DiveO2) */
+static uartCO2Status_t ComStatus_CO2 = UART_CO2_INIT;
 
 float LED_Level = 0.0;							/* Normalized LED value which may be used as indication for the health status of the sensor */
 float LED_ZeroOffset = 0.0;
 float pCO2 = 0.0;
 /* Exported functions --------------------------------------------------------*/
+
+
+
+//huart.Instance->BRR = UART_BRR_SAMPLING8(HAL_RCC_GetPCLK2Freq(), new_baudrate);
 
 void MX_USART1_UART_Init(void)
 {
@@ -69,11 +67,11 @@ void MX_USART1_UART_Init(void)
   if(externalInterface_GetUARTProtocol() == 0x04)
   {
 	  huart1.Init.BaudRate = 19200;
-	  Comstatus_O2 = UART_O2_INIT;
   }
   else
   {
 	  huart1.Init.BaudRate = 9600;
+	  ComStatus_CO2 = UART_CO2_INIT;
   }
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
@@ -91,10 +89,10 @@ void MX_USART1_UART_Init(void)
   lastCmdIndex = 0;
   rxWriteIndex = 0;
   dmaActive = 0;
-  digO2Connected = 0;
+
   CO2Connected = 0;
   SentinelConnected = 0;
-  Comstatus_O2 = UART_O2_INIT;
+
 }
 
 void MX_USART1_UART_DeInit(void)
@@ -129,49 +127,56 @@ void  MX_USART1_DMA_Init()
   HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);
 }
 
-
-void DigitalO2_SelectSensor(uint8_t channel)
+void  UART_MUX_SelectAddress(uint8_t muxAddress)
 {
 	uint8_t indexstr[4];
-	uint8_t muxAddress = 0;
-	indexstr[0] = '~';
-	indexstr[1] = '1';
-	indexstr[2] = 0x0D;
-	indexstr[3] = 0x0A;
 
-	/* Lookup mux address mapped to the provided channel. If no mapping is found the the MUX itself will be selected */
-	for(muxAddress = 0; muxAddress < MAX_MUX_CHANNEL; muxAddress++)
+	if(muxAddress <= MAX_MUX_CHANNEL)
 	{
-		if(sensorMapping[muxAddress] == channel)
-		{
-			break;
-		}
+		indexstr[0] = '~';
+		indexstr[1] = muxAddress;
+		indexstr[2] = 0x0D;
+		indexstr[3] = 0x0A;
+
+		HAL_UART_Transmit(&huart1,indexstr,4,10);
 	}
-	indexstr[1] = muxAddress;
-	HAL_UART_Transmit(&huart1,indexstr,4,10);
 }
 
-void DigitalO2_SetupCmd(uint8_t O2State, uint8_t *cmdString, uint8_t *cmdLength)
+
+void UART_SendCmdString(uint8_t *cmdString)
 {
-	switch (O2State)
+	uint8_t cmdLength = strlen((char*)cmdString);
+
+	if(cmdLength < 20)		/* A longer string is an indication for a missing 0 termination */
 	{
-		case UART_O2_CHECK:		*cmdLength = snprintf((char*)cmdString, 10, "#LOGO");
-			break;
-		case UART_O2_REQ_INFO: 	*cmdLength = snprintf((char*)cmdString, 10, "#VERS");
-					break;
-		case UART_O2_REQ_ID: 	*cmdLength = snprintf((char*)cmdString, 10, "#IDNR");
-			break;
-		case UART_O2_REQ_O2: 	*cmdLength = snprintf((char*)cmdString, 10, "#DOXY");
-			break;
-		case UART_O2_REQ_RAW:	*cmdLength = snprintf((char*)cmdString, 10, "#DRAW");
-			break;
+		if(dmaActive == 0)
+		{
+			UART_StartDMA_Receiption();
+		}
+		HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
+	}
+}
+
+void DigitalCO2_SendCmd(uint8_t CO2Cmd, uint8_t *cmdString, uint16_t *cmdLength)
+{
+	switch (CO2Cmd)
+	{
+		case CO2CMD_MODE_POLL:		*cmdLength = snprintf((char*)cmdString, 10, "K 2\r\n");
+				break;
+		case CO2CMD_MODE_STREAM:	*cmdLength = snprintf((char*)cmdString, 10, "K 1\r\n");
+				break;
+		case CO2CMD_CALIBRATE:		*cmdLength = snprintf((char*)cmdString, 10, "G\r\n");
+				break;
+		case CO2CMD_GETDATA:		*cmdLength = snprintf((char*)cmdString, 10, "Q\r\n");
+				break;
+		case CO2CMD_GETSCALE:		*cmdLength = snprintf((char*)cmdString, 10, ".\r\n");
+				break;
 		default: *cmdLength = 0;
 			break;
 	}
-	if(*cmdLength != 0)
+	if(cmdLength != 0)
 	{
-		cmdString[*cmdLength] = 0x0D;
-		*cmdLength = *cmdLength + 1;
+		HAL_UART_Transmit(&huart1,cmdString,*cmdLength,10);
 	}
 }
 
@@ -239,11 +244,57 @@ void UART_HandleCO2Data(void)
 	static uint32_t dataValue = 0;
 	static receiveState_t rxState = RX_Ready;
 	static uint32_t lastReceiveTick = 0;
+	static uint32_t lastTransmitTick = 0;
+	static uint8_t cmdString[10];
+	static uint16_t cmdLength = 0;
 
+	uint32_t Tick = HAL_GetTick();
 
-	while((rxBuffer[localRX]!=0))
+	uint8_t *pmap = externalInterface_GetSensorMapPointer(0);
+
+	if(ComStatus_CO2 == UART_CO2_INIT)
 	{
-		lastReceiveTick = HAL_GetTick();
+		UART_StartDMA_Receiption();
+		ComStatus_CO2 = UART_CO2_SETUP;
+	}
+
+	if(ComStatus_CO2 == UART_CO2_SETUP)
+	{
+		if(time_elapsed_ms(lastTransmitTick,Tick) > 200)
+		{
+			if(externalInterface_GetCO2Scale() == 0.0)
+			{
+				DigitalCO2_SendCmd(CO2CMD_GETDATA, cmdString, &cmdLength);
+				lastTransmitTick = Tick;
+			}
+			else
+			{
+				ComStatus_CO2 = UART_CO2_OPERATING;
+			}
+		}
+	}
+	else
+	{
+		if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)		/* sensor is working in polling mode if mux is connected to avoid interference with other sensors */
+		{
+			if(time_elapsed_ms(lastTransmitTick,Tick) > 2000)	/* poll every two seconds */
+			{
+				lastTransmitTick = Tick;
+				if(cmdLength == 0)							/* poll data */
+				{
+					DigitalCO2_SendCmd(CO2CMD_GETDATA, cmdString, &cmdLength);
+				}
+				else											/* resend last command */
+				{
+					HAL_UART_Transmit(&huart1,cmdString,strlen((char*)cmdString),10);
+					cmdLength = 0;
+				}
+			}
+		}
+	}
+	while((rxBuffer[localRX]!=BUFFER_NODATA))
+	{
+		lastReceiveTick = Tick;
 		if(rxState == RX_Ready)		/* identify data content */
 		{
 			switch(rxBuffer[localRX])
@@ -251,6 +302,7 @@ void UART_HandleCO2Data(void)
 				case 'l':
 				case 'D':
 				case 'Z':
+				case '.':
 									dataType = rxBuffer[localRX];
 									rxState = RX_Data0;
 									dataValue = 0;
@@ -293,6 +345,8 @@ void UART_HandleCO2Data(void)
 						break;
 					case 'Z':			externalInterface_SetCO2Value(dataValue);
 						break;
+					case '.':			externalInterface_SetCO2Scale(dataValue);
+						break;
 					default:			rxState = RX_Ready;
 						break;
 				}
@@ -302,7 +356,7 @@ void UART_HandleCO2Data(void)
 				rxState = RX_Ready;
 			}
 		}
-		rxBuffer[localRX] = 0;
+		rxBuffer[localRX] = BUFFER_NODATA;
 		localRX++;
 		rxReadIndex++;
 		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
@@ -477,386 +531,6 @@ void UART_HandleSentinelData(void)
 #endif
 
 
-
-void UART_HandleDigitalO2(void)
-{
-	static uint32_t lastO2ReqTick = 0;
-	static uint8_t errorStr[] = "#ERRO";
-	static uartO2RxState_t rxState = O2RX_IDLE;
-	static uint32_t lastReceiveTick = 0;
-	static uint8_t lastAlive = 0;
-	static uint8_t curAlive = 0;
-
-	static uint8_t cmdLength = 0;
-	static uint8_t cmdString[10];
-	static uint8_t cmdReadIndex = 0;
-	static uint8_t errorReadIndex = 0;
-	static	uint32_t tickToTX =  0;
-	static uint32_t delayStartTick = 0;
-	static uint16_t requestIntervall = 0;
-	static uint8_t	retryRequest = 1;
-	static uint8_t lastComState = 0;
-	static uint8_t respondErrorDetected = 0;
-	static uint8_t switchChannel = 0;
-
-	uint8_t index = 0;
-	uint32_t tmpO2 = 0;
-	uint32_t tmpData = 0;
-	uint8_t localRX = rxReadIndex;
-	uint32_t tick =  HAL_GetTick();
-
-	uint8_t *pmap = externalInterface_GetSensorMapPointer(0);
-
-	/* The channel switch will cause the sensor to respond with an error message. */
-	/* The sensor needs ~30ms to recover before he is ready to receive the next command => transmission delay needed */
-	if((tickToTX) && (time_elapsed_ms(delayStartTick,tick) >= tickToTX ))
-	{
-		HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
-		tickToTX = 0;
-	}
-	else
-	{
-		if(Comstatus_O2 == UART_O2_INIT)
-		{
-			memset((char*)&rxBuffer[rxWriteIndex],(int)BUFFER_NODATA, sizeof(rxBuffer));
-			memset((char*) &tmpSensorDataDiveO2, 0, sizeof(tmpSensorDataDiveO2));
-			externalInterface_SetSensorData(0xFF,(uint8_t*)&tmpSensorDataDiveO2);
-
-			lastAlive = 0;
-			curAlive = 0;
-
-			Comstatus_O2 = UART_O2_CHECK;
-			lastComState = UART_O2_IDLE;
-			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
-
-			if(activeSensor < MAX_MUX_CHANNEL)
-			{
-				externalInterface_GetSensorData(activeSensor, (uint8_t*)&tmpSensorDataDiveO2);
-			}
-
-			tickToTX = COMMAND_TX_DELAY;
-
-			rxState = O2RX_CONFIRM;
-			cmdReadIndex = 0;
-			errorReadIndex = 0;
-			respondErrorDetected = 0;
-			digO2Connected = 0;
-			switchChannel = 1;
-
-			requestIntervall = 0;
-			for(index = 0; index < MAX_MUX_CHANNEL; index++)
-			{
-				if(pmap[index] == SENSOR_DIGO2)
-				{
-					requestIntervall++;
-				}
-			}
-			if(requestIntervall != 0)
-			{
-				requestIntervall = REQUEST_INT_SENSOR_MS / requestIntervall;
-			}
-			else
-			{
-				requestIntervall = REQUEST_INT_SENSOR_MS;
-			}
-			UART_StartDMA_Receiption();
-			lastO2ReqTick = tick + requestIntervall + 1;
-		}
-		if(time_elapsed_ms(lastO2ReqTick,tick) > requestIntervall)		/* repeat request or iterate to next sensor */
-		{
-			respondErrorDetected = 0;
-			lastO2ReqTick = tick;
-			index = activeSensor;
-			if((lastComState == Comstatus_O2) && (Comstatus_O2 != UART_O2_IDLE))
-			{
-				if(retryRequest)
-				{
-					retryRequest = 0;
-				}
-				else			/* no answer even repeating the request => abort request */
-				{
-					if(Comstatus_O2 == UART_O2_REQ_RAW)
-					{
-						setExternalInterfaceChannel(activeSensor,0.0);
-					}
-					Comstatus_O2 = UART_O2_IDLE;
-				}
-			}
-			lastComState = Comstatus_O2;
-			if(Comstatus_O2 == UART_O2_IDLE)							/* cyclic request of o2 value */
-			{
-				retryRequest = 1;
-				if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
-				{
-					if(activeSensor < MAX_MUX_CHANNEL)
-					{
-						do
-						{
-							index++;
-							if(index == MAX_MUX_CHANNEL)
-							{
-								index = 0;
-							}
-							if((pmap[index] == SENSOR_DIGO2) && (index != activeSensor))
-							{
-								activeSensor = index;
-								switchChannel = 1;
-								break;
-							}
-						} while(index != activeSensor);
-						externalInterface_GetSensorData(activeSensor, (uint8_t*)&tmpSensorDataDiveO2);
-					}
-				}
-				if((activeSensor != MAX_MUX_CHANNEL) && (tmpSensorDataDiveO2.sensorId == 0))
-				{
-					Comstatus_O2 = UART_O2_REQ_ID;
-				}
-				else
-				{
-					Comstatus_O2 = UART_O2_REQ_RAW;
-				}
-			}
-			rxState = O2RX_CONFIRM;
-			if(switchChannel)
-			{
-				switchChannel = 0;
-				delayStartTick = tick;
-				DigitalO2_SelectSensor(activeSensor);
-				tickToTX = COMMAND_TX_DELAY;
-			}
-			else
-			{
-				tickToTX = 0;
-				HAL_UART_Transmit(&huart1,cmdString,cmdLength,10);
-			}
-			DigitalO2_SetupCmd(Comstatus_O2,cmdString,&cmdLength);
-		}
-	}
-	while((rxBuffer[localRX] != BUFFER_NODATA))
-	{
-		lastReceiveTick = tick;
-		switch(rxState)
-		{
-			case O2RX_CONFIRM:	if(rxBuffer[localRX] == '#')
-								{
-									cmdReadIndex = 0;
-									errorReadIndex = 0;
-								}
-								if(errorReadIndex < sizeof(errorStr)-1)
-								{
-									if(rxBuffer[localRX] == errorStr[errorReadIndex])
-									{
-										errorReadIndex++;
-									}
-									else
-									{
-										errorReadIndex = 0;
-									}
-								}
-								else
-								{
-									respondErrorDetected = 1;
-									errorReadIndex = 0;
-								}
-								if(rxBuffer[localRX] == cmdString[cmdReadIndex])
-								{
-									cmdReadIndex++;
-									if(cmdReadIndex == cmdLength - 1)
-									{
-										if((activeSensor == MAX_MUX_CHANNEL))
-										{
-											if(respondErrorDetected)
-											{
-												digO2Connected = 0;		/* the multiplexer mirrors the incoming message and does not generate an error information => no mux connected */
-											}
-											else
-											{
-												digO2Connected = 1;
-											}
-										}
-										else							/* handle sensors which should respond with an error message after channel switch */
-										{
-											if(respondErrorDetected)
-											{
-												digO2Connected = 1;
-											}
-										}
-										tmpRxIdx = 0;
-										memset((char*) tmpRxBuf, 0, sizeof(tmpRxBuf));
-										cmdReadIndex = 0;
-										switch (Comstatus_O2)
-										{
-												case UART_O2_CHECK:	Comstatus_O2 = UART_O2_IDLE;
-																	rxState = O2RX_IDLE;
-													break;
-												case UART_O2_REQ_ID: rxState = O2RX_GETNR;
-													break;
-												case UART_O2_REQ_INFO: rxState = O2RX_GETTYPE;
-													break;
-												case UART_O2_REQ_RAW:
-												case UART_O2_REQ_O2:	rxState = O2RX_GETO2;
-													break;
-												default:	Comstatus_O2 = UART_O2_IDLE;
-															rxState = O2RX_IDLE;
-														break;
-										}
-									}
-								}
-								else
-								{
-									cmdReadIndex = 0;
-								}
-					break;
-
-				case O2RX_GETSTATUS:
-				case O2RX_GETTEMP:
-				case O2RX_GETTYPE:
-				case O2RX_GETVERSION:
-				case O2RX_GETCHANNEL:
-				case O2RX_GETSUBSENSORS:
-				case O2RX_GETO2:
-				case O2RX_GETNR:
-				case O2RX_GETDPHI:
-				case O2RX_INTENSITY:
-				case O2RX_AMBIENTLIGHT:
-				case O2RX_PRESSURE:
-				case O2RX_HUMIDITY:
-									if(rxBuffer[localRX] != 0x0D)
-									{
-										if(rxBuffer[localRX] != ' ')		/* the following data entities are placed within the data stream => no need to store data at the end */
-										{
-											tmpRxBuf[tmpRxIdx++] = rxBuffer[localRX];
-										}
-										else
-										{
-											if(tmpRxIdx != 0)
-											{
-												switch(rxState)
-												{
-													case O2RX_GETCHANNEL:	StringToInt(tmpRxBuf,&tmpData);
-																			rxState = O2RX_GETVERSION;
-															break;
-													case O2RX_GETVERSION:	StringToInt(tmpRxBuf,&tmpData);
-																			rxState = O2RX_GETSUBSENSORS;
-															break;
-													case O2RX_GETTYPE: 		StringToInt(tmpRxBuf,&tmpData);
-																			rxState = O2RX_GETCHANNEL;
-															break;
-
-													case O2RX_GETO2: 		StringToInt(tmpRxBuf,&tmpO2);
-																			setExternalInterfaceChannel(activeSensor,(float)(tmpO2 / 10000.0));
-																			rxState = O2RX_GETTEMP;
-														break;
-													case O2RX_GETTEMP:		StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.temperature);
-																			rxState = O2RX_GETSTATUS;
-														break;
-													case O2RX_GETSTATUS:	StringToInt(tmpRxBuf,&tmpSensorDataDiveO2.status);				/* raw data cycle */
-																			rxState = O2RX_GETDPHI;
-														break;
-													case O2RX_GETDPHI:		/* ignored to save memory and most likly irrelevant for diver */
-																			rxState = O2RX_INTENSITY;
-																										break;
-													case O2RX_INTENSITY:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.intensity);				/* raw data cycle */
-																			rxState = O2RX_AMBIENTLIGHT;
-																										break;
-													case O2RX_AMBIENTLIGHT:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.ambient);				/* raw data cycle */
-																			rxState = O2RX_PRESSURE;
-																										break;
-													case O2RX_PRESSURE:	StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.pressure);					/* raw data cycle */
-																			rxState = O2RX_HUMIDITY;
-																										break;
-													default:
-														break;
-												}
-												memset((char*) tmpRxBuf, 0, tmpRxIdx);
-												tmpRxIdx = 0;
-											}
-										}
-									}
-									else
-									{							/* the following data items are the last of a sensor respond => store temporal data */
-										switch (rxState)
-										{
-											case O2RX_GETSTATUS:		StringToInt(tmpRxBuf,&tmpSensorDataDiveO2.status);
-																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
-																		Comstatus_O2 = UART_O2_IDLE;
-																		rxState = O2RX_IDLE;
-													break;
-											case O2RX_GETSUBSENSORS:	StringToInt(tmpRxBuf,&tmpData);
-																		Comstatus_O2 = UART_O2_IDLE;
-																		rxState = O2RX_IDLE;
-													break;
-											case O2RX_HUMIDITY:			StringToInt(tmpRxBuf,(uint32_t*)&tmpSensorDataDiveO2.humidity);				/* raw data cycle */
-																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
-																		Comstatus_O2 = UART_O2_IDLE;
-																		rxState = O2RX_IDLE;
-													break;
-											case  O2RX_GETNR: 			StringToUInt64((char*)tmpRxBuf,&tmpSensorDataDiveO2.sensorId);
-																		externalInterface_SetSensorData(activeSensor,(uint8_t*)&tmpSensorDataDiveO2);
-																		index = activeSensor;
-																		Comstatus_O2 = UART_O2_IDLE;
-																		rxState = O2RX_IDLE;
-												break;
-											default:		Comstatus_O2 = UART_O2_IDLE;
-															rxState = O2RX_IDLE;
-												break;
-										}
-									}
-						break;
-				default:				rxState = O2RX_IDLE;
-					break;
-
-		}
-		rxBuffer[localRX] = BUFFER_NODATA;
-		localRX++;
-		rxReadIndex++;
-		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
-		{
-			localRX = 0;
-			rxReadIndex = 0;
-		}
-	}
-
-	if((digO2Connected) && time_elapsed_ms(lastReceiveTick,HAL_GetTick()) > 4000)	/* check for communication timeout */
-	{
-		digO2Connected = 0;
-		if(curAlive == lastAlive)
-		{
-			for(index = 0; index < MAX_ADC_CHANNEL; index++)
-			{
-				if(pmap[index] == SENSOR_DIGO2)
-				{
-					setExternalInterfaceChannel(index,0.0);
-				}
-			}
-		}
-		lastAlive = curAlive;
-	}
-	if((dmaActive == 0)	&& (externalInterface_isEnabledPower33()))	/* Should never happen in normal operation => restart in case of communication error */
-	{
-		UART_StartDMA_Receiption();
-	}
-}
-
-void UART_SetDigO2_Channel(uint8_t channel)
-{
-	if(channel <= MAX_MUX_CHANNEL)
-	{
-		activeSensor = channel;
-	}
-}
-void UART_MapDigO2_Channel(uint8_t channel, uint8_t muxAddress)
-{
-	if(((channel < MAX_ADC_CHANNEL) || (channel == 0xff)) && (muxAddress < MAX_MUX_CHANNEL))
-	{
-		sensorMapping[muxAddress] = channel;
-	}
-}
-
-uint8_t UART_isDigO2Connected()
-{
-	return digO2Connected;
-}
 uint8_t UART_isCO2Connected()
 {
 	return CO2Connected;
@@ -886,6 +560,46 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
 }
 
+void UART_ReadData(uint8_t sensorType)
+{
+	uint8_t localRX = rxReadIndex;
 
+	while((rxBuffer[localRX]!=BUFFER_NODATA))
+	{
+		switch (sensorType)
+		{
+			case SENSOR_MUX:
+			case SENSOR_DIGO2:	uartO2_ProcessData(rxBuffer[localRX]);
+				break;
+	//	case SENSOR_CO2:	uartCO2_Control();
+				break;
+			default:
+				break;
+		}
+
+		rxBuffer[localRX] = BUFFER_NODATA;
+		localRX++;
+		rxReadIndex++;
+		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
+		{
+			localRX = 0;
+			rxReadIndex = 0;
+		}
+	}
+}
+
+void UART_FlushRxBuffer(void)
+{
+	while(rxBuffer[rxReadIndex] != BUFFER_NODATA)
+	{
+		rxBuffer[rxReadIndex] = BUFFER_NODATA;
+		rxReadIndex++;
+		if(rxReadIndex >= CHUNK_SIZE * CHUNKS_PER_BUFFER)
+		{
+			rxReadIndex = 0;
+		}
+	}
+
+}
 
 /************************ (C) COPYRIGHT heinrichs weikamp *****END OF FILE****/

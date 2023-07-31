@@ -516,21 +516,9 @@ void scheduleDiveMode(void)
 		lasttick = HAL_GetTick();
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
-#ifdef ENABLE_CO2_SUPPORT
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_CO2 >> 8))
+		if(externalInterface_GetUARTProtocol() != 0)
 		{
-			UART_HandleCO2Data();
-		}
-#endif
-#ifdef ENABLE_SENTINEL_MODE
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_SENTINEL >> 8))
-		{
-			UART_HandleSentinelData();
-		}
-#endif
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_O2 >> 8))
-		{
-			UART_HandleDigitalO2();
+			externalInterface_HandleUART();
 		}
 
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
@@ -838,22 +826,9 @@ void scheduleSurfaceMode(void)
 				setButtonsNow = 0;
 		}
 
-#ifdef ENABLE_CO2_SUPPORT
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_CO2 >> 8))
+		if(externalInterface_GetUARTProtocol() != 0)
 		{
-			UART_HandleCO2Data();
-		}
-#endif
-#ifdef ENABLE_SENTINEL_MODE
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_SENTINEL >> 8))
-		{
-			UART_HandleSentinelData();
-		}
-#endif
-
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_O2 >> 8))
-		{
-			UART_HandleDigitalO2();
+			externalInterface_HandleUART();
 		}
 
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
