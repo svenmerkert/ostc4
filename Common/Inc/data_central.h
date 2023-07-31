@@ -41,8 +41,8 @@
 #define false  0
 #define true 1
 
-#define EXT_INTERFACE_SENSOR_CNT	(5u)		/* 5 sensors may be connected to the external interface */
-
+#define EXT_INTERFACE_SENSOR_CNT	(8u)		/* 1 MUX + 7 sensors may be connected to the external interface (1 MUX + 3 ADC + 4 UART) */
+#define EXT_INTERFACE_MUX_OFFSET	(3u)		/* the sensor struct starts with 3 ADC sensors */
 
 /* Helper structs ------------------------------------------------------------*/
 
@@ -433,6 +433,7 @@ typedef enum
 	 SENSOR_OPTIC,
 	 SENSOR_ANALOG,
 	 SENSOR_DIGO2,
+	 SENSOR_DIGO2M,
 	 SENSOR_SENTINEL,
 	 SENSOR_TYPE_O2_END,
 	 SENSOR_CO2,

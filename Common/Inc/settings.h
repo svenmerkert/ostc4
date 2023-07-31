@@ -243,8 +243,8 @@ typedef struct
 
 	uint8_t scubberActiveId;									/* redefined in 0xFFFF0023 */
 	SScrubberData scrubberData[2];
-	uint8_t ext_sensor_map[5];
-	uint8_t buttonLockActive;										/* redefined in 0xFFFF0025 */
+	uint8_t ext_sensor_map_Obsolete[5];
+	uint8_t buttonLockActive;									/* redefined in 0xFFFF0025 */
 	int8_t compassDeclinationDeg;
     uint8_t delaySetpointLow;                                         /* redefined in 0xFFFF0026 */
 	uint8_t Future_SPARE[FUTURE_SPARE_SIZE];					/* redefined in 0xFFFF0020 (old scooter Block was 32 byte)*/
@@ -303,6 +303,7 @@ typedef struct
 	uint16_t scrubTimerMax_Obsolete;	/* have been replaced with new scrubber data format */
 	uint16_t scrubTimerCur_Obsolete;	/* have been replaced with new scrubber data format */
 	uint8_t scrubTimerMode;
+	uint8_t ext_sensor_map[8];		/* redefined in 0xFFFF0027 */
 } SSettings;
 
 typedef struct

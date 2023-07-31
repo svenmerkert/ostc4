@@ -88,7 +88,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0026,
+    .header = 0xFFFF0027,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -331,6 +331,9 @@ const SSettings SettingsStandard = {
 	.ext_sensor_map[2] = SENSOR_OPTIC,
 	.ext_sensor_map[3] = SENSOR_NONE,
 	.ext_sensor_map[4] = SENSOR_NONE,
+	.ext_sensor_map[5] = SENSOR_NONE,
+	.ext_sensor_map[6] = SENSOR_NONE,
+	.ext_sensor_map[7] = SENSOR_NONE,
 	.buttonLockActive = 0,
     .compassDeclinationDeg = 0,
     .delaySetpointLow = false,
@@ -541,8 +544,17 @@ void set_new_settings_missing_in_ext_flash(void)
         // Disable auto setpoint to avoid a configuration warning being triggered by the new auto setpoint validation
         // This ensures that users don't lose setpoint information if it is not in the right spot for the new configuration
         pSettings->autoSetpoint = false;
-
     	// no break;
+    case 0xFFFF0026:
+    	pSettings->ext_sensor_map[0] = pSettings->ext_sensor_map_Obsolete[0];
+    	pSettings->ext_sensor_map[1] = pSettings->ext_sensor_map_Obsolete[1];
+    	pSettings->ext_sensor_map[2] = pSettings->ext_sensor_map_Obsolete[2];
+    	pSettings->ext_sensor_map[3] = pSettings->ext_sensor_map_Obsolete[3];
+    	pSettings->ext_sensor_map[4] = pSettings->ext_sensor_map_Obsolete[4];
+    	pSettings->ext_sensor_map[5] = SENSOR_NONE;
+    	pSettings->ext_sensor_map[6] = SENSOR_NONE;
+    	pSettings->ext_sensor_map[7] = SENSOR_NONE;
+    	
     default:
         pSettings->header = pStandard->header;
         break; // no break before!!
@@ -1577,13 +1589,19 @@ uint8_t check_and_correct_settings(void)
     		|| (Settings.ext_sensor_map[1] >= SENSOR_END)
 			|| (Settings.ext_sensor_map[2] >= SENSOR_END)
 			|| (Settings.ext_sensor_map[3] >= SENSOR_END)
-			|| (Settings.ext_sensor_map[4] >= SENSOR_END))
+			|| (Settings.ext_sensor_map[4] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[5] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[6] >= SENSOR_END)
+			|| (Settings.ext_sensor_map[7] >= SENSOR_END))
     {
     	Settings.ext_sensor_map[0] = SENSOR_OPTIC;
     	Settings.ext_sensor_map[1] = SENSOR_OPTIC;
     	Settings.ext_sensor_map[2] = SENSOR_OPTIC;
     	Settings.ext_sensor_map[3] = SENSOR_NONE;
     	Settings.ext_sensor_map[4] = SENSOR_NONE;
+    	Settings.ext_sensor_map[5] = SENSOR_NONE;
+    	Settings.ext_sensor_map[6] = SENSOR_NONE;
+    	Settings.ext_sensor_map[7] = SENSOR_NONE;
        	corrections++;
     }
 

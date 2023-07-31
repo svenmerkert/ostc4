@@ -397,7 +397,7 @@ void DateEx_copy_to_dataOut(void)
 	dataOut.data.offsetTemperatureSensor_centiDegree = settings->offsetTemperature_centigrad;
 
 
-	memcpy(dataOut.data.externalInterface_SensorMap, settings->ext_sensor_map, 5);
+	memcpy(dataOut.data.externalInterface_SensorMap, settings->ext_sensor_map, EXT_INTERFACE_SENSOR_CNT);
 
 	memset(SensorActive, 0, sizeof(SensorActive));
 	for (index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
@@ -406,7 +406,7 @@ void DateEx_copy_to_dataOut(void)
 		{
 			case SENSOR_ANALOG:	SensorActive[SENSOR_ANALOG] = 1;
 				break;
-			case SENSOR_DIGO2:	SensorActive[SENSOR_DIGO2] = 1;
+			case SENSOR_DIGO2M:	SensorActive[SENSOR_DIGO2] = 1;
 				break;
 			case SENSOR_CO2:	SensorActive[SENSOR_CO2] = 1;
 				break;
@@ -977,7 +977,7 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 				}
 				else
 				{
-					if(dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_map[idx] == SENSOR_DIGO2)
+					if(dataIn.data[(dataIn.boolADCO2Data && DATA_BUFFER_ADC)].sensor_map[idx] == SENSOR_DIGO2M)
 					{
 						pStateReal->lifeData.ppO2Sensor_bar[idx] = pStateReal->lifeData.sensorVoltage_mV[idx] / 100.0;
 					}
