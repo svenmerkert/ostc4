@@ -385,9 +385,9 @@ void refresh_O2Sensors(void)
     const SDiveState *pStateReal = stateRealGetPointer();
     SSettings *pSettings = settingsGetPointer();
 
-	if(memcmp(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5) != 0)
+	if(memcmp(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, EXT_INTERFACE_SENSOR_CNT) != 0)
 	{
-		memcpy(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, 5);
+		memcpy(pSettings->ext_sensor_map, pStateReal->lifeData.extIf_sensor_map, EXT_INTERFACE_SENSOR_CNT);
 		pSettings->ppo2sensors_deactivated = 0x0;	/* deactivation will be done by openEditO2Sensor if need */
 
 		pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_OPTIC;
@@ -406,7 +406,7 @@ void refresh_O2Sensors(void)
 											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_ANALOG;
 										}
 									break;
-					case SENSOR_DIGO2:	if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
+					case SENSOR_DIGO2M:	if(pSettings->ppo2sensors_source == O2_SENSOR_SOURCE_ANALOG)
 										{
 											pSettings->ppo2sensors_source = O2_SENSOR_SOURCE_ANADIG;
 										}
@@ -454,7 +454,8 @@ void refresh_O2Sensors(void)
 								break;
 				case SENSOR_ANALOG:	strSensorId[4] = TXT2BYTE_O2IFAnalog;
 								break;
-				case SENSOR_DIGO2: strSensorId[4] = TXT2BYTE_O2IFDigital;
+				case SENSOR_DIGO2:
+				case SENSOR_DIGO2M: strSensorId[4] = TXT2BYTE_O2IFDigital;
 								break;
 				case SENSOR_CO2: strSensorId[3] = 'C';
 								 strSensorId[4] = 'O';
@@ -655,7 +656,7 @@ uint8_t OnAction_Sensor1(uint32_t editId, uint8_t blockNumber, uint8_t digitNumb
 {
 	const SDiveState *pStateReal = stateRealGetPointer();
 
-	if(pStateReal->lifeData.extIf_sensor_map[0] == SENSOR_DIGO2)
+	if(pStateReal->lifeData.extIf_sensor_map[0] == SENSOR_DIGO2M)
 	{
 		return EXIT_TO_INFO_SENSOR;
 	}
@@ -681,7 +682,7 @@ uint8_t OnAction_Sensor2(uint32_t editId, uint8_t blockNumber, uint8_t digitNumb
 {
 	const SDiveState *pStateReal = stateRealGetPointer();
 
-	if(pStateReal->lifeData.extIf_sensor_map[1] == SENSOR_DIGO2)
+	if(pStateReal->lifeData.extIf_sensor_map[1] == SENSOR_DIGO2M)
 	{
 		return EXIT_TO_INFO_SENSOR;
 	}
@@ -706,7 +707,7 @@ uint8_t OnAction_Sensor3(uint32_t editId, uint8_t blockNumber, uint8_t digitNumb
 {
 	const SDiveState *pStateReal = stateRealGetPointer();
 
-	if(pStateReal->lifeData.extIf_sensor_map[2] == SENSOR_DIGO2)
+	if(pStateReal->lifeData.extIf_sensor_map[2] == SENSOR_DIGO2M)
 	{
 		return EXIT_TO_INFO_SENSOR;
 	}
