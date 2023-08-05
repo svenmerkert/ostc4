@@ -538,6 +538,9 @@ void set_new_settings_missing_in_ext_flash(void)
     case 0xFFFF0025:
         pSettings->compassDeclinationDeg = pStandard->compassDeclinationDeg;
         pSettings->delaySetpointLow = pStandard->delaySetpointLow;
+        // Disable auto setpoint to avoid a configuration warning being triggered by the new auto setpoint validation
+        // This ensures that users don't lose setpoint information if it is not in the right spot for the new configuration
+        pSettings->autoSetpoint = false;
 
     	// no break;
     default:

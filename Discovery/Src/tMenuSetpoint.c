@@ -77,17 +77,19 @@ uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext)
 			depthUp = pSetpointLine[spId].depth_meter;
 			first = pSetpointLine[spId].note.ub.first;
 
+            char colour;
             if (settings->autoSetpoint && spId == SETPOINT_INDEX_AUTO_DECO  && !pSetpointLine[spId].note.ub.active) {
-			    strcpy(&text[textPointer++],"\031");
+			    colour = '\031';
             } else {
-			    strcpy(&text[textPointer++],"\020");
+				colour = '\020';
             }
 
 			uint8_t setpointBar = setpoint_cbar / 100;
 
-            textPointer += snprintf(&text[textPointer], 4, "%c%c", TXT_2BYTE, TXT2BYTE_SetpointShort);
+            textPointer += snprintf(&text[textPointer], 4, "%c%c%c", colour, TXT_2BYTE, TXT2BYTE_SetpointShort);
             textPointer += printSetpointName(&text[textPointer], spId, settings, true);
-			text[textPointer++] = '\t';
+
+            text[textPointer++] = '\t';
 
 			if (first == 0 || actual_menu_content != MENU_SURFACE) {
 				strcpy(&text[textPointer++],"\177");
@@ -95,13 +97,15 @@ uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext)
 
 			textPointer += snprintf(&text[textPointer], 40, "* %u.%02u\016\016 bar\017\034   \016\016 \017", setpointBar, setpoint_cbar - (100 * setpointBar));
             if (!settings->autoSetpoint || spId < SETPOINT_INDEX_AUTO_DECO) {
-			    char color = '\031';
-			    if(depthUp)
-				    color = '\020';
+			    if (depthUp) {
+				    colour = '\020';
+                } else {
+			        colour = '\031';
+                }
 
-			    textPointer += snprintf(&text[textPointer], 40, "%c%3u\016\016 %c%c\017\035\n\r", color, unit_depth_integer(depthUp), unit_depth_char1(), unit_depth_char2());
+			    textPointer += snprintf(&text[textPointer], 40, "%c%3u\016\016 \035%c%c\017\n\r", colour, unit_depth_integer(depthUp), unit_depth_char1(), unit_depth_char2());
             } else {
-			    textPointer += snprintf(&text[textPointer], 3, "\n\r");
+			    textPointer += snprintf(&text[textPointer], 14, " %c\016\016 \035%c%c\017\n\r", pSetpointLine[spId].note.ub.active ? '\005' : '\006', TXT_2BYTE, TXT2BYTE_Enabled);
             }
 		}
     }
