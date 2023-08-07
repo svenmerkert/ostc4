@@ -441,6 +441,7 @@ void refresh_O2Sensors(void)
 
 	for(index = 0; index < 3; index++)
 	{
+		strSensorId[3] = TXT_2BYTE;
 		strSensorId[4] = 'X';
 		strSensorId[5] = '1' + index;
 
@@ -457,7 +458,8 @@ void refresh_O2Sensors(void)
 				case SENSOR_DIGO2:
 				case SENSOR_DIGO2M: strSensorId[4] = TXT2BYTE_O2IFDigital;
 								break;
-				case SENSOR_CO2: strSensorId[3] = 'C';
+				case SENSOR_CO2:
+				case SENSOR_CO2M: strSensorId[3] = 'C';
 								 strSensorId[4] = 'O';
 								break;
 				case SENSOR_SENTINEL: strSensorId[3] = 'S';
@@ -476,7 +478,7 @@ void refresh_O2Sensors(void)
 		{
 			snprintf(strSensorValue, 20,"%01.2f, %01.1f mV",  pStateReal->lifeData.ppO2Sensor_bar[index], pStateReal->lifeData.sensorVoltage_mV[index]);
 		}
-		else if(pSettings->ext_sensor_map[index] == SENSOR_CO2)
+		else if(pSettings->ext_sensor_map[index] == SENSOR_CO2M)
 		{
 			snprintf(strSensorValue, 20,"%ld ppm",  pStateReal->lifeData.CO2_data.CO2_ppm);
 		}

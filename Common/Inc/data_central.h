@@ -437,6 +437,7 @@ typedef enum
 	 SENSOR_SENTINEL,
 	 SENSOR_TYPE_O2_END,
 	 SENSOR_CO2,
+	 SENSOR_CO2M,
 	 SENSOR_MUX,
 	 SENSOR_END
 } externalInterfaceSensorType;

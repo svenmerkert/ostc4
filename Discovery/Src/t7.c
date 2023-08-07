@@ -3215,6 +3215,7 @@ void t7_refresh_divemode_userselected_left_lower_corner(void)
         	text[textpointer++] = '\025'; 	/* red */
         }
         snprintf(&text[textpointer],TEXTSIZE,"\%5ldppm", stateUsed->lifeData.CO2_data.CO2_ppm);
+      break;
 #endif
     case LLC_Compass:
         headerText[2] = TXT_2BYTE;
