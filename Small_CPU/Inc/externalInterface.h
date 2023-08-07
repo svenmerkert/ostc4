@@ -41,7 +41,7 @@
 #define MIN_ADC_VOLTAGE_MV	(5.0f)		/* miminal voltage to rate an ADC channel as active */
 
 #define COMMON_SENSOR_STATE_INIT	(0x0u)	/* All individual state definitions shall start with a INIT state = 0 */
-#define COMMON_SENSOR_STATE_INVALID (0xFFu) /* All individual state devinitions shall not use 0xFF for operation control */
+#define COMMON_SENSOR_STATE_INVALID (0xFFu) /* All individual state definitions shall not use 0xFF for operation control */
 
  typedef enum
  {
@@ -56,7 +56,10 @@
 	DETECTION_DIGO2_2,
 	DETECTION_DIGO2_3,
 #ifdef ENABLE_CO2_SUPPORT
-	DETECTION_CO2,			/* check UART channel for connected CO2 sensor */
+	DETECTION_CO2_0,			/* check UART channel for connected CO2 sensor */
+	DETECTION_CO2_1,
+	DETECTION_CO2_2,
+	DETECTION_CO2_3,
 #endif
 #ifdef ENABLE_SENTINEL_MODE
 	DETECTION_SENTINEL,		/* check UART channel for connected Sentinel */

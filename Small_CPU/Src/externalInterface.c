@@ -33,6 +33,7 @@
 #include "data_exchange.h"
 #include "pressure.h"
 #include "uartProtocol_O2.h"
+#include "uartProtocol_Co2.h"
 
 extern SGlobal global;
 extern UART_HandleTypeDef huart1;
@@ -133,7 +134,7 @@ void externalInterface_InitDatastruct(void)
 	{
 		externalChannel_mV[index] = 0.0;
 	}
-	memset(externalInterface_SensorState,UART_O2_INIT,sizeof(externalInterface_SensorState));
+	memset(externalInterface_SensorState,UART_COMMON_INIT,sizeof(externalInterface_SensorState));
 }
 
 
@@ -363,13 +364,10 @@ void externalInterface_SwitchUART(uint8_t protocol)
 		case (EXT_INTERFACE_UART_O2 >> 8):
 		case (EXT_INTERFACE_UART_SENTINEL >> 8):
 				if((externalAutoDetect <= DETECTION_START)
-															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_0))
-															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_1))
-															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_2))
-															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_DIGO2_3))
-															|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect == DETECTION_UARTMUX))
+					|| ((protocol == EXT_INTERFACE_UART_O2 >> 8) && (externalAutoDetect >= DETECTION_UARTMUX) && (externalAutoDetect <= DETECTION_DIGO2_3))
+
 #ifdef ENABLE_CO2_SUPPORT
-															|| ((protocol == EXT_INTERFACE_UART_CO2 >> 8) && (externalAutoDetect == DETECTION_CO2))
+					|| ((externalAutoDetect >= DETECTION_CO2_0) && (externalAutoDetect <= DETECTION_CO2_3))
 #endif
 #ifdef ENABLE_SENTINEL_MODE
 														   || ((protocol == EXT_INTERFACE_UART_SENTINEL >> 8) && (externalAutoDetect == DETECTION_SENTINEL))
@@ -566,8 +564,10 @@ void externalInterface_AutodetectSensor()
 	uint8_t index2 = 0;
 	uint8_t cntSensor = 0;
 	uint8_t cntUARTSensor = 0;
+#ifdef ENABLE_CO2_SUPPORT
 	uint8_t cmdString[10];
 	uint8_t cmdLength = 0;
+#endif
 
 	if(externalAutoDetect != DETECTION_OFF)
 	{
@@ -583,7 +583,7 @@ void externalInterface_AutodetectSensor()
 									tmpSensorMap[4] = SENSOR_NONE;
 
 									memset(foundSensorMap, SENSOR_NONE, sizeof(foundSensorMap));
-									memset(externalInterface_SensorState,UART_O2_INIT,sizeof(externalInterface_SensorState));
+									memset(externalInterface_SensorState,UART_COMMON_INIT,sizeof(externalInterface_SensorState));
 									memset(Mux2ADCMap,0, sizeof(Mux2ADCMap));
 
 									if(externalInterfacePresent)
@@ -640,12 +640,11 @@ void externalInterface_AutodetectSensor()
 											tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] = SENSOR_NONE;
 										}
 										externalAutoDetect = DETECTION_DIGO2_0;
-										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
 										UART_MUX_SelectAddress(0);
 										uartO2_SetChannel(0);
 										activeUartChannel = 0;
 										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET] = SENSOR_DIGO2;
-										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET] = UART_O2_INIT;
+										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET] = UART_COMMON_INIT;
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
 				break;
 			case DETECTION_DIGO2_0:
@@ -661,7 +660,7 @@ void externalInterface_AutodetectSensor()
 									{
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
 										UART_MUX_SelectAddress(uartMuxChannel);
-										externalInterface_SensorState[uartMuxChannel + EXT_INTERFACE_MUX_OFFSET] = UART_O2_INIT;
+										externalInterface_SensorState[uartMuxChannel + EXT_INTERFACE_MUX_OFFSET] = UART_COMMON_INIT;
 										uartO2_SetChannel(uartMuxChannel);
 										activeUartChannel = uartMuxChannel;
 										tmpSensorMap[uartMuxChannel - 1 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
@@ -678,39 +677,50 @@ void externalInterface_AutodetectSensor()
 									}
 									externalAutoDetect++;
 #ifdef ENABLE_CO2_SUPPORT
-									if(externalAutoDetect == DETECTION_CO2)
+									if(externalAutoDetect == DETECTION_CO2_0)
 									{
+										UART_MUX_SelectAddress(0);
+										activeUartChannel = 0;
+										tmpSensorMap[uartMuxChannel - 1 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
+										uartMuxChannel = 1;
+										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET] = SENSOR_CO2;
+										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET] = UART_COMMON_INIT;
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
 										if(tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)		/* switch sensor operation mode depending on HW config */
 										{
-											DigitalCO2_SendCmd(CO2CMD_MODE_POLL, cmdString, &cmdLength);
+											uartCo2_SendCmd(CO2CMD_MODE_POLL, cmdString, &cmdLength);
 										}
 										else
 										{
-											DigitalCO2_SendCmd(CO2CMD_MODE_STREAM, cmdString, &cmdLength);
+											uartCo2_SendCmd(CO2CMD_MODE_STREAM, cmdString, &cmdLength);
 										}
 									}
 				break;
-			case DETECTION_CO2:		if(UART_isCO2Connected())
+			case DETECTION_CO2_0:
+			case DETECTION_CO2_1:
+			case DETECTION_CO2_2:
+			case DETECTION_CO2_3:	if(uartCo2_isSensorConnected())
 									{
-										for(index = 0; index < 3; index++)	/* lookup a channel which may be used by CO2*/
-										{
-											if(tmpSensorMap[index] == SENSOR_NONE)
-											{
-												break;
-											}
-										}
-										if(index == 3)
-										{
-											tmpSensorMap[sensorIndex++] = SENSOR_CO2;  /* place Co2 sensor behind O2 sensors (not visible) */
-										}
-										else
-										{
-											tmpSensorMap[index] = SENSOR_CO2;
-										}
-
+										foundSensorMap[EXT_INTERFACE_MUX_OFFSET + activeUartChannel] = SENSOR_CO2;
+										externalAutoDetect = DETECTION_DONE;	/* only one CO2 sensor supported */
 									}
-									externalAutoDetect++;
+									else if(foundSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
+									{
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+										UART_MUX_SelectAddress(uartMuxChannel);
+										activeUartChannel = uartMuxChannel;
+										tmpSensorMap[uartMuxChannel - 1 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
+										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET + uartMuxChannel] = SENSOR_CO2;
+										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET + uartMuxChannel] = UART_COMMON_INIT;
+										externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+										uartCo2_SendCmd(CO2CMD_MODE_POLL, cmdString, &cmdLength);
+										externalAutoDetect++;
+										uartMuxChannel++;
+									}
+									else
+									{
+										externalAutoDetect = DETECTION_DONE;
+									}
 #endif
 #ifdef ENABLE_SENTINEL_MODE
 									if(externalAutoDetect == DETECTION_SENTINEL)
@@ -740,7 +750,7 @@ void externalInterface_AutodetectSensor()
 									cntUARTSensor = 0;
 									for(index = 0; index < EXT_INTERFACE_SENSOR_CNT-1; index++)
 									{
-										if((foundSensorMap[index] >= SENSOR_ANALOG) && (foundSensorMap[index] < SENSOR_TYPE_O2_END))
+										if((foundSensorMap[index] >= SENSOR_ANALOG) && (foundSensorMap[index] < SENSOR_MUX))
 										{
 											cntSensor++;
 										}
@@ -764,6 +774,21 @@ void externalInterface_AutodetectSensor()
 											}
 										}
 									}
+									for(index = 0; index < EXT_INTERFACE_SENSOR_CNT-1; index++)
+									{
+										if(foundSensorMap[index] == SENSOR_CO2)
+										{
+											for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)
+											{
+												if(foundSensorMap[index2] == SENSOR_NONE)
+												{
+													foundSensorMap[index2] = SENSOR_CO2M;		/* store a mirror instance needed for visualization */
+													Mux2ADCMap[index2] = index;
+													break;
+												}
+											}
+										}
+									}
 									externalInterfaceMuxReqIntervall = 0xFFFF;
 									if(cntSensor == 0)		/* return default sensor map if no sensor at all has been detected */
 									{
@@ -779,7 +804,7 @@ void externalInterface_AutodetectSensor()
 										}
 									}
 									memcpy(SensorMap, foundSensorMap, sizeof(foundSensorMap));
-									memset(externalInterface_SensorState,UART_O2_INIT,sizeof(externalInterface_SensorState));
+									memset(externalInterface_SensorState, UART_COMMON_INIT, sizeof(externalInterface_SensorState));
 				break;
 			default:
 				break;
@@ -805,7 +830,14 @@ void externalInterface_ExecuteCmd(uint16_t Cmd)
 											SensorMap[index] = SENSOR_SEARCH;
 										}
 			break;
-		case EXT_INTERFACE_CO2_CALIB:	cmdLength = snprintf(cmdString, 10, "G\r\n");
+		case EXT_INTERFACE_CO2_CALIB:	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT; index++)
+										{
+											if(SensorMap[index] == SENSOR_CO2)
+											{
+												externalInterface_SensorState[index] = UART_CO2_CALIBRATE;
+												break;
+											}
+										}
 			break;
 		case EXT_INTERFACE_COPY_SENSORMAP:	if(externalAutoDetect == DETECTION_OFF)
 											{
@@ -877,6 +909,26 @@ uint8_t ExternalInterface_SelectUsedMuxChannel(uint8_t currentChannel)
 	return newChannel;
 }
 
+void externalInterface_CheckBaudrate(uint8_t sensorType)
+{
+	static uint32_t lastBaudRate = 0;
+	uint32_t newBaudrate = 0;
+
+	switch(sensorType)
+	{
+			case SENSOR_CO2:		newBaudrate = 9600;
+				break;
+			case SENSOR_DIGO2:
+		default:	newBaudrate = 19200;
+			break;
+	}
+	if(lastBaudRate != newBaudrate)
+	{
+		UART_ChangeBaudrate(newBaudrate);
+		lastBaudRate = newBaudrate;
+	}
+}
+
 void externalInterface_HandleUART()
 {
 	static uint8_t retryRequest = 0;
@@ -898,12 +950,13 @@ void externalInterface_HandleUART()
 		{
 			UART_MUX_SelectAddress(activeUartChannel);
 		}
+		externalInterface_CheckBaudrate(pmap[activeUartChannel + EXT_INTERFACE_MUX_OFFSET]);
 		UART_FlushRxBuffer();
 	}
 
 	if(externalInterfaceMuxReqIntervall != 0xFFFF)
 	{
-		if(externalInterface_SensorState[activeSensorId] == UART_O2_INIT)
+		if(externalInterface_SensorState[activeSensorId] == UART_COMMON_INIT)
 		{
 			lastRequestTick = tick;
 			TriggerTick = tick - 10;	/* just to make sure control is triggered */
@@ -930,9 +983,19 @@ void externalInterface_HandleUART()
 			timeToTrigger = 1;
 
 			if((externalInterface_SensorState[activeSensorId] == UART_O2_REQ_O2)		/* timeout */
-					|| (externalInterface_SensorState[activeSensorId] == UART_O2_REQ_RAW))
+					|| (externalInterface_SensorState[activeSensorId] == UART_O2_REQ_RAW)
+					|| (externalInterface_SensorState[activeSensorId] == UART_CO2_OPERATING))
 			{
-				setExternalInterfaceChannel(activeSensorId,0.0);
+				switch(pmap[activeSensorId])
+				{
+					case SENSOR_DIGO2: setExternalInterfaceChannel(activeSensorId,0.0);
+						break;
+					case SENSOR_CO2: externalInterface_SetCO2Value(0.0);
+									 externalInterface_SetCO2State(0);
+						break;
+					default:
+						break;
+				}
 			}
 
 			if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX) /* select next sensor if mux is connected */
@@ -944,10 +1007,13 @@ void externalInterface_HandleUART()
 					{
 						timeToTrigger = 100;
 						activeUartChannel = index;
-						if(pmap[index + EXT_INTERFACE_MUX_OFFSET] == SENSOR_DIGO2)
+						if((pmap[index + EXT_INTERFACE_MUX_OFFSET] == SENSOR_DIGO2)
+								|| (pmap[index + EXT_INTERFACE_MUX_OFFSET] == SENSOR_CO2))
 						{
 							uartO2_SetChannel(activeUartChannel);
+							externalInterface_CheckBaudrate(SENSOR_MUX);
 							UART_MUX_SelectAddress(activeUartChannel);
+							externalInterface_CheckBaudrate(pmap[activeUartChannel + EXT_INTERFACE_MUX_OFFSET]);
 						}
 					}
 				}
@@ -965,8 +1031,10 @@ void externalInterface_HandleUART()
 				case SENSOR_MUX:
 				case SENSOR_DIGO2:	uartO2_Control();
 					break;
-			//	case SENSOR_CO2:	uartCO2_Control();
+#ifdef ENABLE_CO2_SUPPORT
+				case SENSOR_CO2:	uartCo2_Control();
 					break;
+#endif
 				default:
 					break;
 			}
@@ -976,22 +1044,12 @@ void externalInterface_HandleUART()
 
 
 #if 0
-#ifdef ENABLE_CO2_SUPPORT
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_CO2 >> 8))
-		{
-			UART_HandleCO2Data();
-		}
-#endif
 #ifdef ENABLE_SENTINEL_MODE
 		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_SENTINEL >> 8))
 		{
 			UART_HandleSentinelData();
 		}
 #endif
-		if(externalInterface_GetUARTProtocol() & (EXT_INTERFACE_UART_O2 >> 8))
-		{
-			UART_HandleDigitalO2();
-		}
 #endif
 
 
