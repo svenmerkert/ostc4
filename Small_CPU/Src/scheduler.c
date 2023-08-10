@@ -318,11 +318,6 @@ void scheduleSpecial_Evaluate_DataSendToSlave(void)
 		externalInterface_SwitchADC(1-externalInterface_isEnabledADC());
 	}
 
-	if(((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F) != externalInterface_GetUARTProtocol())
-	{
-		externalInterface_SwitchUART((global.dataSendToSlave.data.externalInterface_Cmd >> 8) & 0x0F);
-	}
-
 	externalInface_SetSensorMap(global.dataSendToSlave.data.externalInterface_SensorMap);
 	if(global.dataSendToSlave.data.externalInterface_Cmd & 0x00FF)	/* lowest nibble for commands */
 	{
@@ -516,11 +511,7 @@ void scheduleDiveMode(void)
 		lasttick = HAL_GetTick();
 		ticksdiff = time_elapsed_ms(Scheduler.tickstart,lasttick);
 
-		if(externalInterface_GetUARTProtocol() != 0)
-		{
-			externalInterface_HandleUART();
-		}
-
+		externalInterface_HandleUART();
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
 		{
 			if(SPI_Evaluate_RX_Data()!=0) /* did we receive something ? */
@@ -826,10 +817,7 @@ void scheduleSurfaceMode(void)
 				setButtonsNow = 0;
 		}
 
-		if(externalInterface_GetUARTProtocol() != 0)
-		{
-			externalInterface_HandleUART();
-		}
+		externalInterface_HandleUART();
 
 		/* Evaluate received data at 10 ms, 110 ms, 210 ms,... duration ~<1ms */
 		if(ticksdiff >= Scheduler.counterSPIdata100msec * 100 + 10)
