@@ -89,8 +89,11 @@ static uint8_t externalInterface_SensorState[EXT_INTERFACE_SENSOR_CNT];
 
 static float LookupCO2PressureCorrection[LOOKUP_CO2_CORR_TABLE_MAX / LOOKUP_CO2_CORR_TABLE_SCALE];		/* lookup table for pressure compensation values */
 
-static uint16_t externalInterfaceMuxReqIntervall = 0;		/* delay between switching from one MUX channel to the next */
-static uint8_t activeUartChannel = 0;						/* Index of the sensor port which is selected by the mux or 0 if no mux is connected */
+static uint16_t externalInterfaceMuxReqIntervall = 0xffff;		/* delay between switching from one MUX channel to the next */
+static uint8_t activeUartChannel = 0;							/* Index of the sensor port which is selected by the mux or 0 if no mux is connected */
+
+
+static void externalInface_MapUartToLegacyADC(uint8_t* pMap);
 
 void externalInterface_Init(void)
 {
@@ -106,7 +109,7 @@ void externalInterface_Init(void)
 	}
 	global.deviceDataSendToMaster.hw_Info.checkADC = 1;
 
-	memset(Mux2ADCMap,0xFF, sizeof(Mux2ADCMap));
+
 
 /* Create a lookup table based on GSS application note AN001: PRESSURE COMPENSATION OF A CO2 SENSOR */
 /* The main purpose of the sensor in the dive application is to be a warning indicator */
@@ -125,9 +128,12 @@ void externalInterface_InitDatastruct(void)
 	uint8_t index = 0;
 	/* init data values */
 	externalV33_On = 0;
+	externalADC_On = 0;
+	externalUART_Protocol = 0;
 	externalCO2Value = 0;
 	externalCO2SignalStrength = 0;
 	externalCO2Status = 0;
+	externalCO2Scale = 0.0;
 	externalAutoDetect = DETECTION_OFF;
 
 	for(index = 0; index < MAX_ADC_CHANNEL; index++)
@@ -135,6 +141,8 @@ void externalInterface_InitDatastruct(void)
 		externalChannel_mV[index] = 0.0;
 	}
 	memset(externalInterface_SensorState,UART_COMMON_INIT,sizeof(externalInterface_SensorState));
+	externalInface_MapUartToLegacyADC(SensorMap);
+	activeUartChannel = 0xFF;
 }
 
 
@@ -515,13 +523,16 @@ void externalInterface_SetSensorData(uint8_t sensorId, uint8_t* pDataStruct)
 		{
 			memcpy(&sensorDataDiveO2[sensorId], pDataStruct, sizeof(SSensorDataDiveO2));
 			lastSensorDataId = sensorId;
-			for(index = 0; index < MAX_MUX_CHANNEL; index++)
+			if(sensorId >= MAX_ADC_CHANNEL)
 			{
-				if(Mux2ADCMap[index] == sensorId)
+				for(index = 0; index < MAX_ADC_CHANNEL; index++)
 				{
-					memcpy(&sensorDataDiveO2[index], pDataStruct, sizeof(SSensorDataDiveO2));
-					lastSensorDataId = index;
-					break;
+					if(Mux2ADCMap[index] == sensorId)
+					{
+						memcpy(&sensorDataDiveO2[index], pDataStruct, sizeof(SSensorDataDiveO2));
+						lastSensorDataId = index;
+						break;
+					}
 				}
 			}
 		}
@@ -541,6 +552,54 @@ void externalInface_SetSensorMap(uint8_t* pMap)
 	}
 
 }
+
+void externalInface_MapUartToLegacyADC(uint8_t* pMap)
+{
+	uint8_t index, index2;
+
+	memset(Mux2ADCMap,0xFF, sizeof(Mux2ADCMap));
+
+	for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)					/* Unmap old mirror instances */
+	{
+		if((pMap[index2] == SENSOR_DIGO2M) || (pMap[index2] == SENSOR_CO2M))
+		{
+			pMap[index2] = SENSOR_NONE;
+		}
+	}
+
+	/* Map Mux O2 sensors to ADC Slot if ADC slot is not in use */
+	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT-1; index++)
+	{
+		if(pMap[index] == SENSOR_DIGO2)
+		{
+			for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)
+			{
+				if(pMap[index2] == SENSOR_NONE)
+				{
+					pMap[index2] = SENSOR_DIGO2M;		/* store a mirror instance needed for visualization */
+					Mux2ADCMap[index2] = index;
+					break;
+				}
+			}
+		}
+	}
+	for(index = 0; index < EXT_INTERFACE_SENSOR_CNT-1; index++)
+	{
+		if(pMap[index] == SENSOR_CO2)
+		{
+			for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)
+			{
+				if(pMap[index2] == SENSOR_NONE)
+				{
+					pMap[index2] = SENSOR_CO2M;		/* store a mirror instance needed for visualization */
+					Mux2ADCMap[index2] = index;
+					break;
+				}
+			}
+		}
+	}
+}
+
 uint8_t* externalInterface_GetSensorMapPointer(uint8_t finalMap)
 {
 	uint8_t* pret;
@@ -561,7 +620,6 @@ void externalInterface_AutodetectSensor()
 	static uint8_t sensorIndex = 0;
 	static uint8_t uartMuxChannel = 0;
 	uint8_t index = 0;
-	uint8_t index2 = 0;
 	uint8_t cntSensor = 0;
 	uint8_t cntUARTSensor = 0;
 #ifdef ENABLE_CO2_SUPPORT
@@ -573,7 +631,7 @@ void externalInterface_AutodetectSensor()
 	{
 		switch(externalAutoDetect)
 		{
-			case DETECTION_INIT:	externalInterfaceMuxReqIntervall = 1100;
+			case DETECTION_INIT:	externalInterfaceMuxReqIntervall = 0;
 									sensorIndex = 0;
 									uartMuxChannel = 0;
 									tmpSensorMap[0] = SENSOR_OPTIC;
@@ -581,6 +639,9 @@ void externalInterface_AutodetectSensor()
 									tmpSensorMap[2] = SENSOR_OPTIC;
 									tmpSensorMap[3] = SENSOR_NONE;
 									tmpSensorMap[4] = SENSOR_NONE;
+									tmpSensorMap[5] = SENSOR_NONE;
+									tmpSensorMap[6] = SENSOR_NONE;
+									tmpSensorMap[7] = SENSOR_NONE;
 
 									memset(foundSensorMap, SENSOR_NONE, sizeof(foundSensorMap));
 									memset(externalInterface_SensorState,UART_COMMON_INIT,sizeof(externalInterface_SensorState));
@@ -622,6 +683,7 @@ void externalInterface_AutodetectSensor()
 											tmpSensorMap[sensorIndex++] = SENSOR_NONE;
 										}
 									}
+									externalInterfaceMuxReqIntervall = 1100;
 									externalAutoDetect = DETECTION_UARTMUX;
 									externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
 									UART_MUX_SelectAddress(MAX_MUX_CHANNEL);
@@ -640,12 +702,15 @@ void externalInterface_AutodetectSensor()
 											tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] = SENSOR_NONE;
 										}
 										externalAutoDetect = DETECTION_DIGO2_0;
-										UART_MUX_SelectAddress(0);
 										uartO2_SetChannel(0);
 										activeUartChannel = 0;
 										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET] = SENSOR_DIGO2;
 										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET] = UART_COMMON_INIT;
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+										if(foundSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
+										{
+											UART_MUX_SelectAddress(0);
+										}
 				break;
 			case DETECTION_DIGO2_0:
 			case DETECTION_DIGO2_1: 
@@ -655,7 +720,7 @@ void externalInterface_AutodetectSensor()
 									{
 										foundSensorMap[externalAutoDetect - DETECTION_DIGO2_0 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_DIGO2;
 									}
-
+									tmpSensorMap[EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
 									if(uartMuxChannel)
 									{
 										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
@@ -759,36 +824,8 @@ void externalInterface_AutodetectSensor()
 										{
 											cntUARTSensor++;
 										}
-
-										/* Map Mux O2 sensors to ADC Slot if ADC slot is not in use */
-										if(foundSensorMap[index] == SENSOR_DIGO2)
-										{
-											for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)
-											{
-												if(foundSensorMap[index2] == SENSOR_NONE)
-												{
-													foundSensorMap[index2] = SENSOR_DIGO2M;		/* store a mirror instance needed for visualization */
-													Mux2ADCMap[index2] = index;
-													break;
-												}
-											}
-										}
 									}
-									for(index = 0; index < EXT_INTERFACE_SENSOR_CNT-1; index++)
-									{
-										if(foundSensorMap[index] == SENSOR_CO2)
-										{
-											for(index2 = 0; index2 < MAX_ADC_CHANNEL; index2++)
-											{
-												if(foundSensorMap[index2] == SENSOR_NONE)
-												{
-													foundSensorMap[index2] = SENSOR_CO2M;		/* store a mirror instance needed for visualization */
-													Mux2ADCMap[index2] = index;
-													break;
-												}
-											}
-										}
-									}
+									externalInface_MapUartToLegacyADC(foundSensorMap);
 									externalInterfaceMuxReqIntervall = 0xFFFF;
 									if(cntSensor == 0)		/* return default sensor map if no sensor at all has been detected */
 									{
@@ -817,10 +854,8 @@ void externalInterface_ExecuteCmd(uint16_t Cmd)
 {
 	char cmdString[10];
 	uint8_t cmdLength = 0;
-	uint8_t index, index2;
+	uint8_t index;
 	uint8_t cntUARTSensor = 0;
-	uint8_t lastMappedID = 0;
-
 
 	switch(Cmd & 0x00FF)		/* lower byte is reserved for commands */
 	{
@@ -848,22 +883,8 @@ void externalInterface_ExecuteCmd(uint16_t Cmd)
 													{
 														cntUARTSensor++;
 													}
-													if(SensorMap[index] == SENSOR_DIGO2M)		/* find matching sensor for mirror */
-													{
-														for(index2 = EXT_INTERFACE_MUX_OFFSET; index2 < EXT_INTERFACE_SENSOR_CNT; index2++)
-														{
-															if(SensorMap[index2] == SENSOR_DIGO2)
-															{
-																if(lastMappedID < index2)
-																{
-																	lastMappedID = index2;
-																	Mux2ADCMap[index] = index2;
-																	break;
-																}
-															}
-														}
-													}
 												}
+												externalInface_MapUartToLegacyADC(SensorMap);
 												if(cntUARTSensor > 0)
 												{
 													externalInterfaceMuxReqIntervall = REQUEST_INT_SENSOR_MS / cntUARTSensor;
@@ -940,22 +961,29 @@ void externalInterface_HandleUART()
 	uint8_t *pmap = externalInterface_GetSensorMapPointer(0);
 
 
-	UART_ReadData(pmap[activeSensorId]);
-
-	if(activeUartChannel == 0xFF)
-	{
-		activeUartChannel = ExternalInterface_SelectUsedMuxChannel(0);
-		uartO2_SetChannel(activeUartChannel);
-		if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
-		{
-			UART_MUX_SelectAddress(activeUartChannel);
-		}
-		externalInterface_CheckBaudrate(pmap[activeUartChannel + EXT_INTERFACE_MUX_OFFSET]);
-		UART_FlushRxBuffer();
-	}
-
 	if(externalInterfaceMuxReqIntervall != 0xFFFF)
 	{
+		UART_ReadData(pmap[activeSensorId]);
+
+		if(activeUartChannel == 0xFF)
+		{
+			activeUartChannel = ExternalInterface_SelectUsedMuxChannel(0);
+			uartO2_SetChannel(activeUartChannel);
+
+			switch(pmap[activeUartChannel + EXT_INTERFACE_MUX_OFFSET])
+			{
+				case SENSOR_CO2: externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+					break;
+				default:
+				case SENSOR_DIGO2: externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+					break;
+			}
+			if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
+			{
+				UART_MUX_SelectAddress(activeUartChannel);
+			}
+		}
+
 		if(externalInterface_SensorState[activeSensorId] == UART_COMMON_INIT)
 		{
 			lastRequestTick = tick;
