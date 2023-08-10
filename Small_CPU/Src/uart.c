@@ -55,15 +55,7 @@ void MX_USART1_UART_Init(void)
 /* regular init */	
 
   huart1.Instance = USART1;
-
-  if(externalInterface_GetUARTProtocol() == 0x04)
-  {
-	  huart1.Init.BaudRate = 19200;
-  }
-  else
-  {
-	  huart1.Init.BaudRate = 9600;
-  }
+  huart1.Init.BaudRate = 19200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -90,6 +82,7 @@ void MX_USART1_UART_DeInit(void)
 	HAL_DMA_Abort(&hdma_usart1_rx);
 	HAL_DMA_DeInit(&hdma_usart1_rx);
 	HAL_UART_DeInit(&huart1);
+	dmaActive = 0;
 }
 
 void  MX_USART1_DMA_Init()
