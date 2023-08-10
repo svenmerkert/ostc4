@@ -42,7 +42,7 @@ static uint8_t settingsWarning = 0;		/* Active if setting values have been corre
 SSettings Settings;
 
 const uint8_t RTErequiredHigh = 3;
-const uint8_t RTErequiredLow = 1;
+const uint8_t RTErequiredLow = 2;
 
 const uint8_t FONTrequiredHigh = 1;
 const uint8_t FONTrequiredLow =	0;
@@ -554,7 +554,7 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->ext_sensor_map[5] = SENSOR_NONE;
     	pSettings->ext_sensor_map[6] = SENSOR_NONE;
     	pSettings->ext_sensor_map[7] = SENSOR_NONE;
-    	
+    	// no break;
     default:
         pSettings->header = pStandard->header;
         break; // no break before!!

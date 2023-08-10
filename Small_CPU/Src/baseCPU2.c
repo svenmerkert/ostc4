@@ -166,7 +166,7 @@ uint8_t hasExternalClock(void) {
 // See CPU2-RTE.ld
 const SFirmwareData cpu2_FirmwareData __attribute__(( section(".firmware_data") ))= {
 		.versionFirst = 3,
-		.versionSecond = 1,
+		.versionSecond = 2,
 		.versionThird = 0,
 		.versionBeta = 0,
 
@@ -422,7 +422,6 @@ int main(void) {
 			SPI_synchronize_with_Master();
 			MX_DMA_Init();
 			MX_SPI1_Init();
-			externalInterface_SwitchUART(externalInterface_GetUARTProtocol());
 			SPI_Start_single_TxRx_with_Master(); /* be prepared for the first data exchange */
 			Scheduler_Request_sync_with_SPI(SPI_SYNC_METHOD_HARD);
 			EXTI_Test_Button_Init();
@@ -495,6 +494,7 @@ int main(void) {
 			 */
 
 			EXTI_Test_Button_DeInit();
+			externalInterface_SwitchUART(0);
 			externalInterface_SwitchPower33(false);
 			if (hasExternalClock())
 				SystemClock_Config_HSI();
