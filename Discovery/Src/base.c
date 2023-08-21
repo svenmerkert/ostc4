@@ -1850,9 +1850,13 @@ static void TimeoutControl(void)
 				{
 					timeout_limit_Surface_in_seconds = settingsGetPointer()->timeoutSurfacemode;
 				}
-				if(timeout_in_seconds  >= timeout_limit_Surface_in_seconds)
-				{
-					gotoSleep();
+				if (timeout_in_seconds >= timeout_limit_Surface_in_seconds) {
+                    if (t7_isTimerRunning(true)) {
+                        // Delay sleep until the timer has elapsed
+                        timeout_in_seconds = timeout_limit_Surface_in_seconds - 1;
+                    } else {
+					    gotoSleep();
+                    }
 				}
 				break;
 			case BaseMenu:

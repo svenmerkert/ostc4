@@ -59,7 +59,7 @@ static uint16_t tHome_tick_count_cview;
 static uint16_t tHome_tick_count_field;
 static uint16_t tHome_tick_count_o2sens;
 
-const uint8_t cv_changelist[] = {CVIEW_Compass, CVIEW_SummaryOfLeftCorner, CVIEW_Tissues, CVIEW_Profile, CVIEW_EADTime, CVIEW_Gaslist, CVIEW_noneOrDebug, CVIEW_Decolist,CVIEW_sensors,CVIEW_sensors_mV, CVIEW_END};
+const uint8_t cv_changelist[] = {CVIEW_Compass, CVIEW_SummaryOfLeftCorner, CVIEW_Tissues, CVIEW_Profile, CVIEW_EADTime, CVIEW_Gaslist, CVIEW_noneOrDebug, CVIEW_Decolist, CVIEW_sensors,CVIEW_sensors_mV, CVIEW_Timer, CVIEW_END};
 const uint8_t cv_changelist_BS[] = {CVIEW_T3_Decostop, CVIEW_sensors, CVIEW_Compass, CVIEW_T3_MaxDepth,CVIEW_T3_StopWatch, CVIEW_T3_TTS, CVIEW_T3_GasList, CVIEW_T3_ppO2andGas, CVIEW_noneOrDebug,
 									CVIEW_T3_Navigation, CVIEW_T3_DepthData, CVIEW_T3_DecoTTS,
 #ifdef ENABLE_T3_PROFILE_VIEW
@@ -638,8 +638,7 @@ void tHome_tick(void)
         if(tHome_tick_count_cview > (cview *10))
         {
             tHome_tick_count_cview = 0;
-            if(settingsGetPointer()->design == 7)
-            {
+            if (settingsGetPointer()->design == 7 && !t7_isTimerRunning(false)) {
                 t7_set_customview_to_primary();
             }
             if(settingsGetPointer()->design == 3)
@@ -658,6 +657,8 @@ void tHome_tick(void)
     		t7_select_customview(CVIEW_sensors);
     	}
     }
+
+    t7_tick();
 }
 
 

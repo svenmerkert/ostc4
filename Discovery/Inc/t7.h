@@ -86,4 +86,7 @@ bool t7_isCompassShowing(void);
 	 void t7c_refresh(uint32_t FramebufferStartAddress);
 */
 
+void t7_tick(void);
+
+bool t7_isTimerRunning(bool foregroundOnly);
 #endif /* T7_H */

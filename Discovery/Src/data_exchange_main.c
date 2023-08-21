@@ -1025,6 +1025,8 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 			{
 				simulation_exit();
 			}
+            disableTimer();
+
 				// new 170508
 			settingsGetPointer()->bluetoothActive = 0;
 			MX_Bluetooth_PowerOff();
@@ -1046,6 +1048,8 @@ void DataEX_copy_to_LifeData(_Bool *modeChangeFlag)
 				*modeChangeFlag = 1;
 			}
 			createDiveSettings();
+
+            disableTimer();
 
 			if(pStateReal->warnings.cnsHigh)
 			{

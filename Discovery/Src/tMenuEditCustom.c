@@ -493,6 +493,9 @@ char customview_TXT2BYTE_helper(uint8_t customViewId)
     case CVIEW_SummaryOfLeftCorner:
         text = TXT2BYTE_Summary;
         break;
+    case CVIEW_Timer:
+        text = TXT2BYTE_Timer;
+        break;
     case CVIEW_noneOrDebug:
     	text = TXT2BYTE_DispNoneDbg;
         break;
@@ -581,6 +584,9 @@ uint8_t OnAction_CViewStandard(uint32_t editId, uint8_t blockNumber, uint8_t dig
         newValue = CVIEW_SummaryOfLeftCorner;
         break;
     case CVIEW_SummaryOfLeftCorner:
+        newValue = CVIEW_Timer;
+        break;
+    case CVIEW_Timer:
         newValue = CVIEW_noneOrDebug;
         break;
     case CVIEW_noneOrDebug:

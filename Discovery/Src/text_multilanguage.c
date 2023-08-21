@@ -1883,6 +1883,24 @@ static uint8_t text_FR_Custom[] = "Custom";
 static uint8_t text_IT_Custom[] = "Custom";
 static uint8_t text_ES_Custom[] = "Custom";
 
+static uint8_t text_EN_Timer[] = "Timer";
+static uint8_t text_DE_Timer[] = "Timer";
+static uint8_t text_FR_Timer[] = "Minuteur";
+static uint8_t text_IT_Timer[] = "Timer";
+static uint8_t text_ES_Timer[] = "Temporizador";
+
+static uint8_t text_EN_Starting[] = "Start in";
+static uint8_t text_DE_Starting[] = "Startet in";
+static uint8_t text_FR_Starting[] = "Démarre en";
+static uint8_t text_IT_Starting[] = "Inizio in";
+static uint8_t text_ES_Starting[] = "Comienza en";
+
+static uint8_t text_EN_Finished[] = "Finished";
+static uint8_t text_DE_Finished[] = "Beendet";
+static uint8_t text_FR_Finished[] = "Fini";
+static uint8_t text_IT_Finished[] = "Finito";
+static uint8_t text_ES_Finished[] = "Terminado";
+
 /* Lookup Table -------------------------------------------------------------*/
 
 const tText text_array[] =
@@ -2167,4 +2185,8 @@ const tText text_array2[] =
 	{(uint8_t)TXT2BYTE_Set, 	{text_EN_Set, text_DE_Set, text_FR_Set, text_IT_Set, text_ES_Set}},
 	{(uint8_t)TXT2BYTE_Clear, 	{text_EN_Clear, text_DE_Clear, text_FR_Clear, text_IT_Clear, text_ES_Clear}},
 	{(uint8_t)TXT2BYTE_Reset, 	{text_EN_Reset, text_DE_Reset, text_FR_Reset, text_IT_Reset, text_ES_Reset}},
+
+	{(uint8_t)TXT2BYTE_Timer, 	{text_EN_Timer, text_DE_Timer, text_FR_Timer, text_IT_Timer, text_ES_Timer}},
+	{(uint8_t)TXT2BYTE_Starting, 	{text_EN_Starting, text_DE_Starting, text_FR_Starting, text_IT_Starting, text_ES_Starting}},
+	{(uint8_t)TXT2BYTE_Finished, 	{text_EN_Finished, text_DE_Finished, text_FR_Finished, text_IT_Finished, text_ES_Finished}},
 };
