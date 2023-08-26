@@ -28,7 +28,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdlib.h>
-#include <stdbool.h>
 
 #include "t7.h"
 #include "t3.h"
@@ -47,6 +46,8 @@
 #include "configuration.h"
 #include "base.h"
 #include "tMenuEditSetpoint.h"
+
+#define TIMER_ACTION_DELAY_S 10
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -130,6 +131,7 @@ const uint8_t customviewsDiveStandard[] =
     CVIEW_sensors_mV,
     CVIEW_EADTime,
     CVIEW_SummaryOfLeftCorner,
+    CVIEW_Timer,
     CVIEW_noneOrDebug,
     CVIEW_END,
     CVIEW_END
@@ -146,6 +148,7 @@ const uint8_t customviewsSurfaceStandard[] =
     CVIEW_sensors_mV,
 	CVIEW_Charger,
     CVIEW_CcrSummary,
+    CVIEW_Timer,
     CVIEW_END
 };
 
@@ -996,6 +999,12 @@ void t7_refresh_surface(void)
         text[5] = TXT2BYTE_TimeSinceLastDive;
         text[6] = 0;
         GFX_write_string(&FontT48,&t7surfaceR,text,1);
+    }
+
+    if (stateUsed->timerState == TIMER_STATE_RUNNING && selection_customview != CVIEW_Timer) {
+        int timerRemainingS = pSettings->timerDurationS - (current_second() - stateUsed->timerStartedS);
+        snprintf(text, 20, "\001%u:%02u", timerRemainingS / 60, timerRemainingS % 60);
+        GFX_write_string(&FontT54, &t7surfaceR, text, 8);
     }
 
     /* beta version */
@@ -1973,6 +1982,163 @@ static void t7_CcrSummary(SSettings *settings)
 }
 
 
+static void setTimerPrestart(int startTimeS)
+{
+    stateUsedWrite->timerState = TIMER_STATE_PRESTART;
+    stateUsedWrite->timerStartedS = startTimeS;
+}
+
+
+static void setTimerFinished(int startTimeS)
+{
+    stateUsedWrite->timerState = TIMER_STATE_FINISHED;
+    stateUsedWrite->timerStartedS = startTimeS;
+}
+
+
+static void updateTimer(SSettings *settings, int nowS, bool switchedToTimerView)
+{
+    int timerElapsedS = nowS - stateUsed->timerStartedS;
+
+    if (stateUsed->timerState && timerElapsedS < 0) {
+        disableTimer();
+    } else {
+        switch (stateUsed->timerState) {
+        case TIMER_STATE_OFF:
+            if (switchedToTimerView) {
+                setTimerPrestart(nowS);
+            }
+
+            break;
+        case TIMER_STATE_PRESTART:
+            if (timerElapsedS <= TIMER_ACTION_DELAY_S) {
+                if (switchedToTimerView) {
+                    setTimerPrestart(nowS);
+                }
+            } else {
+                if (selection_customview == CVIEW_Timer) {
+                    stateUsedWrite->timerState = TIMER_STATE_RUNNING;
+                    stateUsedWrite->timerStartedS = stateUsed->timerStartedS + TIMER_ACTION_DELAY_S;
+                } else {
+                    disableTimer();
+                }
+            }
+
+            break;
+        case TIMER_STATE_RUNNING:
+            if (timerElapsedS >= settings->timerDurationS) {
+                if (selection_customview == CVIEW_Timer) {
+                    setTimerFinished(stateUsed->timerStartedS + settings->timerDurationS);
+                } else {
+                    stateUsedWrite->timerState = TIMER_STATE_WAIT_FINISHED;
+                }
+            }
+
+            break;
+        case TIMER_STATE_WAIT_FINISHED:
+            if (switchedToTimerView) {
+                setTimerFinished(nowS);
+            }
+
+            break;
+        case TIMER_STATE_FINISHED:
+            if (timerElapsedS <= TIMER_ACTION_DELAY_S) {
+                if (switchedToTimerView) {
+                    setTimerPrestart(stateUsed->timerStartedS);
+                }
+            } else {
+                disableTimer();
+            }
+
+            break;
+        }
+    }
+}
+
+
+bool t7_isTimerRunning(bool includeBackground)
+{
+    return stateUsed->timerState && (selection_customview == CVIEW_Timer || (includeBackground && stateUsed->timerState == TIMER_STATE_RUNNING));
+}
+
+
+static void showTimer(SSettings *settings, int nowS)
+{
+    char heading[32];
+    unsigned headingIndex = 0;
+
+    char data[32];
+    unsigned dataIndex = 0;
+
+    heading[headingIndex++] = '\032';
+    heading[headingIndex++] = '\016';
+    heading[headingIndex++] = '\016';
+
+    data[dataIndex++] = '\t';
+
+    int timerRemainingS = settings->timerDurationS;
+    switch (stateUsed->timerState) {
+    case TIMER_STATE_RUNNING:
+        timerRemainingS = settings->timerDurationS - (nowS - stateUsed->timerStartedS);
+
+        break;
+    case TIMER_STATE_PRESTART:
+    case TIMER_STATE_FINISHED:
+        if (stateUsed->timerState == TIMER_STATE_PRESTART) {
+            heading[headingIndex++] = TXT_2BYTE;
+            heading[headingIndex++] = TXT2BYTE_Starting;
+        } else {
+            heading[headingIndex++] = TXT_2BYTE;
+            heading[headingIndex++] = TXT2BYTE_Finished;
+
+            timerRemainingS = 0;
+        }
+
+        dataIndex += snprintf(&data[dataIndex], 10, "\020%u", TIMER_ACTION_DELAY_S - (nowS - stateUsed->timerStartedS));
+
+        break;
+    default:
+
+        break;
+    }
+
+    char timer[16];
+    snprintf(timer, 10, "\001\020%u:%02u", timerRemainingS / 60, timerRemainingS % 60);
+
+    heading[headingIndex++] = 0;
+
+    data[dataIndex++] = 0;
+
+    t7cY0free.WindowLineSpacing = 48;
+    t7cY0free.WindowNumberOfTextLines = 6;
+    t7cY0free.WindowTab = 375;
+
+    t7cY0free.WindowY0 = t7cC.WindowY0 - 10;
+    if (!settings->FlipDisplay) {
+        t7cY0free.WindowX0 += 10;
+        t7cY0free.WindowY0 += 10;
+        t7cY0free.WindowY1 = 355;
+        GFX_write_string(&FontT24, &t7cY0free, heading, 1);
+        t7cY0free.WindowX0 -= 10;
+        t7cY0free.WindowY0 -= 10;
+    } else {
+        t7cY0free.WindowY1 -= 10;
+        t7cY0free.WindowX1 -= 10;
+        GFX_write_string(&FontT24, &t7cY0free, heading, 1);
+        t7cY0free.WindowY1 += 10;
+        t7cY0free.WindowX1 += 10;
+    }
+
+    t7_colorscheme_mod(data);
+
+    GFX_write_string(&FontT42, &t7cY0free, data, 1);
+
+    t7_colorscheme_mod(timer);
+
+    GFX_write_string(&FontT105, &t7cY0free, timer, 4);
+}
+
+
 void t7_refresh_customview(void)
 {
 	static uint8_t last_customview = CVIEW_END;
@@ -2015,7 +2181,6 @@ void t7_refresh_customview(void)
 		{
 			t7_change_customview(ACTION_BUTTON_ENTER);
 		}
-		last_customview = selection_customview;
 	}
     switch(selection_customview)
     {
@@ -2513,9 +2678,21 @@ void t7_refresh_customview(void)
         t7_CcrSummary(pSettings);
 
         break;
-    }
-}
+    case CVIEW_Timer:
+        snprintf(text, 100, "\032\f\001%c%c", TXT_2BYTE, TXT2BYTE_Timer);
+        GFX_write_string(&FontT42, &t7cH, text, 0);
 
+        int nowS = current_second();
+
+        updateTimer(pSettings, nowS, last_customview != CVIEW_Timer);
+
+        showTimer(pSettings, nowS);
+
+        break;
+    }
+
+    last_customview = selection_customview;
+}
 
 
 /* DIVE MODE
@@ -4483,7 +4660,17 @@ void t7_ChargerView(void)
 
 }
 
+
 bool t7_isCompassShowing(void)
 {
     return selection_customview == CVIEW_Compass || selection_custom_field == LLC_Compass;
+}
+
+
+void t7_tick(void)
+{
+    SSettings *settings = settingsGetPointer();
+
+    int nowS = current_second();
+    updateTimer(settings, nowS, false);
 }

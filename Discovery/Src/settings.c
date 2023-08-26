@@ -337,6 +337,7 @@ const SSettings SettingsStandard = {
 	.buttonLockActive = 0,
     .compassDeclinationDeg = 0,
     .delaySetpointLow = false,
+    .timerDurationS = 180,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -544,6 +545,9 @@ void set_new_settings_missing_in_ext_flash(void)
         // Disable auto setpoint to avoid a configuration warning being triggered by the new auto setpoint validation
         // This ensures that users don't lose setpoint information if it is not in the right spot for the new configuration
         pSettings->autoSetpoint = false;
+
+        pSettings->timerDurationS = pStandard->timerDurationS;
+
     	// no break;
     case 0xFFFF0026:
     	pSettings->ext_sensor_map[0] = pSettings->ext_sensor_map_Obsolete[0];
@@ -554,7 +558,8 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->ext_sensor_map[5] = SENSOR_NONE;
     	pSettings->ext_sensor_map[6] = SENSOR_NONE;
     	pSettings->ext_sensor_map[7] = SENSOR_NONE;
-    	// no break;
+
+        // no break;
     default:
         pSettings->header = pStandard->header;
         break; // no break before!!
@@ -1617,6 +1622,16 @@ uint8_t check_and_correct_settings(void)
         corrections++;
     } else if (Settings.compassDeclinationDeg < -99) {
         Settings.compassDeclinationDeg = -99;
+
+        corrections++;
+    }
+
+    if (Settings.timerDurationS > 599) {
+        Settings.timerDurationS = 599;
+
+        corrections++;
+    } else if (Settings.timerDurationS < 1) {
+        Settings.timerDurationS = 1;
 
         corrections++;
     }

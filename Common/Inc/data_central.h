@@ -360,6 +360,14 @@ enum CHARGE_STATUS{
 		CHARGER_lostConnection
 };
 
+typedef enum {
+    TIMER_STATE_OFF = 0,
+    TIMER_STATE_PRESTART,
+    TIMER_STATE_RUNNING,
+    TIMER_STATE_WAIT_FINISHED,
+    TIMER_STATE_FINISHED,
+} timerState_e;
+
 typedef struct
 {
 	SDiveSettings diveSettings;
@@ -390,6 +398,9 @@ typedef struct
 	uint8_t sensorErrorsRTE;
 
 	uint8_t lastKnownBatteryPercentage;
+
+    timerState_e timerState;
+    int timerStartedS;
 } 	SDiveState;
 
 
@@ -512,4 +523,6 @@ bool isCompassCalibrated(void);
 void setCompassHeading(uint16_t heading);
 
 const SDecoinfo *getDecoInfo(void);
+
+void disableTimer(void);
 #endif // DATA_CENTRAL_H

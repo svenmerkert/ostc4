@@ -889,3 +889,9 @@ const SDecoinfo *getDecoInfo(void)
 
     return decoInfo;
 }
+
+
+void disableTimer(void)
+{
+    stateUsedWrite->timerState = TIMER_STATE_OFF;
+}

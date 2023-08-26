@@ -164,7 +164,13 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
         textPointer += 2;
     }
 
-    if((line == 0) || (line == 2))
+    if (line == 0 || line == 2) {
+        textPointer += snprintf(&text[textPointer], 21, "%c%c\t%u:%02u \016\016[m:ss]\017\n\r", TXT_2BYTE, TXT2BYTE_Timer, data->timerDurationS / 60, data->timerDurationS % 60);
+    } else {
+        textPointer += snprintf(&text[textPointer], 3, "\n\r");
+    }
+
+    if((line == 0) || (line == 3))
     {
         text[textPointer++] = TXT_Language;
         text[textPointer++] = '\t';
@@ -179,7 +185,7 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
         textPointer += 2;
     }
 
-    if((line == 0) || (line == 3))
+    if((line == 0) || (line == 4))
     {
         text[textPointer++] = TXT_2BYTE;
         text[textPointer++] = TXT2BYTE_Layout;
@@ -252,7 +258,7 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
         textPointer += 2;
     }
 
-    if((line == 0) || (line == 4))
+    if((line == 0) || (line == 5))
     {
         text[textPointer++] = TXT_Information;
         text[textPointer++] = '\t';
@@ -267,7 +273,7 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
     strcpy(&text[textPointer],"\n\r");
     textPointer += 2;
 
-    if((line == 0) || (line == 5))
+    if((line == 0) || (line == 6))
     {
         text[textPointer++] = TXT_2BYTE;
         text[textPointer++] = TXT2BYTE_ResetMenu;

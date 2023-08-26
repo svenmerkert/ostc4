@@ -111,6 +111,9 @@ void simulation_start(int aim_depth, uint16_t aim_time_minutes)
 void simulation_exit(void)
 {
     timer_Stopwatch_Stop();
+
+    disableTimer();
+
     set_stateUsedToReal();
 }
 
