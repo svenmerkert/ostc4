@@ -94,6 +94,7 @@ static uint8_t activeUartChannel = 0;							/* Index of the sensor port which is
 
 
 static void externalInface_MapUartToLegacyADC(uint8_t* pMap);
+static void externalInterface_CheckBaudrate(uint8_t sensorType);
 
 void externalInterface_Init(void)
 {
@@ -744,14 +745,18 @@ void externalInterface_AutodetectSensor()
 #ifdef ENABLE_CO2_SUPPORT
 									if(externalAutoDetect == DETECTION_CO2_0)
 									{
-										UART_MUX_SelectAddress(0);
+										tmpSensorMap[uartMuxChannel + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
+										if(foundSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
+										{
+											UART_MUX_SelectAddress(0);
+										}
 										activeUartChannel = 0;
 										tmpSensorMap[uartMuxChannel - 1 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
 										uartMuxChannel = 1;
 										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET] = SENSOR_CO2;
 										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET] = UART_COMMON_INIT;
-										externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
-										if(tmpSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)		/* switch sensor operation mode depending on HW config */
+										externalInterface_CheckBaudrate(SENSOR_CO2);
+										if(foundSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)		/* switch sensor operation mode depending on HW config */
 										{
 											uartCo2_SendCmd(CO2CMD_MODE_POLL, cmdString, &cmdLength);
 										}
@@ -771,13 +776,13 @@ void externalInterface_AutodetectSensor()
 									}
 									else if(foundSensorMap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)
 									{
-										externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+										externalInterface_CheckBaudrate(SENSOR_DIGO2);
 										UART_MUX_SelectAddress(uartMuxChannel);
 										activeUartChannel = uartMuxChannel;
 										tmpSensorMap[uartMuxChannel - 1 + EXT_INTERFACE_MUX_OFFSET] = SENSOR_NONE;
 										tmpSensorMap[EXT_INTERFACE_MUX_OFFSET + uartMuxChannel] = SENSOR_CO2;
 										externalInterface_SensorState[EXT_INTERFACE_MUX_OFFSET + uartMuxChannel] = UART_COMMON_INIT;
-										externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+										externalInterface_CheckBaudrate(SENSOR_CO2);
 										uartCo2_SendCmd(CO2CMD_MODE_POLL, cmdString, &cmdLength);
 										externalAutoDetect++;
 										uartMuxChannel++;
@@ -932,7 +937,6 @@ uint8_t ExternalInterface_SelectUsedMuxChannel(uint8_t currentChannel)
 
 void externalInterface_CheckBaudrate(uint8_t sensorType)
 {
-	static uint32_t lastBaudRate = 0;
 	uint32_t newBaudrate = 0;
 
 	switch(sensorType)
@@ -943,10 +947,9 @@ void externalInterface_CheckBaudrate(uint8_t sensorType)
 		default:	newBaudrate = 19200;
 			break;
 	}
-	if(lastBaudRate != newBaudrate)
+	if(huart1.Init.BaudRate != newBaudrate)
 	{
 		UART_ChangeBaudrate(newBaudrate);
-		lastBaudRate = newBaudrate;
 	}
 }
 
@@ -967,15 +970,16 @@ void externalInterface_HandleUART()
 
 		if(activeUartChannel == 0xFF)
 		{
+			MX_USART1_UART_Init();
 			activeUartChannel = ExternalInterface_SelectUsedMuxChannel(0);
 			uartO2_SetChannel(activeUartChannel);
 
 			switch(pmap[activeUartChannel + EXT_INTERFACE_MUX_OFFSET])
 			{
-				case SENSOR_CO2: externalInterface_SwitchUART(EXT_INTERFACE_UART_CO2 >> 8);
+				case SENSOR_CO2: externalInterface_CheckBaudrate(SENSOR_CO2);
 					break;
 				default:
-				case SENSOR_DIGO2: externalInterface_SwitchUART(EXT_INTERFACE_UART_O2 >> 8);
+				case SENSOR_DIGO2: externalInterface_CheckBaudrate(SENSOR_DIGO2);
 					break;
 			}
 			if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)

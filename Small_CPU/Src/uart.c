@@ -202,7 +202,7 @@ void UART_StartDMA_Receiption()
 
 void UART_ChangeBaudrate(uint32_t newBaudrate)
 {
-
+	uint8_t dmaWasActive = dmaActive;
 //	HAL_DMA_Abort(&hdma_usart1_rx);
 		MX_USART1_UART_DeInit();
 		//HAL_UART_Abort(&huart1);
@@ -213,8 +213,9 @@ void UART_ChangeBaudrate(uint32_t newBaudrate)
 	huart1.Init.BaudRate = newBaudrate;
 	HAL_UART_Init(&huart1);
 	MX_USART1_DMA_Init();
-	if(dmaActive)
+	if(dmaWasActive)
 	{
+		memset(rxBuffer,BUFFER_NODATA,sizeof(rxBuffer));
 		rxReadIndex = 0;
 		rxWriteIndex = 0;
 		dmaActive = 0;
@@ -392,10 +393,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     	}
     	if((rxWriteIndex / CHUNK_SIZE) != (rxReadIndex / CHUNK_SIZE) || (rxWriteIndex == rxReadIndex))	/* start next transfer if we did not catch up with read index */
     	{
-    		if(externalInterface_GetUARTProtocol() != 0)
-    		{
-				UART_StartDMA_Receiption();
-    		}
+			UART_StartDMA_Receiption();
     	}
     }
 }
@@ -441,7 +439,8 @@ void UART_FlushRxBuffer(void)
 			rxReadIndex = 0;
 		}
 	}
-
 }
+
+
 
 /************************ (C) COPYRIGHT heinrichs weikamp *****END OF FILE****/

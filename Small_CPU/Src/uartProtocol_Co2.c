@@ -39,6 +39,8 @@ float pCO2 = 0.0;
 
 void uartCo2_SendCmd(uint8_t CO2Cmd, uint8_t *cmdString, uint8_t *cmdLength)
 {
+	*cmdLength = 0;
+
 	switch (CO2Cmd)
 	{
 		case CO2CMD_MODE_POLL:		*cmdLength = snprintf((char*)cmdString, 10, "K 2\r\n");
@@ -80,6 +82,7 @@ void uartCo2_Control(void)
 
 	if(localComState == UART_CO2_INIT)
 	{
+		CO2Connected = 0;
 		externalInterface_SetCO2Scale(0.0);
 		UART_StartDMA_Receiption();
 		localComState = UART_CO2_SETUP;
@@ -100,6 +103,7 @@ void uartCo2_Control(void)
 		if(localComState == UART_CO2_CALIBRATE)
 		{
 			uartCo2_SendCmd(CO2CMD_CALIBRATE, cmdString, &cmdLength);
+			localComState = UART_CO2_IDLE;
 		}
 		else if(pmap[EXT_INTERFACE_SENSOR_CNT-1] == SENSOR_MUX)		/* sensor is working in polling mode if mux is connected to avoid interference with other sensors */
 		{
@@ -118,6 +122,7 @@ void uartCo2_Control(void)
 		else
 		{
 			localComState = UART_CO2_OPERATING;					/* sensor in streaming mode if not connected to mux => operating */
+			UART_StartDMA_Receiption();
 		}
 	}
 	lastComState = localComState;
@@ -159,19 +164,32 @@ void uartCo2_ProcessData(uint8_t data)
 			if(rxState == RX_Data5)
 			{
 				rxState = RX_DataComplete;
-				CO2Connected = 1;
 			}
 		}
 		else	/* protocol error data has max 5 digits */
 		{
-			rxState = RX_Ready;
+			if(rxState != RX_DataComplete)	/* commands will not answer with number values */
+			{
+				rxState = RX_Ready;
+			}
 		}
 	}
 	if((data == ' ') || (data == '\n'))	/* Abort data detection */
 	{
 		if(rxState == RX_DataComplete)
 		{
-			localComState = UART_CO2_IDLE;
+			CO2Connected = 1;
+			if(localComState == UART_CO2_SETUP)
+			{
+				if(dataType == '.')
+				{
+					localComState = UART_CO2_IDLE;
+				}
+			}
+			else
+			{
+				localComState = UART_CO2_IDLE;
+			}
 			if(externalInterface_GetCO2State() == 0)
 			{
 				externalInterface_SetCO2State(EXT_INTERFACE_33V_ON);
