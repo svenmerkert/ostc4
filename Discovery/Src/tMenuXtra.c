@@ -170,6 +170,10 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
 
              if (!canDoFallback) {
                  text[textPointer++] = '\020';
+                 disableLine(StMXTRA_O2_Fallback);
+             }
+             else {
+            	 enableLine(StMXTRA_O2_Fallback);
              }
              strcpy(&text[textPointer],"\n\r");
              textPointer += 2;

@@ -59,6 +59,7 @@
 #define KEY_LABEL_HIGH	25	/* Height of the label used for the the user keys */
 
 #define SLOW_UPDATE_CNT	10	/* Some content shall not be update in short intervals => add prescalar */
+#define MAXLINES	6
 
 typedef struct
 {
@@ -70,8 +71,9 @@ typedef struct
     uint8_t 	pageCountNumber[MAXPAGES+1];
     uint8_t 	pageCountTotal;
     uint8_t		modeFlipPages;
-    uint8_t		shadowPage[MAXPAGES+1];		/* the page is switch in the context of another page */
-    uint8_t	    activeShadow;				/* Base page which is used for the shadow */
+    uint8_t		shadowPage[MAXPAGES+1];			/* the page is switched in the context of another page */
+    uint8_t	    activeShadow;					/* Base page which is used for the shadow */
+    uint8_t		disableLineMask[MAXPAGES+1];	/* Bitfield used to disable a line. The line is visible but will not be selected by cursor) */
 } SMenuMemory;
 
 /* Exported variables --------------------------------------------------------*/
@@ -87,6 +89,9 @@ static GFX_DrawCfgScreen	tMscreen;
 static SMenuMemory	menu;
 
 uint8_t actual_menu_content  = MENU_UNDEFINED;
+
+
+
 
 /* Private function prototypes -----------------------------------------------*/
 static void draw_tMheader(uint8_t page);
@@ -149,6 +154,7 @@ void tM_init(void)
         menu.StartAddressForPage[i] = 0;
         menu.linesAvailableForPage[i] = 0;
         menu.shadowPage[i] = 0;
+        menu.disableLineMask[i] = 0;
     }
 
     tMscreen.FBStartAdress = 0;
@@ -234,6 +240,29 @@ void tM_check_content(void)
     }
 }
 
+void disableLine(uint32_t lineId)
+{
+	SStateList idList;
+
+	get_idSpecificStateList(lineId, &idList);
+
+	if((idList.page < MAXPAGES) && (idList.line < MAXLINES))
+	{
+		menu.disableLineMask[idList.page] |= (1 << idList.line);
+	}
+}
+
+void enableLine(uint32_t lineId)
+{
+	SStateList idList;
+
+	get_idSpecificStateList(lineId, &idList);
+
+	if((idList.page < MAXPAGES) && (idList.line < MAXLINES))
+	{
+		menu.disableLineMask[idList.page] &= ~(1 << idList.line);
+	}
+}
 
 static void clean_line_actual_page(void)
 {
@@ -450,6 +479,11 @@ static void findValidPosition(uint8_t *pageOuput, uint8_t *lineOutput)
 
     if(line == 0)
         line = 1;
+
+    if(menu.disableLineMask[page] & ( 1 << line))
+    {
+    	line++;
+    }
 
     if(line > menu.linesAvailableForPage[page])
         line = 1;

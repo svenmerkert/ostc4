@@ -180,6 +180,13 @@
 #define StMSP			_MB(2,3,0,0,0)
 
 /* PAGE 3 EDIT FIELD CONTENT */
+#define StMSP_SPLow		_MB(2,3,1,0,0)
+#define StMSP_SPHigh	_MB(2,3,2,0,0)
+#define StMSP_SPDeco	_MB(2,3,3,0,0)
+#define StMSP_Blank		_MB(2,3,4,0,0)
+#define StMSP_DelayDeco	_MB(2,3,5,0,0)
+#define StMSP_Auto		_MB(2,3,6,0,0)
+
 #define StMSP_ppo2_setting	_MB(2,3,255,1,0)
 #define StMSP_Active				_MB(2,3,255,3,0)
 
