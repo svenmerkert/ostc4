@@ -648,13 +648,19 @@ void tHome_tick(void)
         }
     }
 
-    if((stateUsed->mode == MODE_SURFACE) && (stateUsed->diveSettings.ppo2sensors_deactivated != 0x07) && (stateUsed->diveSettings.ccrOption != 0) && (!t7_customview_disabled(CVIEW_sensors)))
+    if((stateUsed->mode == MODE_SURFACE) && (!t7_customview_disabled(CVIEW_sensors)))
     {
     	tHome_tick_count_o2sens++;
     	if(tHome_tick_count_o2sens > AUTORETURN_O2SENS)
     	{
     		tHome_tick_count_o2sens = 0;
-    		t7_select_customview(CVIEW_sensors);
+    		if((stateUsed->chargeStatus == CHARGER_off)
+    			|| (stateUsed->lifeData.ppO2Sensor_bar[0] != 0.0)
+    			|| (stateUsed->lifeData.ppO2Sensor_bar[1] != 0.0)
+				|| (stateUsed->lifeData.ppO2Sensor_bar[2] != 0.0))
+			{
+    			t7_select_customview(CVIEW_sensors);
+			}
     	}
     }
 
