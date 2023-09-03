@@ -59,6 +59,8 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
     *tab = 300;
     *subtext = 0;
 
+    resetLineMask(StMSYS);
+
     // dive mode
     if(actual_menu_content != MENU_SURFACE)
     {
@@ -80,16 +82,33 @@ uint32_t tMSystem_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext
 					TXT_2BYTE, customview_TXT2BYTE_helper(id));
         	}
         }
-        text[textPointer++] = TXT_2BYTE;
-        text[textPointer++] = TXT2BYTE_ButtonNext;
-        text[textPointer] = 0;
 
         for(;i<5;i++)	/* clear empty lines in case menu shows less than 5 entries */
         {
         	text[textPointer++]='\n';
         	text[textPointer++]='\r';
         	text[textPointer] = 0;
+        	switch(i)
+			{
+        		case 0:	disableLine(StMSYS_Custom0);
+        			break;
+        		case 1:	disableLine(StMSYS_Custom1);
+        		    break;
+        		case 2:	disableLine(StMSYS_Custom2);
+        			break;
+        		case 3:	disableLine(StMSYS_Custom3);
+        		    break;
+        		case 4:	disableLine(StMSYS_Custom4);
+        		    break;
+        		default:
+        		case 5:	disableLine(StMSYS_Custom5);
+        		    break;
+			}
         }
+
+        text[textPointer++] = TXT_2BYTE;
+        text[textPointer++] = TXT2BYTE_ButtonNext;
+        text[textPointer] = 0;
 
         return StMSYS;
     }

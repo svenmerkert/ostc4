@@ -44,7 +44,6 @@
 
 
 #define CV_PER_PAGE  		(5u)	/* number of cv selections shown at one page */
-#define CV_SUBPAGE_MAX		(2u)	/* max number of customer view selection pages */
 #define MAX_BACKLIGHT_BOOST (2u)	/* max number of backlight levels which may be increased during focus state */
 
 #define MAX_FOCUS_LIMITER	(2u)	/* max number for reducing the spot used for focus detection */
@@ -930,22 +929,19 @@ void openEdit_CustomviewDivemodeMenu(uint8_t line)
 {
 	static uint8_t customviewsSubpage = 0;
 	SSettings *pSettings = settingsGetPointer();
-	char text[MAX_PAGE_TEXTSIZE];
-	uint16_t tabPosition;
-	uint32_t id;
 
+	customviewsSubpageMax = (tHome_getNumberOfAvailableCVs(cv_changelist) / CV_PER_PAGE) + 1;
 
 	if((line == 6) || (cv_changelist[customviewsSubpage * 5 + line-1] == CVIEW_END))		/* select next set of views */
 	{
 		customviewsSubpage++;
-		if(customviewsSubpage == CV_SUBPAGE_MAX)
+		if(customviewsSubpage == customviewsSubpageMax)
 		{
 			customviewsSubpage = 0;
 		}
 		set_CustomsviewsSubpage(customviewsSubpage);
 		/* rebuild the selection page with the next set of customer views */
-		id = tMSystem_refresh(0, text, &tabPosition, NULL);
-		tM_build_page(id, text, tabPosition, NULL);
+		updateSpecificMenu(StMSYS);
 		openMenu(0);
 	}
 	else

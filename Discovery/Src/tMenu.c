@@ -252,6 +252,15 @@ void disableLine(uint32_t lineId)
 	}
 }
 
+void resetLineMask(uint32_t lineId)
+{
+	SStateList idList;
+	get_idSpecificStateList(lineId, &idList);
+	if(idList.page < MAXPAGES)
+	{
+		menu.disableLineMask[idList.page] = 0;
+	}
+}
 void enableLine(uint32_t lineId)
 {
 	SStateList idList;
@@ -480,9 +489,13 @@ static void findValidPosition(uint8_t *pageOuput, uint8_t *lineOutput)
     if(line == 0)
         line = 1;
 
-    if(menu.disableLineMask[page] & ( 1 << line))
+    while(menu.disableLineMask[page] & ( 1 << line))
     {
     	line++;
+    	if(line > menu.linesAvailableForPage[page])
+    	{
+    	    line = 1;
+    	}
     }
 
     if(line > menu.linesAvailableForPage[page])
@@ -712,6 +725,11 @@ void updateSpecificMenu(uint32_t id)
         tMSP_refresh(text, &tabPosition, subtext);
         update_content_with_new_frame(page, text, tabPosition, subtext);
         break;
+    case StMSYS:
+    	tMSystem_refresh(0, text, &tabPosition, NULL);
+    	update_content_with_new_frame(page, text, tabPosition, subtext);
+    	break;
+
     default:
         break;
     }
