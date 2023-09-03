@@ -594,6 +594,9 @@ void openEdit_O2Sensors(void)
 	{
 		write_field_on_off(StMHARD3_O2_Sensor3,	 30, 95, ME_Y_LINE3,  &FontT48, "", sensorActive[2]);
 	}
+
+	stateRealGetPointerWrite()->diveSettings.ppo2sensors_deactivated = pSettings->ppo2sensors_deactivated;
+
     if(settingsGetPointer()->ppo2sensors_deactivated & 1)
         sensorActive[0] = 0;
     if(settingsGetPointer()->ppo2sensors_deactivated & 2)
