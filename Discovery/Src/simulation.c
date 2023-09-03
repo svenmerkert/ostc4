@@ -130,6 +130,7 @@ void simulation_exit(void)
 void simulation_UpdateLifeData( _Bool checkOncePerSecond)
 {
     SDiveState * pDiveState = &stateSim;
+    const SDiveState * pRealState = stateRealGetPointer();
 	SSettings *pSettings;
 
     static int last_second = -1;
@@ -167,15 +168,20 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
         	}
         }
 
-        pDiveState->lifeData.temperature_celsius = stateRealGetPointer()->lifeData.temperature_celsius;
-        pDiveState->lifeData.battery_charge = stateRealGetPointer()->lifeData.battery_charge;
-        pDiveState->lifeData.compass_heading = stateRealGetPointer()->lifeData.compass_heading;
-        pDiveState->lifeData.compass_roll = stateRealGetPointer()->lifeData.compass_roll;
-        pDiveState->lifeData.compass_pitch = stateRealGetPointer()->lifeData.compass_pitch;
+        pDiveState->lifeData.temperature_celsius = pRealState->lifeData.temperature_celsius;
+        pDiveState->lifeData.battery_charge = pRealState->lifeData.battery_charge;
+        pDiveState->lifeData.compass_heading = pRealState->lifeData.compass_heading;
+        pDiveState->lifeData.compass_roll = pRealState->lifeData.compass_roll;
+        pDiveState->lifeData.compass_pitch = pRealState->lifeData.compass_pitch;
+
+        for(index = 0; index < 3; index++)
+        {
+        	memcpy(&pDiveState->lifeData.extIf_sensor_data[index], &pRealState->lifeData.extIf_sensor_data[index], 32);
+        }
 
 #ifdef ENABLE_BOTTLE_SENSOR
-        pDiveState->lifeData.bottle_bar[pDiveState->lifeData.actualGas.GasIdInSettings] = stateRealGetPointer()->lifeData.bottle_bar[stateRealGetPointer()->lifeData.actualGas.GasIdInSettings];
-        pDiveState->lifeData.bottle_bar_age_MilliSeconds[pDiveState->lifeData.actualGas.GasIdInSettings] = stateRealGetPointer()->lifeData.bottle_bar_age_MilliSeconds[stateRealGetPointer()->lifeData.actualGas.GasIdInSettings];
+        pDiveState->lifeData.bottle_bar[pDiveState->lifeData.actualGas.GasIdInSettings] = pRealState->lifeData.bottle_bar[pRealState->lifeData.actualGas.GasIdInSettings];
+        pDiveState->lifeData.bottle_bar_age_MilliSeconds[pDiveState->lifeData.actualGas.GasIdInSettings] = pRealState->lifeData.bottle_bar_age_MilliSeconds[pRealState->lifeData.actualGas.GasIdInSettings];
 #endif
         int now =  current_second();
         if( last_second == now)
@@ -201,18 +207,18 @@ void simulation_UpdateLifeData( _Bool checkOncePerSecond)
     pDiveState->lifeData.dive_time_seconds += 1;
     pDiveState->lifeData.pressure_ambient_bar = sim_get_ambient_pressure(pDiveState);
 
-    pDiveState->lifeData.sensorVoltage_mV[0] = stateRealGetPointer()->lifeData.sensorVoltage_mV[0] + simSensmVOffset[0];
+    pDiveState->lifeData.sensorVoltage_mV[0] = pRealState->lifeData.sensorVoltage_mV[0] + simSensmVOffset[0];
     if(pDiveState->lifeData.sensorVoltage_mV[0] < 0.0) { pDiveState->lifeData.sensorVoltage_mV[0] = 0.0; }
-    pDiveState->lifeData.sensorVoltage_mV[1] = stateRealGetPointer()->lifeData.sensorVoltage_mV[1] + simSensmVOffset[1];
+    pDiveState->lifeData.sensorVoltage_mV[1] = pRealState->lifeData.sensorVoltage_mV[1] + simSensmVOffset[1];
     if(pDiveState->lifeData.sensorVoltage_mV[1] < 0.0) { pDiveState->lifeData.sensorVoltage_mV[1] = 0.0; }
-    pDiveState->lifeData.sensorVoltage_mV[2] = stateRealGetPointer()->lifeData.sensorVoltage_mV[2] + simSensmVOffset[2];
+    pDiveState->lifeData.sensorVoltage_mV[2] = pRealState->lifeData.sensorVoltage_mV[2] + simSensmVOffset[2];
     if(pDiveState->lifeData.sensorVoltage_mV[2] < 0.0) { pDiveState->lifeData.sensorVoltage_mV[2] = 0.0; }
 
     pDiveState->lifeData.ppO2Sensor_bar[0]  = pDiveState->lifeData.sensorVoltage_mV[0] * localCalibCoeff[0] * pDiveState->lifeData.pressure_ambient_bar;
     pDiveState->lifeData.ppO2Sensor_bar[1]  = pDiveState->lifeData.sensorVoltage_mV[1] * localCalibCoeff[1] * pDiveState->lifeData.pressure_ambient_bar;
     pDiveState->lifeData.ppO2Sensor_bar[2]  = pDiveState->lifeData.sensorVoltage_mV[2] * localCalibCoeff[2] * pDiveState->lifeData.pressure_ambient_bar;
 
-    pDiveState->lifeData.CO2_data.CO2_ppm  = stateRealGetPointer()->lifeData.CO2_data.CO2_ppm;
+    pDiveState->lifeData.CO2_data.CO2_ppm  = pRealState->lifeData.CO2_data.CO2_ppm;
 
     if(is_ambient_pressure_close_to_surface(&pDiveState->lifeData)) // new hw 170214
     {
