@@ -55,16 +55,15 @@ uint32_t tMSP_refresh(char *text, uint16_t *tab, char *subtext)
 
     if((actual_menu_content == MENU_SURFACE) || (stateUsed->diveSettings.diveMode != DIVEMODE_PSCR))	/* do not show setpoints in PSCR mode */
     {
-    	if (settings->autoSetpoint) {
-    	    disableLine(StMSP_Blank);
-    	}
-        else {
-        	enableLine(StMSP_Blank);
+        if (settings->autoSetpoint) {
+            disableLine(StMSP_Blank);
+        } else {
+            enableLine(StMSP_Blank);
         }
+
 		for(int spId=1;spId<=NUM_GASES;spId++)
 		{
             if (settings->autoSetpoint) {
-            	disableLine(StMSP_Blank);
                 if (spId == 5) {
                     if (actual_menu_content == MENU_SURFACE) {
                         textPointer += snprintf(&text[textPointer], 40, "\020%c%c\016\016%c%c\017 %c%c\002%c\n\r", TXT_2BYTE, TXT2BYTE_SetpointShort, TXT_2BYTE, TXT2BYTE_SetpointLow, TXT_2BYTE, TXT2BYTE_SetpointDelayed, settings->delaySetpointLow ? '\005' : '\006');

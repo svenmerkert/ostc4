@@ -86,6 +86,8 @@ void set_globalState_tHome(void)
     }
     else
         set_globalState(StS);
+
+    clearDisabledMenuLines();
 }
 
 

@@ -90,6 +90,7 @@ void selectPage(uint32_t selection);
 void resetLineMask(uint32_t lineId);
 void disableLine(uint32_t lineId);
 void enableLine(uint32_t lineId);
+void clearDisabledMenuLines(void);
 
 char *makeGrey(bool isGrey);
 #endif /* TMENU_H */

@@ -129,6 +129,14 @@ void nextline(char * text, uint8_t *textPointer)
 }
 
 
+void clearDisabledMenuLines(void)
+{
+    for(unsigned i = 0; i <= MAXPAGES; i++) {
+        menu.disableLineMask[i] = 0;
+    }
+}
+
+
 void tM_init(void)
 {
     uint8_t i;
@@ -154,8 +162,9 @@ void tM_init(void)
         menu.StartAddressForPage[i] = 0;
         menu.linesAvailableForPage[i] = 0;
         menu.shadowPage[i] = 0;
-        menu.disableLineMask[i] = 0;
     }
+
+    clearDisabledMenuLines();
 
     tMscreen.FBStartAdress = 0;
     tMscreen.ImageHeight = 480;

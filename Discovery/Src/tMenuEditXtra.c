@@ -179,15 +179,10 @@ static void openEdit_CCRModeSensorOrFixedSP(void)
 {
     SSettings *pSettings = settingsGetPointer();
 
-    if(pSettings->CCR_Mode == CCRMODE_Sensors)
-    {
+    if(pSettings->CCR_Mode == CCRMODE_Sensors) {
         pSettings->CCR_Mode = CCRMODE_FixedSetpoint;
-        disableLine(StMXTRA_O2_Fallback);
-    }
-    else
-    {
+    } else {
         pSettings->CCR_Mode = CCRMODE_Sensors;
-        enableLine(StMXTRA_O2_Fallback);
     }
 
     exitEditWithUpdate();

@@ -152,45 +152,42 @@ uint32_t tMXtra_refresh(uint8_t line, char *text, uint16_t *tab, char *subtext)
         }
 
         if((line == 0) || (line == 2))
-         {
-             bool canDoFallback = pSettings->CCR_Mode == CCRMODE_Sensors;
-             if (!canDoFallback) {
-                 text[textPointer++] = '\031';
-             }
-             textPointer += snprintf(&text[textPointer], 60,\
-                 "%c"
-                 ,TXT_Fallback
-             );
+        {
+           bool canDoFallback = pSettings->CCR_Mode == CCRMODE_Sensors;
+           if (!canDoFallback) {
+               text[textPointer++] = '\031';
+           }
+           textPointer += snprintf(&text[textPointer], 60,\
+               "%c"
+               ,TXT_Fallback
+           );
 
-             text[textPointer++] = '\t';
-             if(settingsGetPointer()->fallbackToFixedSetpoint && canDoFallback)
-                 text[textPointer++] = '\005';
-             else
-                 text[textPointer++] = '\006';
+           text[textPointer++] = '\t';
+           if(settingsGetPointer()->fallbackToFixedSetpoint && canDoFallback)
+               text[textPointer++] = '\005';
+           else
+               text[textPointer++] = '\006';
 
-             if (!canDoFallback) {
-                 text[textPointer++] = '\020';
-                 disableLine(StMXTRA_O2_Fallback);
-             }
-             else {
-            	 enableLine(StMXTRA_O2_Fallback);
-             }
-             strcpy(&text[textPointer],"\n\r");
-             textPointer += 2;
-         }
+           if (!canDoFallback) {
+               text[textPointer++] = '\020';
+               disableLine(StMXTRA_O2_Fallback);
+           } else {
+               enableLine(StMXTRA_O2_Fallback);
+           }
+           strcpy(&text[textPointer],"\n\r");
+           textPointer += 2;
+        }
 
 
         if((line == 0) || (line == 3))
-         {
-             textPointer += snprintf(&text[textPointer], 60,\
-                 "%c"
-                 ,TXT_ScrubTime
-             );
-             strcpy(&text[textPointer],"\n\r");
-             textPointer += 2;
-         }
-
-
+        {
+            textPointer += snprintf(&text[textPointer], 60,\
+                "%c"
+                ,TXT_ScrubTime
+            );
+            strcpy(&text[textPointer],"\n\r");
+            textPointer += 2;
+        }
 
 #ifdef ENABLE_PSCR_MODE
         if(pSettings->dive_mode == DIVEMODE_PSCR)
