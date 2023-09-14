@@ -68,8 +68,8 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
     .signature = "mh",
 
     .release_year = 23,
-    .release_month = 8,
-    .release_day = 26,
+    .release_month = 9,
+    .release_day = 14,
     .release_sub = 0,
 
     /* max 48 with trailing 0 */
