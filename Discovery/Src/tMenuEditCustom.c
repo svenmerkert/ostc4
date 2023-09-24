@@ -58,6 +58,7 @@ void openEdit_MotionCtrl(void);
 void openEdit_ViewPort(void);
 void refresh_Customviews(void);
 char customview_TXT2BYTE_helper(uint8_t customViewId);
+char customviewBF_TXT2BYTE_helper(uint8_t customViewId);
 /* Announced function prototypes -----------------------------------------------*/
 uint8_t OnAction_CViewTimeout  (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
 uint8_t OnAction_CViewStandard (uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action);
@@ -110,7 +111,7 @@ void refresh_Customviews(void)
     text[2] = ' ';
     text[3] = ' ';
     text[4] = TXT_2BYTE;
-    text[5] = customview_TXT2BYTE_helper(settingsGetPointer()->tX_customViewPrimaryBF);
+    text[5] = customviewBF_TXT2BYTE_helper(settingsGetPointer()->tX_customViewPrimaryBF);
     text[6] = 0;
     write_label_var(  30, 700, ME_Y_LINE3, &FontT48, text);
 
@@ -470,20 +471,15 @@ char customview_TXT2BYTE_helper(uint8_t customViewId)
         text = TXT2BYTE_Compass;
         break;
     case CVIEW_Decolist:
-    case CVIEW_T3_Decostop:
         text = TXT2BYTE_Decolist;
         break;
     case CVIEW_Tissues:
         text = TXT2BYTE_Tissues;
         break;
     case CVIEW_Profile:
-#ifdef ENABLE_T3_PROFILE_VIEW
-    case CVIEW_T3_Profile:
-#endif
         text = TXT2BYTE_Profile;
         break;
     case CVIEW_Gaslist:
-    case CVIEW_T3_GasList:
         text = TXT2BYTE_Gaslist;
         break;
     case CVIEW_EADTime:
@@ -497,6 +493,37 @@ char customview_TXT2BYTE_helper(uint8_t customViewId)
         break;
     case CVIEW_noneOrDebug:
     	text = TXT2BYTE_DispNoneDbg;
+    	break;
+    default:
+        break;
+    }
+    return text;
+}
+char customviewBF_TXT2BYTE_helper(uint8_t customViewId)
+{
+    char text = 0;
+
+    switch(customViewId)
+    {
+    case CVIEW_T3_noneOrDebug:
+    	text = TXT2BYTE_DispNoneDbg;
+        break;
+    case CVIEW_T3_sensors:
+        text = TXT2BYTE_O2monitor;
+        break;
+    case CVIEW_T3_Compass:
+        text = TXT2BYTE_Compass;
+        break;
+    case CVIEW_T3_Decostop:
+        text = TXT2BYTE_Decolist;
+        break;
+#ifdef ENABLE_T3_PROFILE_VIEW
+    case CVIEW_T3_Profile:
+        text = TXT2BYTE_Profile;
+        break;
+#endif
+    case CVIEW_T3_GasList:
+        text = TXT2BYTE_Gaslist;
         break;
     case CVIEW_T3_MaxDepth:
     	text = TXT2BYTE_MaxDepth;
@@ -524,7 +551,6 @@ char customview_TXT2BYTE_helper(uint8_t customViewId)
     }
     return text;
 }
-
 
 uint8_t OnAction_CViewTimeout(uint32_t editId, uint8_t blockNumber, uint8_t digitNumber, uint8_t digitContent, uint8_t action)
 {
@@ -603,7 +629,7 @@ uint8_t OnAction_CViewStandardBF(uint32_t editId, uint8_t blockNumber, uint8_t d
     uint8_t newValue;
 
 	/* list contains all views which may be selected => get index of current setting */
-	while((settingsGetPointer()->tX_customViewPrimaryBF != cv_changelist_BS[index])	 || (cv_changelist_BS[index] == CVIEW_T3_END))
+	while((settingsGetPointer()->tX_customViewPrimaryBF != cv_changelist_BS[index])	 && (cv_changelist_BS[index] != CVIEW_T3_END))
 	{
 		index++;
 	}
@@ -1001,29 +1027,31 @@ void CustomviewDivemode_refresh()
  			if(pcv_curchangelist == cv_changelist)
  			{
  				text[textPointer++] = '\006' - CHECK_BIT_THOME(pSettings->cv_configuration,id);
+ 				text[textPointer++] = ' ';
+ 				textPointer += snprintf(&text[textPointer], 60,	"%c%c\n\r",	TXT_2BYTE, customview_TXT2BYTE_helper(id));
  			}
  			else
  			{
  				text[textPointer++] = '\006' - CHECK_BIT_THOME(pSettings->cv_config_BigScreen,id);
+ 				text[textPointer++] = ' ';
+ 				textPointer += snprintf(&text[textPointer], 60,	"%c%c\n\r",	TXT_2BYTE, customviewBF_TXT2BYTE_helper(id));
  			}
-			text[textPointer++] = ' ';
-			textPointer += snprintf(&text[textPointer], 60,	"%c%c\n\r",	TXT_2BYTE, customview_TXT2BYTE_helper(id));
 
-				switch(i)
-				{
-					case 0: 	write_label_var( 30, 800, ME_Y_LINE1, &FontT48, text);
-						break;
-					case 1:		write_label_var( 30, 800, ME_Y_LINE2, &FontT48, text);
-						break;
-					case 2: 	write_label_var( 30, 800, ME_Y_LINE3, &FontT48, text);
-						break;
-					case 3: 	write_label_var( 30, 800, ME_Y_LINE4, &FontT48, text);
-						break;
-					case 4: 	write_label_var( 30, 800, ME_Y_LINE5, &FontT48, text);
-						break;
-					default:
-						break;
-				}
+			switch(i)
+			{
+				case 0: 	write_label_var( 30, 800, ME_Y_LINE1, &FontT48, text);
+					break;
+				case 1:		write_label_var( 30, 800, ME_Y_LINE2, &FontT48, text);
+					break;
+				case 2: 	write_label_var( 30, 800, ME_Y_LINE3, &FontT48, text);
+					break;
+				case 3: 	write_label_var( 30, 800, ME_Y_LINE4, &FontT48, text);
+					break;
+				case 4: 	write_label_var( 30, 800, ME_Y_LINE5, &FontT48, text);
+					break;
+				default:
+					break;
+			}
      	}
      }
      if(customviewsSubpageMax != 1)

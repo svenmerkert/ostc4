@@ -38,6 +38,7 @@
 #include "data_central.h"
 
 static uint8_t settingsWarning = 0;		/* Active if setting values have been corrected */
+static SSettingsStatus SettingsStatus;  /* Structure containing number of corrections and first occurrence */
 
 SSettings Settings;
 
@@ -61,15 +62,15 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
 {
     .versionFirst   = 1,
     .versionSecond 	= 6,
-    .versionThird   = 4,
+    .versionThird   = 5,
     .versionBeta    = 0,
 
     /* 4 bytes with trailing 0 */
     .signature = "mh",
 
     .release_year = 23,
-    .release_month = 9,
-    .release_day = 14,
+    .release_month = 8,
+    .release_day = 26,
     .release_sub = 0,
 
     /* max 48 with trailing 0 */
@@ -88,7 +89,7 @@ const SFirmwareData firmware_FirmwareData __attribute__( (section(".firmware_fir
  * There might even be entries with fixed values that have no range
  */
 const SSettings SettingsStandard = {
-    .header = 0xFFFF0027,
+    .header = 0xFFFF0028,
     .warning_blink_dsec = 8 * 2,
     .lastDiveLogId = 0,
     .logFlashNextSampleStartAddress = SAMPLESTART,
@@ -354,8 +355,11 @@ uint8_t checkValue(uint8_t value,uint8_t from, uint8_t to);
 ///					Additionally update the serial number if written via bluetooth
 ///
 //  ===============================================================================
+SSettings* pSettings;
 void set_new_settings_missing_in_ext_flash(void)
 {
+	uint32_t tmp = 0;
+
     // never delete this part setting the serial
     if(hardwareDataGetPointer()->secondarySerial != 0xFFFF)
     {
@@ -379,7 +383,7 @@ void set_new_settings_missing_in_ext_flash(void)
     settingsGetPointer()->firmwareVersion[2] = firmware_FirmwareData.versionThird;
     settingsGetPointer()->firmwareVersion[3] = firmware_FirmwareData.versionBeta;
 
-    SSettings* pSettings = settingsGetPointer();
+    pSettings = settingsGetPointer();
     const SSettings* pStandard = settingsGetPointerStandard();
 
     /* Pointing to the old header data => set new data depending on what had been added since last version */
@@ -478,13 +482,13 @@ void set_new_settings_missing_in_ext_flash(void)
     case 0xFFFF001A:
     	/* deactivate new views => to be activated by customer */
         pSettings->cv_config_BigScreen = 0xFFFFFFFF;
-        pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << CVIEW_T3_Navigation;
-        pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << CVIEW_T3_DepthData;
+        pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << (CVIEW_T3_Navigation + LEGACY_T3_START_ID_PRE_TIMER);
+        pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << (CVIEW_T3_DepthData + LEGACY_T3_START_ID_PRE_TIMER);
         // no break
     case 0xFFFF001B:
     	pSettings->compassInertia = 0; 			/* no inertia */
     	pSettings->tX_customViewPrimaryBF = CVIEW_T3_Decostop;
-    	pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << CVIEW_T3_DecoTTS;
+    	pSettings->cv_config_BigScreen &= pSettings->cv_configuration ^= 1 << (CVIEW_T3_DecoTTS + LEGACY_T3_START_ID_PRE_TIMER);
         // no break
     case 0xFFFF001C:
     	pSettings->viewPortMode = 0;
@@ -560,6 +564,25 @@ void set_new_settings_missing_in_ext_flash(void)
     	pSettings->ext_sensor_map[7] = SENSOR_NONE;
 
         // no break;
+    case 0xFFFF0027:
+    	tmp = pSettings->cv_config_BigScreen & 0x00000007;				/* position of first three view is keeps the same */
+    	/* Identify from which data version was in use before the update */
+    	if(pSettings->tX_customViewPrimaryBF == LEGACY_CV_END_POST_TIMER)	/* data version after introduction of timer (ID shift problem) */
+    	{
+    		pSettings->tX_customViewPrimaryBF = CVIEW_T3_Decostop;
+    	}
+    	else
+    	{
+    		if(pSettings->tX_customViewPrimaryBF >= 3)
+    		{
+    			pSettings->tX_customViewPrimaryBF -= LEGACY_T3_START_ID_PRE_TIMER - 3;
+    		}
+    	}
+    	pSettings->cv_config_BigScreen = pSettings->cv_config_BigScreen >> (LEGACY_T3_START_ID_PRE_TIMER - 3);
+    	pSettings->cv_config_BigScreen &= ~0x00000007;		/* just to be sure: clear lower three bits */
+    	pSettings->cv_config_BigScreen |= tmp;
+
+    	// no break;
     default:
         pSettings->header = pStandard->header;
         break; // no break before!!
@@ -658,15 +681,32 @@ bool checkAndFixSetpointSettings(void)
     return fixed;
 }
 
+static void setFirstCorrection(uint8_t Id)
+{
+	if(SettingsStatus.FirstCorrection == 0xFF)
+	{
+		SettingsStatus.FirstCorrection = Id;
+	}
+}
+
+void get_CorrectionStatus(SSettingsStatus* Status)
+{
+	if(Status != NULL)
+	{
+		memcpy(Status, &SettingsStatus,2);
+	}
+}
 
 uint8_t check_and_correct_settings(void)
 {
     uint32_t corrections = 0;
     uint8_t firstGasFoundOC = 0;
     uint8_t firstGasFoundCCR = 0;
+    uint8_t parameterId = 0;
 
 
     settingsWarning = 0; /* reset warning indicator */
+    SettingsStatus.FirstCorrection = 0xFF;
 
 /*	uint32_t header;
  */
@@ -677,8 +717,9 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.warning_blink_dsec = SettingsStandard.warning_blink_dsec;
             corrections++;
+            setFirstCorrection(parameterId);
         }
-
+        parameterId++;
 /*	uint8_t lastDiveLogId;
  */
 
@@ -688,8 +729,9 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.logFlashNextSampleStartAddress = SAMPLESTART;
             corrections++;
+            setFirstCorrection(parameterId);
         }
-
+        parameterId++;
 
 /*	uint8_t dive_mode; has to before the gases
  */
@@ -701,8 +743,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.dive_mode = DIVEMODE_OC;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 
 /*	SGasLine gas[1 + (2*NUM_GASES)];
  */
@@ -712,16 +755,19 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.gas[i].oxygen_percentage = 4;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.gas[i].oxygen_percentage > 100)
         {
             Settings.gas[i].oxygen_percentage = 100;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if((Settings.gas[i].oxygen_percentage + Settings.gas[i].helium_percentage) > 100)
         {
             Settings.gas[i].helium_percentage = 100 - Settings.gas[i].oxygen_percentage;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.gas[i].note.ub.deco)
         {
@@ -729,11 +775,13 @@ uint8_t check_and_correct_settings(void)
             {
                 Settings.gas[i].note.ub.active = 1;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
             if(Settings.gas[i].note.ub.travel == 1)
             {
                 Settings.gas[i].note.ub.travel = 0;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
         }
         if(Settings.gas[i].note.ub.travel)
@@ -742,11 +790,13 @@ uint8_t check_and_correct_settings(void)
             {
                 Settings.gas[i].note.ub.active = 1;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
             if(Settings.gas[i].note.ub.deco == 1)
             {
                 Settings.gas[i].note.ub.deco = 0;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
         }
         if(Settings.gas[i].note.ub.first)
@@ -755,16 +805,19 @@ uint8_t check_and_correct_settings(void)
             {
                 Settings.gas[i].note.ub.active = 1;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
             if(Settings.gas[i].note.ub.travel == 1)
             {
                 Settings.gas[i].note.ub.travel = 0;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
             if(Settings.gas[i].note.ub.deco == 1)
             {
                 Settings.gas[i].note.ub.deco = 0;
                 corrections++;
+                setFirstCorrection(parameterId);
             }
             if((i<=NUM_GASES) && (!firstGasFoundOC))
                 firstGasFoundOC = 1;
@@ -778,16 +831,19 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.gas[i].bottle_size_liter = 40;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.gas[i].depth_meter > 250)
         {
             Settings.gas[i].depth_meter = 250;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.gas[i].depth_meter_travel > 250)
         {
             Settings.gas[i].depth_meter_travel = 250;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         /*if(Settings.gas[i].note.ub.senderCode)
         {
@@ -797,7 +853,7 @@ uint8_t check_and_correct_settings(void)
         }
         */
     } // for(int i=1; i<=2*NUM_GASES;i++)
-
+    parameterId++;
     if(!firstGasFoundOC)
     {
         Settings.gas[1].note.ub.active = 1;
@@ -805,7 +861,9 @@ uint8_t check_and_correct_settings(void)
         Settings.gas[1].note.ub.travel = 0;
         Settings.gas[1].note.ub.deco = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(!firstGasFoundCCR)
     {
         Settings.gas[1 + NUM_GASES].note.ub.active = 1;
@@ -813,7 +871,9 @@ uint8_t check_and_correct_settings(void)
         Settings.gas[1 + NUM_GASES].note.ub.travel = 0;
         Settings.gas[1 + NUM_GASES].note.ub.deco = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
 /*	SSetpointLine setpoint[1 + NUM_GASES];
  */
     for(int i=1; i<=NUM_GASES;i++)
@@ -822,23 +882,27 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.setpoint[i].setpoint_cbar = MIN_PPO2_SP_CBAR;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.setpoint[i].setpoint_cbar > 160)
         {
             Settings.setpoint[i].setpoint_cbar = 160;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         if(Settings.setpoint[i].depth_meter > 250)
         {
             Settings.setpoint[i].depth_meter = 250;
             corrections++;
+            setFirstCorrection(parameterId);
         }
     }	// for(int i=1; i<=NUM_GASES;i++)
-
+    parameterId++;
     if (checkAndFixSetpointSettings()) {
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t CCR_Mode;
  */
     if(	(Settings.CCR_Mode != CCRMODE_Sensors) &&
@@ -847,8 +911,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.CCR_Mode = CCRMODE_FixedSetpoint;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	split2x4_Type deco_type;
  */
     if(	(Settings.deco_type.ub.standard != GF_MODE) &&
@@ -856,25 +921,32 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.deco_type.ub.standard = VPM_MODE;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.deco_type.ub.alternative != GF_MODE)
     {
         Settings.deco_type.ub.alternative = GF_MODE;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t ppO2_max_deco;
  */
     if(Settings.ppO2_max_deco > 190)
     {
         Settings.ppO2_max_deco = 190;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.ppO2_max_deco < 100)
     {
         Settings.ppO2_max_deco = 100;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
 
 /*	uint8_t ppO2_max_std;
  */
@@ -882,189 +954,225 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.ppO2_max_std = 190;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.ppO2_max_std < 100)
     {
         Settings.ppO2_max_std = 100;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t ppO2_min;
  */
     if(Settings.ppO2_min != 15)
     {
         Settings.ppO2_min = 15;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t CNS_max;
  */
     if(Settings.CNS_max != 90)
     {
         Settings.CNS_max = 90;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*  uint8_t ascent_MeterPerMinute_max;
  */
     if(Settings.ascent_MeterPerMinute_max != 30)
     {
         Settings.ascent_MeterPerMinute_max = 30;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t ascent_MeterPerMinute_showGraph;
  */
     if(Settings.ascent_MeterPerMinute_showGraph != 30)
     {
         Settings.ascent_MeterPerMinute_showGraph = 30;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t future_TTS;
  */
     if(Settings.future_TTS > 15)
     {
         Settings.future_TTS = 15;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t GF_high;
  */
     if(Settings.GF_high > 99)
     {
         Settings.GF_high = 99;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.GF_high < 45)
     {
         Settings.GF_high = 45;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t GF_low;
  */
     if(Settings.GF_low > 99)
     {
         Settings.GF_low = 99;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.GF_low < 10)
     {
         Settings.GF_low = 10;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.GF_low > Settings.GF_high)
     {
         Settings.GF_low = Settings.GF_high;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t aGF_high;
  */
     if(Settings.aGF_high > 99)
     {
         Settings.aGF_high = 99;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.aGF_high < 45)
     {
         Settings.aGF_high = 45;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t aGF_low;
  */
     if(Settings.aGF_low > 99)
     {
         Settings.aGF_low = 99;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.aGF_low < 10)
     {
         Settings.aGF_low = 10;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.aGF_low > Settings.aGF_high)
     {
         Settings.aGF_low = Settings.aGF_high;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	split2x4_Type VPM_conservatism;
  */
     if(Settings.VPM_conservatism.ub.standard > 5)
     {
         Settings.VPM_conservatism.ub.standard = 5;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.VPM_conservatism.ub.alternative > 5)
     {
         Settings.VPM_conservatism.ub.alternative = 5;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t safetystopDuration;
  */
     if(Settings.safetystopDuration > 5)
     {
         Settings.safetystopDuration = 5;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t AtemMinutenVolumenLiter;
  */
     if(Settings.AtemMinutenVolumenLiter != 25)
     {
         Settings.AtemMinutenVolumenLiter = 25;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t ReserveFractionDenominator;
  */
     if(Settings.ReserveFractionDenominator != 4)
     {
         Settings.ReserveFractionDenominator = 4;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t salinity;
  */
     if(Settings.salinity > 4)
     {
         Settings.salinity = 4;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t last_stop_depth_meter;
  */
     if(Settings.last_stop_depth_meter > 9)
     {
         Settings.last_stop_depth_meter = 9;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.last_stop_depth_meter < 3)
     {
         Settings.last_stop_depth_meter = 3;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t stop_increment_depth_meter;
  */
     if(Settings.stop_increment_depth_meter != 3)
     {
         Settings.stop_increment_depth_meter = 3;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t brightness;
  */
     if(Settings.brightness > 4)
     {
         Settings.brightness = 4;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t date_format;
  */
     if(	(Settings.date_format != DDMMYY) &&
@@ -1073,24 +1181,27 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.date_format = DDMMYY;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t selected_language;
  */
     if(Settings.selected_language >= LANGUAGE_END)
     {
         Settings.selected_language = LANGUAGE_English;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	char customtext[60];
  */
     if(Settings.customtext[59] != 0)
     {
         Settings.customtext[59] = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint16_t timeoutSurfacemode;
  */
     if(	(Settings.timeoutSurfacemode != 20) &&  // Quick Sleep Option
@@ -1098,72 +1209,81 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.timeoutSurfacemode = 120;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutMenuSurface;
  */
     if(Settings.timeoutMenuSurface != 120)
     {
         Settings.timeoutMenuSurface = 120;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutMenuDive;
  */
     if(Settings.timeoutMenuDive != 120)
     {
         Settings.timeoutMenuDive = 120;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutMenuEdit;
  */
     if(Settings.timeoutMenuEdit != 120)
     {
         Settings.timeoutMenuEdit = 120;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutInfo;
  */
     if(Settings.timeoutInfo != 120)
     {
         Settings.timeoutInfo = 120;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutInfoCompass;
  */
     if(Settings.timeoutInfoCompass != 60)
     {
         Settings.timeoutInfoCompass = 60;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t design;
  */
     if(Settings.design != 7)
     {
         Settings.design = 7;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint16_t timeoutDiveReachedZeroDepth;
  */
     if(Settings.timeoutDiveReachedZeroDepth != 300)
     {
         Settings.timeoutDiveReachedZeroDepth = 300;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint16_t divetimeToCreateLogbook;
  */
     if(Settings.divetimeToCreateLogbook != 60)
     {
         Settings.divetimeToCreateLogbook = 60;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t serialHigh;
  */
 
@@ -1205,13 +1325,16 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.ButtonResponsiveness[3] = MIN_BUTTONRESPONSIVENESS_GUI;
         corrections++;
+        setFirstCorrection(parameterId);
     }
     else
     if(Settings.ButtonResponsiveness[3] > MAX_BUTTONRESPONSIVENESS_GUI)
     {
         Settings.ButtonResponsiveness[3] = MAX_BUTTONRESPONSIVENESS_GUI;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     // flex values 0, 1, 2
     for(int i=0; i<3;i++)
     {
@@ -1219,15 +1342,17 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.ButtonResponsiveness[i] = MIN_BUTTONRESPONSIVENESS;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         else
         if(Settings.ButtonResponsiveness[i] > MAX_BUTTONRESPONSIVENESS) // 110+20
         {
             Settings.ButtonResponsiveness[i] = MAX_BUTTONRESPONSIVENESS;
             corrections++;
+            setFirstCorrection(parameterId);
         }
     }
-
+    parameterId++;
 /*	uint8_t buttonBalance[3];
  */
     for(int i=0; i<3;i++)
@@ -1236,52 +1361,60 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.buttonBalance[i] = 2;
             corrections++;
+            setFirstCorrection(parameterId);
         }
         else
         if(Settings.buttonBalance[i] > 5) // 3 = 0, 4 = +10, 5 = +20
         {
             Settings.buttonBalance[i] = 5;
             corrections++;
+            setFirstCorrection(parameterId);
         }
     }
-
+    parameterId++;
 /*	uint8_t nonMetricalSystem;
  */
     if(Settings.nonMetricalSystem > 1)
     {
         Settings.nonMetricalSystem = 1;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t fallbackToFixedSetpoint;
  */
     if(Settings.fallbackToFixedSetpoint > 1)
     {
         Settings.fallbackToFixedSetpoint = 1;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t bluetoothActive;
  */
     if(Settings.bluetoothActive > 1)
     {
         Settings.bluetoothActive = 1;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t safetystopDepth;
  */
     if(Settings.safetystopDepth > 6)
     {
         Settings.safetystopDepth = 6;
         corrections++;
+        setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.safetystopDepth < 3)
     {
         Settings.safetystopDepth = 3;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint32_t updateSettingsAllowedFromHeader;
  */
 
@@ -1291,80 +1424,90 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.ppo2sensors_deactivated = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t tX_colorscheme;
  */
     if(Settings.tX_colorscheme > 3)
     {
         Settings.tX_colorscheme = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t tX_userselectedLeftLowerCornerPrimary;
  */
     if(Settings.tX_userselectedLeftLowerCornerPrimary >= LLC_END)
     {
         Settings.tX_userselectedLeftLowerCornerPrimary = LLC_Temperature;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t tX_userselectedLeftLowerCornerTimeout;
  */
     if(Settings.tX_userselectedLeftLowerCornerTimeout > 60)
     {
         Settings.tX_userselectedLeftLowerCornerTimeout = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t tX_customViewPrimary;
  */
     if(Settings.tX_customViewPrimary >= CVIEW_END)
     {
         Settings.tX_customViewPrimary = 1;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t tX_customViewTimeout;
  */
     if(Settings.tX_customViewTimeout > 60)
     {
         Settings.tX_customViewTimeout = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t timeoutEnterButtonSelectDive;
  */
     if(Settings.timeoutEnterButtonSelectDive != 10)
     {
         Settings.timeoutEnterButtonSelectDive = 10;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t logbookOffset;
  */
     if(Settings.logbookOffset > 9000)
     {
         Settings.logbookOffset = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t alwaysShowPPO2;
  */
     if(Settings.alwaysShowPPO2 > 1)
     {
         Settings.alwaysShowPPO2 = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t extraDisplay;
  */
     if(Settings.extraDisplay >= EXTRADISPLAY_END)
     {
         Settings.extraDisplay = EXTRADISPLAY_BIGFONT;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	int8_t offsetPressure_mbar;
  */
     if((Settings.offsetPressure_mbar > PRESSURE_OFFSET_LIMIT_MBAR) ||
@@ -1372,8 +1515,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.offsetPressure_mbar = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	int8_t offsetTemperature_centigrad;
  */
     if((Settings.offsetTemperature_centigrad > 20) ||
@@ -1381,8 +1525,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.offsetTemperature_centigrad = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t gasConsumption_travel_l_min;
  */
     if((Settings.gasConsumption_travel_l_min < 5) ||
@@ -1390,8 +1535,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.gasConsumption_travel_l_min = 20;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t gasConsumption_bottom_l_min;
  */
     if((Settings.gasConsumption_bottom_l_min < 5) ||
@@ -1399,8 +1545,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.gasConsumption_bottom_l_min = 20;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t gasConsumption_deco_l_min;
  */
     if((Settings.gasConsumption_deco_l_min < 5) ||
@@ -1408,8 +1555,9 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.gasConsumption_deco_l_min = 20;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t showDebugInfo;
  */
 #ifdef BOOT16
@@ -1437,16 +1585,18 @@ uint8_t check_and_correct_settings(void)
         {
             Settings.display_toogle_desc = SettingsStandard.display_toogle_desc;
             corrections++;
+            setFirstCorrection(parameterId);
         }
-
+        parameterId++;
 /*	uint8_t debugModeOnStart;
  */
     if(Settings.debugModeOnStart > 1)
     {
         Settings.debugModeOnStart = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 
 /*	uint8_t IAmStolenPleaseKillMe;
  */
@@ -1463,44 +1613,50 @@ uint8_t check_and_correct_settings(void)
     {
         Settings.compassBearing = 0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
 
-
+    parameterId++;
 /*	uint8_t lastKnownBatteryPercentage;
  */
     if(Settings.lastKnownBatteryPercentage > 100)
     {
         Settings.lastKnownBatteryPercentage = 100;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t VPM_model
  */
     if((Settings.VPM_model !=  VPM_FROM_FORTRAN) && (Settings.VPM_model !=  VPM_BACHELORWORK))
     {
         Settings.VPM_model = VPM_FROM_FORTRAN;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
 /*	uint8_t Buehlmann_model
  */
     if((Settings.GF_model !=  BUEHLMANN_OSTC4) && (Settings.GF_model !=  BUEHLMANN_hwOS))
     {
         Settings.GF_model = BUEHLMANN_OSTC4;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.FlipDisplay > 1) /* only boolean values allowed */
    	{
     	Settings.FlipDisplay = 0;
 	    corrections++;
+	    setFirstCorrection(parameterId);
    	}
-
+    parameterId++;
 #ifdef ENABLE_MOTION_CONTROL
     if(Settings.MotionDetection >= MOTION_DETECT_END)
    	{
     	Settings.MotionDetection = MOTION_DETECT_OFF;
 	    corrections++;
+	    setFirstCorrection(parameterId);
    	}
 #else
     Settings.MotionDetection = MOTION_DETECT_OFF;
@@ -1509,22 +1665,28 @@ uint8_t check_and_correct_settings(void)
     Settings.viewPitch = 0.0;
     Settings.viewYaw = 0.0;
 #endif
-
+    parameterId++;
     if(Settings.compassInertia > MAX_COMPASS_COMP)
    	{
     	Settings.compassInertia = 0;
 	    corrections++;
+	    setFirstCorrection(parameterId);
    	}
+    parameterId++;
     if(Settings.tX_customViewPrimaryBF > CVIEW_T3_END)
     {
     	Settings.tX_customViewPrimaryBF = CVIEW_T3_Decostop;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.viewPortMode > MAX_VIEWPORT_MODE)
     {
     	Settings.viewPortMode = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.ppo2sensors_source >= O2_SENSOR_SOURCE_MAX)
     {
     	Settings.ppo2sensors_source = O2_SENSOR_SOURCE_OPTIC;
@@ -1532,64 +1694,81 @@ uint8_t check_and_correct_settings(void)
     	Settings.ppo2sensors_calibCoeff[1] = 0.0;
     	Settings.ppo2sensors_calibCoeff[2] = 0.0;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.amPMTime > 1) /* only boolean values allowed */
     {
     	Settings.amPMTime = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.autoSetpoint > 1) /* only boolean values allowed */
     {
     	Settings.autoSetpoint = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.scubberActiveId > 1)
     {
     	Settings.scubberActiveId = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if((Settings.scrubberData[0].TimerMax > MAX_SCRUBBER_TIME) || Settings.scrubberData[0].TimerCur < MIN_SCRUBBER_TIME || Settings.scrubberData[0].TimerCur > (int16_t)MAX_SCRUBBER_TIME)
     {
     	Settings.scrubberData[0].TimerMax = 0;
     	Settings.scrubberData[0].TimerCur = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if((Settings.scrubberData[1].TimerMax > MAX_SCRUBBER_TIME) || Settings.scrubberData[1].TimerCur < MIN_SCRUBBER_TIME || Settings.scrubberData[1].TimerCur > (int16_t)MAX_SCRUBBER_TIME)
     {
     	Settings.scrubberData[1].TimerMax = 0;
     	Settings.scrubberData[1].TimerCur = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.scrubTimerMode > SCRUB_TIMER_END)
     {
     	Settings.scrubTimerMode = SCRUB_TIMER_OFF;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if((Settings.pscr_lung_ratio > PSCR_MAX_LUNG_RATIO) || (Settings.pscr_lung_ratio < PSCR_MIN_LUNG_RATIO))
     {
     	Settings.pscr_lung_ratio = 10;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.pscr_o2_drop > PSCR_MAX_O2_DROP)
     {
     	Settings.pscr_o2_drop = 4;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.co2_sensor_active > 1)
     {
     	Settings.co2_sensor_active = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if(Settings.ext_uart_protocol > UART_MAX_PROTOCOL)
     {
     	Settings.ext_uart_protocol = 0;
     	corrections++;
+    	setFirstCorrection(parameterId);
     }
+    parameterId++;
     if((Settings.ext_sensor_map[0] >= SENSOR_END)
     		|| (Settings.ext_sensor_map[1] >= SENSOR_END)
 			|| (Settings.ext_sensor_map[2] >= SENSOR_END)
@@ -1608,34 +1787,40 @@ uint8_t check_and_correct_settings(void)
     	Settings.ext_sensor_map[6] = SENSOR_NONE;
     	Settings.ext_sensor_map[7] = SENSOR_NONE;
        	corrections++;
+       	setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(Settings.buttonLockActive > 1)
     {
         Settings.buttonLockActive = 1;
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if (Settings.compassDeclinationDeg > 99) {
         Settings.compassDeclinationDeg = 99;
 
         corrections++;
+        setFirstCorrection(parameterId);
     } else if (Settings.compassDeclinationDeg < -99) {
         Settings.compassDeclinationDeg = -99;
 
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if (Settings.timerDurationS > 599) {
         Settings.timerDurationS = 599;
 
         corrections++;
+        setFirstCorrection(parameterId);
     } else if (Settings.timerDurationS < 1) {
         Settings.timerDurationS = 1;
 
         corrections++;
+        setFirstCorrection(parameterId);
     }
-
+    parameterId++;
     if(corrections)
     {
     	settingsWarning = 1;
@@ -1647,6 +1832,7 @@ uint8_t check_and_correct_settings(void)
     	corrections = 255;
     }
 
+    SettingsStatus.Corrections = corrections;
     return (uint8_t)corrections;
 }
 

@@ -60,6 +60,9 @@ enum EXTRADISPLAYS
 		EXTRADISPLAY_END
 };
 
+#define LEGACY_T3_START_ID_PRE_TIMER  (15u) /* Value == index of the first real T3 view before introduction of timer */
+#define LEGACY_CV_END_POST_TIMER (15u)	/* Value CV_END in an intermediate version. Used to identify an indexing problem */
+
 enum CUSTOMVIEWS
 {
 		CVIEW_noneOrDebug = 0,
@@ -77,7 +80,14 @@ enum CUSTOMVIEWS
 		CVIEW_Charger,
 		CVIEW_CcrSummary,
         CVIEW_Timer,
-		CVIEW_END,
+		CVIEW_END = 31			/* The ID is used in shift operation => 31 is the max number of supported views */
+};
+
+enum CUSTOMVIEWS_BF
+{
+		CVIEW_T3_noneOrDebug = 0,
+		CVIEW_T3_sensors,
+		CVIEW_T3_Compass,
 		CVIEW_T3_Decostop,
 		CVIEW_T3_TTS,
 		CVIEW_T3_MaxDepth,
@@ -92,7 +102,7 @@ enum CUSTOMVIEWS
 #ifdef ENABLE_T3_PROFILE_VIEW
 		CVIEW_T3_Profile,
 #endif
-		CVIEW_T3_END
+		CVIEW_T3_END		/* The ID is used in shift operation => 31 is the max number of supported views */
 };
 
 // for custom view switch on/off 161122 hw
