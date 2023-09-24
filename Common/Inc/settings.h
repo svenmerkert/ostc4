@@ -176,6 +176,11 @@ enum {
     SETPOINT_INDEX_AUTO_DECO,
 };
 
+typedef struct
+{
+	uint8_t FirstCorrection;
+	uint8_t Corrections;
+} SSettingsStatus;
 
 /* SSettings
 	 * gas[0] and setpoint[0] are the special ones configurable during the dive
@@ -381,6 +386,7 @@ void settingsHelperButtonSens_keepPercentageValues(uint32_t inputValueRaw, uint8
 uint8_t settingsHelperButtonSens_translate_percentage_to_hwOS_values(uint8_t inputValuePercentage);
 uint8_t settingsHelperButtonSens_translate_hwOS_values_to_percentage(uint8_t inputValuePIC);
 
+void get_CorrectionStatus(SSettingsStatus* Status);
 void reset_SettingWarning();
 uint8_t isSettingsWarning();
 

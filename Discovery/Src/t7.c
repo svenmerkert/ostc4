@@ -2160,7 +2160,7 @@ void t7_refresh_customview(void)
     const SGasLine * pGasLine; // CVIEW_Gaslist
     uint8_t oxygen, helium; // CVIEW_Gaslist
     float depth, surface, fraction_nitrogen, fraction_helium, ead, end; // CVIEW_EADTime
-
+    SSettingsStatus SettingsStatus;
 	SSettings* pSettings;
 	pSettings = settingsGetPointer();
 
@@ -2266,15 +2266,11 @@ void t7_refresh_customview(void)
 		{
             if(warning_count_high_time)
             {
+            	get_CorrectionStatus(&SettingsStatus);
                 shiftWindowY0 += 20;
                 t7cC.WindowY0 -= shiftWindowY0;
                 textpointer = 0;
-                text[textpointer++] = '\001';
-                text[textpointer++] = TXT_2BYTE;
-                text[textpointer++] = TXT2BYTE_CheckSettings;
-                text[textpointer++] = '\n';
-                text[textpointer++] = '\r';
-                text[textpointer++] = 0;
+                snprintf(text,255,"\001%c%c\n\r\001%d|%d",TXT_2BYTE,TXT2BYTE_CheckSettings,SettingsStatus.FirstCorrection,SettingsStatus.Corrections);
                 GFX_write_string_color(&FontT42,&t7cC,text,1, CLUT_WarningRed);
                 t7cC.WindowY0 += shiftWindowY0;
             }
